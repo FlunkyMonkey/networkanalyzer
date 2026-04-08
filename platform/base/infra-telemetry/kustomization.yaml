@@ -2,11 +2,31 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # Infrastructure / Telemetry Plane
-# Add SNMP collectors, interface monitors, and related resources here in Phase 3.
+# Prometheus + Grafana foundation with exporters for MikroTik, UniFi, and Proxmox.
 
 labels:
   - pairs:
       app.kubernetes.io/component: infra-telemetry
     includeSelectors: false
 
-resources: []
+resources:
+  - snmp-module-configmap.yaml
+  - unpoller-deployment.yaml
+  - proxmox-exporter-deployment.yaml
+  - servicemonitors.yaml
+  - grafana-dashboards-configmap.yaml
+
+helmCharts:
+  - name: kube-prometheus-stack
+    repo: https://prometheus-community.github.io/helm-charts
+    version: "83.3.0"
+    releaseName: prometheus
+    namespace: network-observability
+    valuesFile: prometheus-values.yaml
+
+  - name: prometheus-snmp-exporter
+    repo: https://prometheus-community.github.io/helm-charts
+    version: "9.13.1"
+    releaseName: snmp-exporter
+    namespace: network-observability
+    valuesFile: snmp-exporter-values.yaml

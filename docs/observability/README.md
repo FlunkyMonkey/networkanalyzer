@@ -11,6 +11,8 @@ This directory contains design documentation for the GitOps-managed network obse
 | [acceptance-tests.md](acceptance-tests.md) | Acceptance test outline by domain |
 | [source-mapping.md](source-mapping.md) | Source-to-signal matrix and requirements mapping |
 | [gitops-structure.md](gitops-structure.md) | GitOps layout, ArgoCD model, and contribution guide |
+| [telemetry-plane.md](telemetry-plane.md) | Infrastructure telemetry components, metrics, and integration details |
+| [secrets-and-bootstrap.md](secrets-and-bootstrap.md) | Required secrets, bootstrap steps, and network prerequisites |
 
 ## Platform Structure
 

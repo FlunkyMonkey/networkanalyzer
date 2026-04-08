@@ -1,0 +1,260 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: infra-telemetry-dashboards
+  namespace: network-observability
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/component: infra-telemetry
+data:
+  # Grafana dashboard JSON files are loaded by the sidecar.
+  # Each key is a filename, each value is the dashboard JSON.
+
+  interface-utilization.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "Interface Bandwidth — Inbound (bits/s)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "expr": "rate(ifHCInOctets{ifDescr!~\"lo\"}[5m]) * 8",
+              "legendFormat": "{{ifDescr}} ({{ifAlias}})"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bps",
+              "custom": { "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "title": "Interface Bandwidth — Outbound (bits/s)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "targets": [
+            {
+              "expr": "rate(ifHCOutOctets{ifDescr!~\"lo\"}[5m]) * 8",
+              "legendFormat": "{{ifDescr}} ({{ifAlias}})"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bps",
+              "custom": { "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "title": "Interface Utilization %",
+          "type": "gauge",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+          "targets": [
+            {
+              "expr": "(rate(ifHCInOctets[5m]) * 8 / ifSpeed) * 100",
+              "legendFormat": "{{ifDescr}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "max": 100,
+              "thresholds": {
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 50 },
+                  { "color": "red", "value": 80 }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["network", "snmp", "mikrotik", "infra-telemetry"],
+      "templating": { "list": [] },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "Switch Interface Utilization",
+      "uid": "infra-iface-util"
+    }
+
+  unifi-clients.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "WLAN Client Bandwidth — RX (bits/s)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "expr": "rate(unifipoller_client_receive_bytes_total[5m]) * 8",
+              "legendFormat": "{{name}} ({{mac}})"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bps",
+              "custom": { "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "title": "WLAN Client Bandwidth — TX (bits/s)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "targets": [
+            {
+              "expr": "rate(unifipoller_client_transmit_bytes_total[5m]) * 8",
+              "legendFormat": "{{name}} ({{mac}})"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bps",
+              "custom": { "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "title": "Connected WLAN Clients",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 4, "w": 8, "x": 0, "y": 8 },
+          "targets": [
+            {
+              "expr": "count(unifipoller_client_receive_bytes_total{radio!=\"\"})",
+              "legendFormat": "WiFi Clients"
+            }
+          ]
+        },
+        {
+          "title": "AP Status",
+          "type": "table",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 4, "w": 16, "x": 8, "y": 8 },
+          "targets": [
+            {
+              "expr": "unifipoller_device_uptime_seconds",
+              "legendFormat": "{{name}}",
+              "format": "table",
+              "instant": true
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["network", "unifi", "wlan", "infra-telemetry"],
+      "templating": { "list": [] },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "UniFi AP & WLAN Clients",
+      "uid": "infra-unifi-clients"
+    }
+
+  proxmox-vms.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "VM Network In (bytes/s)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "expr": "rate(pve_guest_info_netin[5m])",
+              "legendFormat": "{{name}} ({{id}})"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps",
+              "custom": { "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "title": "VM Network Out (bytes/s)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "targets": [
+            {
+              "expr": "rate(pve_guest_info_netout[5m])",
+              "legendFormat": "{{name}} ({{id}})"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps",
+              "custom": { "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "title": "Node Network In (bytes/s)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "targets": [
+            {
+              "expr": "rate(pve_node_info_netin[5m])",
+              "legendFormat": "{{node}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps",
+              "custom": { "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "title": "Node Network Out (bytes/s)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "targets": [
+            {
+              "expr": "rate(pve_node_info_netout[5m])",
+              "legendFormat": "{{node}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps",
+              "custom": { "fillOpacity": 10 }
+            }
+          }
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["compute", "proxmox", "vm", "infra-telemetry"],
+      "templating": { "list": [] },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "Proxmox Node & VM Network",
+      "uid": "infra-proxmox-net"
+    }

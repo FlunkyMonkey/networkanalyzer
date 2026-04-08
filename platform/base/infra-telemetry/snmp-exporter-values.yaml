@@ -1,0 +1,30 @@
+# prometheus-snmp-exporter values for MikroTik CRS328 interface monitoring.
+# Chart version: 9.13.1
+
+serviceMonitor:
+  enabled: true
+  module:
+    - mikrotik
+  auth:
+    - mikrotik_v2
+  params:
+    - name: mikrotik-crs328
+      target: mikrotik-crs328.local
+      interval: 60s
+      scrapeTimeout: 30s
+
+# Mount the custom SNMP module config alongside the default.
+extraConfigmapMounts:
+  - name: snmp-modules
+    mountPath: /etc/snmp_exporter/snmp-modules
+    configMap: snmp-module-config
+    readOnly: true
+
+# Resource limits — SNMP exporter is lightweight.
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi

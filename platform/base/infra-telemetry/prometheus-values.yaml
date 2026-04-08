@@ -1,0 +1,66 @@
+# kube-prometheus-stack values for the network observability platform.
+# This provides the Prometheus + Grafana foundation for the infra-telemetry plane.
+
+# -- Prometheus
+prometheus:
+  prometheusSpec:
+    # Retain 30 days of granular data per approved retention model.
+    retention: 30d
+    # Storage — Ceph PVC backed.
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: ceph-block
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+    # Scrape all ServiceMonitors in this namespace.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    # Self-health: readiness and liveness are enabled by default in the chart.
+
+# -- Grafana
+grafana:
+  enabled: true
+  persistence:
+    enabled: true
+    storageClassName: ceph-block
+    size: 5Gi
+  # Auto-provision dashboards from ConfigMaps with the grafana_dashboard label.
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: network-observability
+  # Default admin credentials are created via a Kubernetes Secret.
+  # See docs/observability/secrets-and-bootstrap.md for setup instructions.
+  admin:
+    existingSecret: grafana-admin-credentials
+    userKey: admin-user
+    passwordKey: admin-password
+
+# -- Alertmanager
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: ceph-block
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 2Gi
+
+# -- Disable components not needed in Phase 3.
+# Kubernetes-level monitoring is Phase 5 scope.
+kubeEtcd:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeProxy:
+  enabled: false

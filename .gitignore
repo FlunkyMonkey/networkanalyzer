@@ -20,6 +20,8 @@ charts/*/tmpcharts/
 
 # Kustomize
 kustomize-build-output/
+# Helm chart caches pulled by kustomize --enable-helm
+platform/**/charts/
 
 # Claude Code local state
 .claude/

@@ -8,8 +8,7 @@ metadata:
 spec:
   project: default
   source:
-    # TODO: Replace with your Git repo URL
-    repoURL: https://github.com/OWNER/networkanalyzer.git
+    repoURL: https://github.com/FlunkyMonkey/networkanalyzer.git
     targetRevision: main
     path: platform/overlays/lab
   destination:
