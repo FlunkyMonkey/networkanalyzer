@@ -1,0 +1,25 @@
+# Secrets — never commit
+*.env
+.env.*
+secrets/
+credentials.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Helm
+charts/*/charts/
+charts/*/tmpcharts/
+
+# Kustomize
+kustomize-build-output/
+
+# Claude Code local state
+.claude/

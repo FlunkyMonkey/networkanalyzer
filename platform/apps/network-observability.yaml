@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: network-observability
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: network-observability
+spec:
+  project: default
+  source:
+    # TODO: Replace with your Git repo URL
+    repoURL: https://github.com/OWNER/networkanalyzer.git
+    targetRevision: main
+    path: platform/overlays/lab
+  destination:
+    # TODO: Replace with your cluster API server or use 'in-cluster'
+    server: https://kubernetes.default.svc
+    namespace: network-observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

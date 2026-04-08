@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Correlation / UX Plane
+# Add unified UI, entity search, and correlation resources here in Phase 6.
+
+labels:
+  - pairs:
+      app.kubernetes.io/component: correlation-ux
+    includeSelectors: false
+
+resources: []
