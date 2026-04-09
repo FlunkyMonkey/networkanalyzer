@@ -34,6 +34,9 @@ grafana:
       label: grafana_dashboard
       labelValue: "1"
       searchNamespace: network-observability
+  # Install the OpenSearch datasource plugin for cross-plane flow queries.
+  plugins:
+    - grafana-opensearch-datasource
   # Default admin credentials are created via a Kubernetes Secret.
   # See docs/observability/secrets-and-bootstrap.md for setup instructions.
   admin:

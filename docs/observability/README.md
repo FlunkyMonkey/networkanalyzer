@@ -17,6 +17,9 @@ This directory contains design documentation for the GitOps-managed network obse
 | [flow-ingest-and-cutover.md](flow-ingest-and-cutover.md) | Softflowd cutover steps and OpenSearch bootstrap procedures |
 | [k8s-visibility-plane.md](k8s-visibility-plane.md) | Kubernetes visibility architecture, ownership boundary, and capabilities |
 | [cni-migration-and-rollout.md](cni-migration-and-rollout.md) | Calico → Cilium migration runbook (prerequisite, managed in k8s-lab.git) |
+| [unified-ux-and-correlation.md](unified-ux-and-correlation.md) | Unified UX approach, dashboard organization, cross-plane data access |
+| [navigation-model.md](navigation-model.md) | Navigation structure, drill-down paths, link implementation |
+| [investigation-playbooks.md](investigation-playbooks.md) | Guided investigation workflows for common network scenarios |
 
 ## Platform Structure
 

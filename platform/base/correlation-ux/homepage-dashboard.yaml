@@ -1,0 +1,305 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homepage-dashboard
+  namespace: network-observability
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/component: correlation-ux
+data:
+  network-observability-home.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [
+        {
+          "asDropdown": true,
+          "icon": "external link",
+          "includeVars": false,
+          "keepTime": true,
+          "tags": ["specialist"],
+          "targetBlank": true,
+          "title": "Specialist Views",
+          "type": "dashboards"
+        },
+        {
+          "asDropdown": true,
+          "icon": "bolt",
+          "includeVars": false,
+          "keepTime": true,
+          "tags": ["playbook"],
+          "targetBlank": false,
+          "title": "Investigation Playbooks",
+          "type": "dashboards"
+        }
+      ],
+      "panels": [
+        {
+          "title": "",
+          "type": "text",
+          "gridPos": { "h": 2, "w": 24, "x": 0, "y": 0 },
+          "options": {
+            "mode": "markdown",
+            "content": "# Network Observability Platform\nPrimary investigation entry point. Cards below follow the locked homepage order. Use **Specialist Views** for deep drill-down. Use **Investigation Playbooks** for guided workflows."
+          }
+        },
+        {
+          "title": "Source Freshness",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 3, "w": 6, "x": 0, "y": 2 },
+          "targets": [
+            {
+              "expr": "min(up{job=~\".*snmp.*|.*unpoller.*|.*proxmox.*\"})",
+              "legendFormat": "Infra Exporters"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "type": "value", "options": { "0": { "text": "DEGRADED", "color": "red" }, "1": { "text": "HEALTHY", "color": "green" } } }
+              ],
+              "thresholds": {
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "green", "value": 1 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "title": "Prometheus Scrape Health",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 3, "w": 6, "x": 6, "y": 2 },
+          "targets": [
+            {
+              "expr": "count(up == 1) / count(up) * 100",
+              "legendFormat": "Targets Up %"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 80 },
+                  { "color": "green", "value": 95 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "title": "Flow Ingest Status",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 3, "w": 6, "x": 12, "y": 2 },
+          "targets": [
+            {
+              "expr": "up{job=~\".*vector.*|.*flow-collector.*\"}",
+              "legendFormat": "Flow Collector"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+              ]
+            }
+          }
+        },
+        {
+          "title": "Quick Links",
+          "type": "text",
+          "gridPos": { "h": 3, "w": 6, "x": 18, "y": 2 },
+          "options": {
+            "mode": "markdown",
+            "content": "**Specialist UIs:**\n- [OpenSearch Dashboards](http://opensearch-dashboards:5601) — Flow investigation\n- [Hubble UI](http://hubble-ui:80) — K8s workload visibility\n\n**Drill-Down:**\n- [Entity Investigation](/d/correlation-entity-investigation) — Path-style drill-down"
+          }
+        },
+        {
+          "title": "1. Top Talkers (by bytes, last 1h)",
+          "description": "Top source IPs by total bytes transferred. Click a row to drill into flow details.",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 5 },
+          "targets": [
+            {
+              "query": "",
+              "bucketAggs": [
+                { "type": "terms", "field": "src_ip", "id": "2", "settings": { "size": "20", "order": "desc", "orderBy": "1" } }
+              ],
+              "metrics": [
+                { "type": "sum", "field": "bytes", "id": "1" },
+                { "type": "sum", "field": "packets", "id": "3" },
+                { "type": "cardinality", "field": "dst_ip", "id": "4", "settings": { "precision_threshold": "100" } }
+              ],
+              "timeField": "@timestamp"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "filterable": true }
+            },
+            "overrides": [
+              { "matcher": { "id": "byName", "options": "Sum bytes" }, "properties": [{ "id": "unit", "value": "decbytes" }, { "id": "displayName", "value": "Bytes" }] },
+              { "matcher": { "id": "byName", "options": "Sum packets" }, "properties": [{ "id": "displayName", "value": "Packets" }] },
+              { "matcher": { "id": "byName", "options": "Unique Count dst_ip" }, "properties": [{ "id": "displayName", "value": "Unique Destinations" }] },
+              {
+                "matcher": { "id": "byName", "options": "src_ip" },
+                "properties": [
+                  { "id": "displayName", "value": "Source IP" },
+                  { "id": "links", "value": [
+                    { "title": "Investigate destinations for ${__value.text}", "url": "/d/correlation-entity-investigation?var-entity_ip=${__value.text}&var-direction=src" },
+                    { "title": "View flows in OpenSearch", "url": "http://opensearch-dashboards:5601/app/discover#/?_a=(query:(language:kuery,query:'src_ip:${__value.text}'))", "targetBlank": true }
+                  ]}
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "title": "2. Destinations — What is server X connecting to?",
+          "description": "Select a source IP to see its top destinations. Drill into OpenSearch for full flow detail.",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 13 },
+          "targets": [
+            {
+              "query": "src_ip:$source_ip",
+              "bucketAggs": [
+                { "type": "terms", "field": "dst_ip", "id": "2", "settings": { "size": "20", "order": "desc", "orderBy": "1" } },
+                { "type": "terms", "field": "dst_port", "id": "5", "settings": { "size": "5", "order": "desc", "orderBy": "1" } }
+              ],
+              "metrics": [
+                { "type": "sum", "field": "bytes", "id": "1" },
+                { "type": "max", "field": "dst_country", "id": "3" },
+                { "type": "max", "field": "app", "id": "4" }
+              ],
+              "timeField": "@timestamp"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "filterable": true }
+            },
+            "overrides": [
+              { "matcher": { "id": "byName", "options": "Sum bytes" }, "properties": [{ "id": "unit", "value": "decbytes" }, { "id": "displayName", "value": "Bytes" }] },
+              { "matcher": { "id": "byName", "options": "dst_ip" }, "properties": [{ "id": "displayName", "value": "Destination IP" }] },
+              { "matcher": { "id": "byName", "options": "dst_port" }, "properties": [{ "id": "displayName", "value": "Port" }] },
+              { "matcher": { "id": "byName", "options": "Max dst_country" }, "properties": [{ "id": "displayName", "value": "Country" }] },
+              { "matcher": { "id": "byName", "options": "Max app" }, "properties": [{ "id": "displayName", "value": "App" }] }
+            ]
+          }
+        },
+        {
+          "title": "3. WiFi Client Bandwidth — Client 7 & All Clients",
+          "description": "Per-client WLAN bandwidth from UnPoller. Tracks the locked 'WiFi Client 7' requirement.",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 21 },
+          "targets": [
+            {
+              "expr": "rate(unifipoller_client_receive_bytes_total[5m]) * 8",
+              "legendFormat": "{{name}} RX"
+            },
+            {
+              "expr": "rate(unifipoller_client_transmit_bytes_total[5m]) * 8",
+              "legendFormat": "{{name}} TX"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bps",
+              "custom": { "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "title": "Top Countries (by flow bytes)",
+          "type": "piechart",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 29 },
+          "targets": [
+            {
+              "query": "dst_country:*",
+              "bucketAggs": [
+                { "type": "terms", "field": "dst_country", "id": "2", "settings": { "size": "10", "order": "desc", "orderBy": "1" } }
+              ],
+              "metrics": [
+                { "type": "sum", "field": "bytes", "id": "1" }
+              ],
+              "timeField": "@timestamp"
+            }
+          ]
+        },
+        {
+          "title": "Busiest Switch Interfaces",
+          "type": "bargauge",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 29 },
+          "targets": [
+            {
+              "expr": "topk(10, rate(ifHCInOctets[5m]) * 8)",
+              "legendFormat": "{{ifDescr}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bps",
+              "thresholds": {
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 500000000 },
+                  { "color": "red", "value": 900000000 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "title": "Top Apps / Services (by flow bytes)",
+          "type": "bargauge",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 29 },
+          "targets": [
+            {
+              "query": "app:*",
+              "bucketAggs": [
+                { "type": "terms", "field": "app", "id": "2", "settings": { "size": "10", "order": "desc", "orderBy": "1" } }
+              ],
+              "metrics": [
+                { "type": "sum", "field": "bytes", "id": "1" }
+              ],
+              "timeField": "@timestamp"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "decbytes"
+            }
+          }
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["homepage", "correlation-ux"],
+      "templating": {
+        "list": [
+          {
+            "name": "source_ip",
+            "type": "textbox",
+            "label": "Source IP (for destination lookup)",
+            "current": { "text": "", "value": "" }
+          }
+        ]
+      },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "Network Observability — Home",
+      "uid": "correlation-home"
+    }
