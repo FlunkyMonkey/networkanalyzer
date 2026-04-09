@@ -7,7 +7,7 @@ replicas: 1
 
 persistence:
   enabled: true
-  storageClass: ceph-block
+  storageClass: rook-ceph-block
   size: 50Gi
 
 resources:

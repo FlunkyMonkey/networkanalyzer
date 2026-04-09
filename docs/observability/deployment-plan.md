@@ -16,21 +16,27 @@ This document defines the phased rollout model for the network observability pla
 - Markdown lint passes: `markdownlint docs/**/*.md`
 - Kubernetes cluster is healthy and accessible
 - ArgoCD is running and the private repo is registered
-- Cilium CNI is installed with Hubble and Relay enabled (managed in `k8s-lab.git`)
-- `network-observability` namespace can be created
-- Ceph StorageClass `ceph-block` is available
+- Rook-Ceph StorageClass is available (`rook-ceph-block` is the cluster default)
 - Network connectivity verified: MikroTik:161/udp, UniFi:8443/tcp, Proxmox:8006/tcp
+
+**Note:** Cilium/Hubble are NOT required for Wave 0. They are a prerequisite for Wave 4 (K8s visibility) only. Waves 1–3 can proceed without Cilium.
+
+**Already completed:**
+
+- `network-observability` namespace created
+- `grafana-admin-credentials` Secret created
+- `unpoller-credentials` Secret created
+- `proxmox-credentials` Secret created
 
 **Execution order:**
 
 1. Run `kustomize build --enable-helm platform/overlays/lab` — verify clean render
 1. Verify cluster access: `kubectl get nodes`
 1. Verify ArgoCD: `argocd repo list | grep networkanalyzer`
-1. Verify Cilium: `kubectl -n kube-system exec ds/cilium -- cilium status`
-1. Verify Hubble Relay: `kubectl -n kube-system get svc hubble-relay`
-1. Verify StorageClass: `kubectl get sc ceph-block`
-1. Create namespace: `kubectl create namespace network-observability`
-1. Create all required Secrets (see [secrets-and-bootstrap.md](secrets-and-bootstrap.md))
+1. Verify StorageClass: `kubectl get sc rook-ceph-block`
+1. Verify namespace exists: `kubectl get ns network-observability`
+1. Verify Secrets exist: `kubectl get secrets -n network-observability`
+1. Create `geoip-credentials` Secret if MaxMind key is available (optional)
 
 **Verification:**
 
@@ -137,7 +143,18 @@ This document defines the phased rollout model for the network observability pla
 
 **Purpose:** Verify Hubble UI connects to Hubble Relay and shows Kubernetes flow data.
 
-**Prerequisites:** Wave 1 passed. Cilium + Hubble are running in the cluster (prerequisite from Wave 0).
+**Prerequisites:**
+
+- Wave 1 passed
+- Cilium CNI is installed with Hubble and Relay enabled (managed in `k8s-lab.git`)
+- Hubble Relay is running and reachable at `hubble-relay.kube-system.svc.cluster.local:80`
+
+**Note:** This is the first wave that requires Cilium. If Cilium migration has not been completed yet, skip Wave 4 and proceed to Wave 5. K8s visibility can be activated later independently.
+
+**Pre-wave verification:**
+
+1. Verify Cilium is running: `kubectl -n kube-system exec ds/cilium -- cilium status`
+1. Verify Hubble Relay: `kubectl -n kube-system get deploy hubble-relay`
 
 **Execution order:**
 

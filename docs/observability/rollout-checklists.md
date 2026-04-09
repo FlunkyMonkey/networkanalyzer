@@ -4,23 +4,23 @@ Operator-executable checklists for each rollout wave. Print, execute line by lin
 
 ## Wave 0 — Preflight
 
+**Already completed:** Namespace, grafana-admin-credentials, unpoller-credentials, proxmox-credentials.
+
 | # | Check | Command | Expected | Pass |
 |---|---|---|---|---|
 | 0.1 | Kustomize renders | `kustomize build --enable-helm platform/overlays/lab \| grep '^kind:' \| wc -l` | ~149 objects, no errors | [ ] |
 | 0.2 | Markdown lint | `npx markdownlint-cli2 "docs/**/*.md"` | 0 errors | [ ] |
 | 0.3 | Cluster accessible | `kubectl get nodes` | All nodes Ready | [ ] |
 | 0.4 | ArgoCD repo registered | `argocd repo list \| grep networkanalyzer` | Repo listed | [ ] |
-| 0.5 | Cilium running | `kubectl -n kube-system get ds cilium` | DESIRED = READY | [ ] |
-| 0.6 | Hubble Relay running | `kubectl -n kube-system get deploy hubble-relay` | 1/1 Ready | [ ] |
-| 0.7 | StorageClass exists | `kubectl get sc ceph-block` | Exists | [ ] |
-| 0.8 | Namespace created | `kubectl create ns network-observability` | Created or already exists | [ ] |
-| 0.9 | Grafana secret created | `kubectl get secret grafana-admin-credentials -n network-observability` | Exists | [ ] |
-| 0.10 | UnPoller secret created | `kubectl get secret unpoller-credentials -n network-observability` | Exists | [ ] |
-| 0.11 | Proxmox secret created | `kubectl get secret proxmox-credentials -n network-observability` | Exists | [ ] |
-| 0.12 | GeoIP secret (optional) | `kubectl get secret geoip-credentials -n network-observability` | Exists or skipped | [ ] |
-| 0.13 | MikroTik reachable | `kubectl run snmp-test --rm -i --image=busybox -- nc -uzv mikrotik-crs328.local 161` | Connection succeeded | [ ] |
-| 0.14 | UniFi reachable | `kubectl run unifi-test --rm -i --image=busybox -- nc -zv unifi.local 8443` | Connection succeeded | [ ] |
-| 0.15 | Proxmox reachable | `kubectl run pve-test --rm -i --image=busybox -- nc -zv proxmox.local 8006` | Connection succeeded | [ ] |
+| 0.5 | StorageClass exists | `kubectl get sc rook-ceph-block` | Exists | [ ] |
+| 0.6 | Namespace exists | `kubectl get ns network-observability` | Exists | [ ] |
+| 0.7 | Secrets exist | `kubectl get secrets -n network-observability` | grafana-admin-credentials, unpoller-credentials, proxmox-credentials | [ ] |
+| 0.8 | GeoIP secret (optional) | `kubectl get secret geoip-credentials -n network-observability` | Exists or skipped | [ ] |
+| 0.9 | MikroTik reachable | `kubectl run snmp-test --rm -i --image=busybox -- nc -uzv mikrotik-crs328.local 161` | Connection succeeded | [ ] |
+| 0.10 | UniFi reachable | `kubectl run unifi-test --rm -i --image=busybox -- nc -zv unifi.local 8443` | Connection succeeded | [ ] |
+| 0.11 | Proxmox reachable | `kubectl run pve-test --rm -i --image=busybox -- nc -zv proxmox.local 8006` | Connection succeeded | [ ] |
+
+**Note:** Cilium/Hubble are NOT checked here. They are a prerequisite for Wave 4 only.
 
 **Gate:** All items pass → proceed to Wave 1. Any fail → stop, remediate, re-run.
 
@@ -96,8 +96,12 @@ Operator-executable checklists for each rollout wave. Print, execute line by lin
 
 ## Wave 4 — K8s Visibility
 
+**Prerequisite:** Cilium CNI with Hubble must be installed before this wave. If not yet migrated, skip Wave 4 and proceed to Wave 5.
+
 | # | Check | Command | Expected | Pass |
 |---|---|---|---|---|
+| 4.0a | Cilium running | `kubectl -n kube-system get ds cilium` | DESIRED = READY | [ ] |
+| 4.0b | Hubble Relay running | `kubectl -n kube-system get deploy hubble-relay` | 1/1 Ready | [ ] |
 | 4.1 | Hubble UI Running | `kubectl get pods -n network-observability -l app.kubernetes.io/name=hubble-ui` | Running | [ ] |
 | 4.2 | Port-forward Hubble UI | `kubectl port-forward svc/hubble-ui 12000:80 -n network-observability` | Accessible | [ ] |
 | 4.3 | Service map visible | Open <http://localhost:12000> | Shows service map | [ ] |

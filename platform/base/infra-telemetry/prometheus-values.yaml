@@ -6,11 +6,11 @@ prometheus:
   prometheusSpec:
     # Retain 30 days of granular data per approved retention model.
     retention: 30d
-    # Storage — Ceph PVC backed.
+    # Storage — Ceph PVC backed (rook-ceph-block is the cluster default).
     storageSpec:
       volumeClaimTemplate:
         spec:
-          storageClassName: ceph-block
+          storageClassName: rook-ceph-block
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
@@ -25,7 +25,7 @@ grafana:
   enabled: true
   persistence:
     enabled: true
-    storageClassName: ceph-block
+    storageClassName: rook-ceph-block
     size: 5Gi
   # Auto-provision dashboards from ConfigMaps with the grafana_dashboard label.
   sidecar:
@@ -51,7 +51,7 @@ alertmanager:
     storage:
       volumeClaimTemplate:
         spec:
-          storageClassName: ceph-block
+          storageClassName: rook-ceph-block
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:

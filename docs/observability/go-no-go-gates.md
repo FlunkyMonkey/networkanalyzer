@@ -10,19 +10,21 @@ Explicit approval gates for each rollout wave. No wave proceeds without passing 
 
 - [ ] All preflight checklist items (Wave 0) pass
 - [ ] Kustomize renders 149+ objects with no errors
-- [ ] All Kubernetes Secrets are created
+- [ ] Kubernetes Secrets verified (grafana, unpoller, proxmox — already created)
 - [ ] ArgoCD has repo access
-- [ ] Cilium + Hubble Relay are confirmed running
+- [ ] `rook-ceph-block` StorageClass is available
 - [ ] Network connectivity to MikroTik, UniFi, and Proxmox is verified
 - [ ] Codex QA build validation passes (if Codex has run)
+
+**Note:** Cilium/Hubble are NOT required for Gate 0. They are gated at Gate 4.
 
 **Minimum pass criteria:** All items checked. Zero Critical or High findings from Codex QA.
 
 **Blockers:**
 
 - Cluster not accessible
-- Cilium not installed
-- Ceph StorageClass not available
+- `rook-ceph-block` StorageClass not available
+- ArgoCD repo access not configured
 - Any required Secret not created
 
 **Rollback criteria:** N/A — nothing deployed yet.
@@ -104,18 +106,23 @@ Explicit approval gates for each rollout wave. No wave proceeds without passing 
 
 ## Gate 4 — K8s Visibility Connected
 
+**Hard prerequisite:** Cilium CNI with Hubble + Relay must be installed and running before this gate. If Cilium migration has not been completed, Gate 4 can be deferred — Waves 1–3 and Wave 5 are independent.
+
 **Required evidence:**
 
+- [ ] Cilium is running: `kubectl -n kube-system exec ds/cilium -- cilium status`
+- [ ] Hubble Relay is running: `kubectl -n kube-system get deploy hubble-relay`
 - [ ] All Wave 4 checklist items pass
 - [ ] Hubble UI shows pod flows
 - [ ] Namespace filtering works
 - [ ] Waves 1–3 regression checks still pass (R4.1–R4.4)
 - [ ] Test procedure T7 passes
 
-**Minimum pass criteria:** Hubble UI connected to Relay. At least L3/L4 pod flows visible.
+**Minimum pass criteria:** Cilium healthy. Hubble UI connected to Relay. At least L3/L4 pod flows visible.
 
 **Blockers:**
 
+- Cilium not installed (migration not yet completed)
 - Hubble UI cannot connect to Relay (cross-namespace networking issue)
 - Cilium/Hubble not functioning at cluster level
 

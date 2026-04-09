@@ -4,6 +4,8 @@ This document lists all Kubernetes Secrets required by the infrastructure teleme
 
 **No secrets are stored in this repository.** All credentials are managed via Kubernetes Secrets created manually or through a secrets manager.
 
+**Status:** Secrets 1–3 have been created in the `network-observability` namespace. Secret 4 (GeoIP) is optional.
+
 ## Required Secrets
 
 ### 1. grafana-admin-credentials
