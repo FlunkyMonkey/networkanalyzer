@@ -53,7 +53,9 @@ This document defines the phased rollout model for the network observability pla
 
 **Purpose:** Deploy Prometheus, Grafana, Alertmanager, and all infrastructure exporters. Verify metrics collection before adding flow analytics.
 
-**Prerequisites:** Wave 0 passed.
+**Prerequisites:** Wave 0 passed. Lab overlay already includes only namespace + infra-telemetry (default state).
+
+**Wave enablement:** No repo change needed — the lab overlay ships with Wave 1 enabled. See [wave-enablement-model.md](wave-enablement-model.md).
 
 **Execution order:**
 
@@ -83,9 +85,11 @@ This document defines the phased rollout model for the network observability pla
 
 **Prerequisites:** Wave 1 passed. All infra-telemetry metrics are flowing.
 
+**Wave enablement:** Uncomment `../../base/flow-analytics` in `platform/overlays/lab/kustomization.yaml`, commit, and push. ArgoCD syncs the new plane. See [wave-enablement-model.md](wave-enablement-model.md).
+
 **Execution order:**
 
-1. ArgoCD sync deploys flow-analytics components automatically (they are part of the same Application)
+1. Enable flow-analytics in the lab overlay (repo commit), then ArgoCD sync
 1. Wait for OpenSearch StatefulSet to become Ready
 1. Wait for OpenSearch Dashboards pod to become Ready
 1. Wait for flow-collector pod to become Ready
@@ -151,6 +155,8 @@ This document defines the phased rollout model for the network observability pla
 
 **Note:** This is the first wave that requires Cilium. If Cilium migration has not been completed yet, skip Wave 4 and proceed to Wave 5. K8s visibility can be activated later independently.
 
+**Wave enablement:** Uncomment `../../base/k8s-visibility` in `platform/overlays/lab/kustomization.yaml`, commit, and push. See [wave-enablement-model.md](wave-enablement-model.md).
+
 **Pre-wave verification:**
 
 1. Verify Cilium is running: `kubectl -n kube-system exec ds/cilium -- cilium status`
@@ -158,6 +164,7 @@ This document defines the phased rollout model for the network observability pla
 
 **Execution order:**
 
+1. Enable k8s-visibility in the lab overlay (repo commit), then ArgoCD sync
 1. Verify Hubble UI pod is Running: `kubectl get pods -n network-observability -l app.kubernetes.io/name=hubble-ui`
 1. Port-forward to Hubble UI: `kubectl port-forward -n network-observability svc/hubble-ui 12000:80`
 1. Open `http://localhost:12000`
@@ -184,8 +191,11 @@ This document defines the phased rollout model for the network observability pla
 
 **Prerequisites:** Waves 1–4 passed. All data sources are flowing.
 
+**Wave enablement:** Uncomment `../../base/correlation-ux` in `platform/overlays/lab/kustomization.yaml`, commit, and push. See [wave-enablement-model.md](wave-enablement-model.md).
+
 **Execution order:**
 
+1. Enable correlation-ux in the lab overlay (repo commit), then ArgoCD sync
 1. Access Grafana: `kubectl port-forward -n network-observability svc/prometheus-grafana 3000:80`
 1. Navigate to the homepage dashboard (`/d/correlation-home`)
 1. Verify homepage card order: top talkers, destinations, WiFi client bandwidth

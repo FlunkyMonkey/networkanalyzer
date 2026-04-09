@@ -1,8 +1,35 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Lab environment overlay
-# Add lab-specific patches, resource limits, and storage configs here.
+# Lab environment overlay — wave-gated deployment.
+# Enable planes incrementally by uncommenting lines below.
+# Each uncomment + commit + push triggers ArgoCD sync for the next wave.
+#
+# See docs/observability/wave-enablement-model.md for the full model.
+
+namespace: network-observability
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: network-observability
+    includeSelectors: false
 
 resources:
-  - ../../base
+  # Always included — namespace and shared resources
+  - ../../base/common
+
+  # Wave 1 — Telemetry plane (Prometheus, Grafana, SNMP, UnPoller, Proxmox)
+  - ../../base/infra-telemetry
+
+  # Wave 2 — Flow analytics plane (OpenSearch, GoFlow2, Vector)
+  # Uncomment when Wave 1 is verified and Gate 1 passes.
+  # - ../../base/flow-analytics
+
+  # Wave 4 — K8s visibility (Hubble UI)
+  # Uncomment when Cilium/Hubble are installed and Gate 3 passes.
+  # Requires Cilium CNI migration in k8s-lab.git first.
+  # - ../../base/k8s-visibility
+
+  # Wave 5 — Correlation / UX (homepage, investigation, playbooks, health)
+  # Uncomment when all data planes are verified and Gate 4 passes.
+  # - ../../base/correlation-ux

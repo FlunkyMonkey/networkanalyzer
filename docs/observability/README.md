@@ -26,6 +26,8 @@ This directory contains design documentation for the GitOps-managed network obse
 | [regression-test-plan.md](regression-test-plan.md) | Regression matrix to run after each rollout wave |
 | [codex-qa-sow.md](codex-qa-sow.md) | Independent QA/regression subcontract scope for Codex |
 | [go-no-go-gates.md](go-no-go-gates.md) | Explicit approval gates for each rollout wave |
+| [wave-enablement-model.md](wave-enablement-model.md) | How phased rollout works with a single ArgoCD app |
+| [gemini-strategy-sow.md](gemini-strategy-sow.md) | External strategic review role for GeminiCLI |
 
 ## Platform Structure
 

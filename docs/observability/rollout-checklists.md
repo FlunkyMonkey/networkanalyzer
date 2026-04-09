@@ -53,8 +53,11 @@ Operator-executable checklists for each rollout wave. Print, execute line by lin
 
 ## Wave 2 — Flow Plane Infrastructure
 
+**Enable:** Uncomment `../../base/flow-analytics` in `platform/overlays/lab/kustomization.yaml`, commit, push. Wait for ArgoCD sync.
+
 | # | Check | Command | Expected | Pass |
 |---|---|---|---|---|
+| 2.0 | Plane enabled in overlay | Verify flow-analytics line is uncommented in lab kustomization.yaml | Uncommented | [ ] |
 | 2.1 | OpenSearch Running | `kubectl get pods -n network-observability -l app.kubernetes.io/name=opensearch` | 1/1 Running | [ ] |
 | 2.2 | OpenSearch health | Port-forward 9200, `curl localhost:9200/_cluster/health` | `"status":"green"` | [ ] |
 | 2.3 | Dashboards Running | `kubectl get pods -n network-observability -l app.kubernetes.io/name=opensearch-dashboards` | Running | [ ] |
@@ -98,6 +101,8 @@ Operator-executable checklists for each rollout wave. Print, execute line by lin
 
 **Prerequisite:** Cilium CNI with Hubble must be installed before this wave. If not yet migrated, skip Wave 4 and proceed to Wave 5.
 
+**Enable:** Uncomment `../../base/k8s-visibility` in `platform/overlays/lab/kustomization.yaml`, commit, push. Wait for ArgoCD sync.
+
 | # | Check | Command | Expected | Pass |
 |---|---|---|---|---|
 | 4.0a | Cilium running | `kubectl -n kube-system get ds cilium` | DESIRED = READY | [ ] |
@@ -117,8 +122,11 @@ Operator-executable checklists for each rollout wave. Print, execute line by lin
 
 ## Wave 5 — Unified UX Go-Live
 
+**Enable:** Uncomment `../../base/correlation-ux` in `platform/overlays/lab/kustomization.yaml`, commit, push. Wait for ArgoCD sync.
+
 | # | Check | Command / Action | Expected | Pass |
 |---|---|---|---|---|
+| 5.0 | Plane enabled in overlay | Verify correlation-ux line is uncommented in lab kustomization.yaml | Uncommented | [ ] |
 | 5.1 | Homepage loads | Navigate to `/d/correlation-home` | Loads in < 5s | [ ] |
 | 5.2 | Card 1: Top Talkers | Check top talkers table | Shows IPs with bytes | [ ] |
 | 5.3 | Card 2: Destinations | Enter a source IP, check destination table | Shows dst IPs, ports, countries | [ ] |

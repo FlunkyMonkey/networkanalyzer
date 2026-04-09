@@ -9,7 +9,7 @@ labels:
     includeSelectors: false
 
 resources:
-  - namespace.yaml
+  - common
   - infra-telemetry
   - flow-analytics
   - k8s-visibility
