@@ -121,7 +121,43 @@
 
 ---
 
-## Phase 8 — Retention, Rollups, and Optimization
+## Phase 8 — Deployment, Rollout, and Cutover
+
+**Purpose:** Execute the ordered deployment of the full platform, verify prerequisites, and cut over live data sources.
+
+**Deliverables:**
+
+- Deployment readiness gate (all manifests render, lint, and dry-run clean)
+- Required secrets created and verified (Grafana, UnPoller, Proxmox, GeoIP, ArgoCD repo access)
+- ArgoCD repo access verified (private repo credentials registered)
+- Cilium/Hubble prerequisite verified (CNI migrated, Relay reachable)
+- Storage/PVC verification (Ceph StorageClass available, claims bound)
+- Ordered rollout steps executed:
+  - Namespace and base resources
+  - Infra-telemetry plane (Prometheus, Grafana, exporters)
+  - Flow-analytics plane (OpenSearch, GoFlow2, Vector)
+  - K8s-visibility plane (Hubble UI)
+  - Correlation-UX plane (when Phase 6 is complete)
+- Cutover steps executed:
+  - Softflowd exporters repointed to in-cluster collector
+  - SNMP targets verified reachable
+  - UniFi controller polling confirmed
+  - Proxmox API access confirmed
+  - OpenSearch index template and ISM policy loaded
+  - Dashboards imported and verified
+- Validation checkpoints at each rollout step (pods healthy, data flowing, scrape targets up)
+- Rollback points documented and tested for each plane independently
+- Go-live exit criteria met:
+  - All planes receiving live data
+  - Grafana dashboards populated
+  - OpenSearch Dashboards showing flows
+  - Hubble UI connected to Relay
+  - No degraded-state warnings
+  - Operator walkthrough completed
+
+---
+
+## Phase 9 — Retention, Rollups, and Optimization
 
 **Purpose:** Finalize retention policy, rollup pipelines, and long-term storage optimization.
 

@@ -7,7 +7,7 @@ This directory contains design documentation for the GitOps-managed network obse
 | Document | Description |
 |---|---|
 | [architecture.md](architecture.md) | Logical planes, canonical entity model, UX priorities, retention model |
-| [phases.md](phases.md) | Phase 0 through Phase 8 roadmap with deliverables |
+| [phases.md](phases.md) | Phase 0 through Phase 9 roadmap with deliverables |
 | [acceptance-tests.md](acceptance-tests.md) | Acceptance test outline by domain |
 | [source-mapping.md](source-mapping.md) | Source-to-signal matrix and requirements mapping |
 | [gitops-structure.md](gitops-structure.md) | GitOps layout, ArgoCD model, and contribution guide |
