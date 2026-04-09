@@ -2,11 +2,24 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # Kubernetes Network Visibility Plane
-# Add eBPF agents, service mesh telemetry, and related resources here in Phase 5.
+# Hubble UI (standalone) consuming Hubble Relay from cluster-level Cilium.
+# Cilium/Hubble core is managed in k8s-lab.git, NOT in this repo.
 
 labels:
   - pairs:
       app.kubernetes.io/component: k8s-visibility
     includeSelectors: false
 
-resources: []
+helmCharts:
+  - name: cilium
+    repo: https://helm.cilium.io/
+    version: "1.19.2"
+    releaseName: hubble-ui
+    namespace: network-observability
+    valuesFile: hubble-ui-values.yaml
+
+patches:
+  - path: relay-address-patch.yaml
+    target:
+      kind: Deployment
+      name: hubble-ui

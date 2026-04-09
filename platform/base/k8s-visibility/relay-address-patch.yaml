@@ -1,0 +1,17 @@
+# Patch the Hubble UI backend container to use the cross-namespace Relay address.
+# The chart hardcodes "hubble-relay:80" which assumes same namespace.
+# Since Relay runs in kube-system and UI runs in network-observability,
+# we override to the fully-qualified service name.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hubble-ui
+  namespace: network-observability
+spec:
+  template:
+    spec:
+      containers:
+        - name: backend
+          env:
+            - name: FLOWS_API_ADDR
+              value: "hubble-relay.kube-system.svc.cluster.local:80"

@@ -15,6 +15,8 @@ This directory contains design documentation for the GitOps-managed network obse
 | [secrets-and-bootstrap.md](secrets-and-bootstrap.md) | Required secrets, bootstrap steps, and network prerequisites |
 | [flow-analytics-plane.md](flow-analytics-plane.md) | Flow analytics components, enrichment, and investigation capabilities |
 | [flow-ingest-and-cutover.md](flow-ingest-and-cutover.md) | Softflowd cutover steps and OpenSearch bootstrap procedures |
+| [k8s-visibility-plane.md](k8s-visibility-plane.md) | Kubernetes visibility architecture, ownership boundary, and capabilities |
+| [cni-migration-and-rollout.md](cni-migration-and-rollout.md) | Calico → Cilium migration runbook (prerequisite, managed in k8s-lab.git) |
 
 ## Platform Structure
 
@@ -26,7 +28,7 @@ platform/
 ├── base/                  # Base manifests per telemetry plane
 │   ├── infra-telemetry/   # SNMP, syslog, device polling
 │   ├── flow-analytics/    # NetFlow/sFlow, enrichment, analytics
-│   ├── k8s-visibility/    # eBPF, service mesh, L7 visibility
+│   ├── k8s-visibility/    # Hubble UI (standalone); Cilium managed in k8s-lab.git
 │   └── correlation-ux/    # Unified UI, entity correlation, search
 └── overlays/              # Environment-specific patches
 ```
