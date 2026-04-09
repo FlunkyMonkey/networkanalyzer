@@ -1,0 +1,19 @@
+# OpenSearch Dashboards values for flow investigation UI.
+
+replicaCount: 1
+
+opensearchHosts: "http://opensearch-cluster-master:9200"
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+config:
+  opensearch_dashboards.yml: |
+    server.host: "0.0.0.0"
+    opensearch.hosts: ["http://opensearch-cluster-master:9200"]
+    opensearch_security.enabled: false

@@ -1,0 +1,170 @@
+# GoFlow2 + Vector sidecar pod.
+# GoFlow2 receives NetFlow on UDP 2055, writes JSON to shared volume.
+# Vector reads JSON, enriches with GeoIP/ASN, ships to OpenSearch.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flow-collector
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: flow-collector
+    app.kubernetes.io/component: flow-analytics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: flow-collector
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: flow-collector
+        app.kubernetes.io/component: flow-analytics
+    spec:
+      volumes:
+        - name: flow-data
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: vector-config
+          configMap:
+            name: vector-config
+        - name: geoip-data
+          emptyDir: {}
+      initContainers:
+        # Download GeoIP databases if a MaxMind license key is provided.
+        # If no key is set, Vector skips GeoIP enrichment gracefully.
+        - name: geoip-init
+          image: curlimages/curl:8.11.1
+          env:
+            - name: MAXMIND_LICENSE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: geoip-credentials
+                  key: license-key
+                  optional: true
+          command:
+            - sh
+            - -c
+            - |
+              if [ -z "$MAXMIND_LICENSE_KEY" ]; then
+                echo "No MaxMind license key — skipping GeoIP download."
+                # Create empty placeholder files so Vector config doesn't error on missing paths.
+                touch /geoip/GeoLite2-City.mmdb
+                touch /geoip/GeoLite2-ASN.mmdb
+                exit 0
+              fi
+              BASE="https://download.maxmind.com/app/geoip_download"
+              for DB in GeoLite2-City GeoLite2-ASN; do
+                echo "Downloading ${DB}..."
+                curl -sL "${BASE}?edition_id=${DB}&license_key=${MAXMIND_LICENSE_KEY}&suffix=tar.gz" \
+                  | tar xz --strip-components=1 -C /geoip "*/$(echo ${DB}).mmdb"
+              done
+              ls -la /geoip/
+          volumeMounts:
+            - name: geoip-data
+              mountPath: /geoip
+      containers:
+        - name: goflow2
+          image: netsampler/goflow2:v2.3.1
+          args:
+            - "-transport.file"
+            - "/flows/flows.jsonl"
+            - "-listen"
+            - "netflow://:2055"
+            - "-format"
+            - "json"
+          ports:
+            - name: netflow
+              containerPort: 2055
+              protocol: UDP
+          volumeMounts:
+            - name: flow-data
+              mountPath: /flows
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            exec:
+              command:
+                - test
+                - -f
+                - /flows/flows.jsonl
+            initialDelaySeconds: 15
+            periodSeconds: 30
+        - name: vector
+          image: timberio/vector:0.45.0-distroless-static
+          args:
+            - "--config"
+            - "/etc/vector/vector.yaml"
+          volumeMounts:
+            - name: flow-data
+              mountPath: /flows
+            - name: vector-config
+              mountPath: /etc/vector
+            - name: geoip-data
+              mountPath: /geoip
+              readOnly: true
+          ports:
+            - name: vector-api
+              containerPort: 8686
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: vector-api
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: vector-api
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+# Service exposing the NetFlow/IPFIX collector for external flow exporters.
+# Softflowd on Proxmox hosts should be repointed to this service's address on UDP 2055.
+apiVersion: v1
+kind: Service
+metadata:
+  name: flow-collector
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: flow-collector
+    app.kubernetes.io/component: flow-analytics
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: flow-collector
+  ports:
+    - name: netflow
+      port: 2055
+      targetPort: netflow
+      protocol: UDP
+---
+# Internal service for Vector health/metrics (not exposed externally).
+apiVersion: v1
+kind: Service
+metadata:
+  name: flow-collector-metrics
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: flow-collector
+    app.kubernetes.io/component: flow-analytics
+spec:
+  selector:
+    app.kubernetes.io/name: flow-collector
+  ports:
+    - name: vector-api
+      port: 8686
+      targetPort: vector-api
+      protocol: TCP

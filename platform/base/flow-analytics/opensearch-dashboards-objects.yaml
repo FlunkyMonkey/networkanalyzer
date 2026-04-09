@@ -1,0 +1,41 @@
+# OpenSearch Dashboards saved objects for flow investigation.
+# Must be imported via Dashboards UI or API after deployment.
+# See docs/observability/flow-ingest-and-cutover.md for bootstrap steps.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opensearch-dashboards-objects
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/component: flow-analytics
+data:
+  # Index pattern for flow data.
+  flow-index-pattern.ndjson: |
+    {"id":"flows-*","type":"index-pattern","attributes":{"title":"flows-*","timeFieldName":"@timestamp"},"references":[]}
+
+  # Saved searches for common flow investigations.
+  flow-saved-searches.ndjson: |
+    {"id":"top-talkers","type":"search","attributes":{"title":"Top Talkers by Bytes","description":"Top source IPs by total bytes transferred","kibanaSavedObjectMeta":{"searchSourceJSON":"{\"index\":\"flows-*\",\"query\":{\"query\":\"\",\"language\":\"kuery\"},\"filter\":[]}"}},"references":[{"id":"flows-*","name":"kibanaSavedObjectMeta.searchSourceJSON.index","type":"index-pattern"}]}
+    {"id":"dst-analysis","type":"search","attributes":{"title":"Destination Analysis","description":"Top destination IPs and ports by volume","kibanaSavedObjectMeta":{"searchSourceJSON":"{\"index\":\"flows-*\",\"query\":{\"query\":\"\",\"language\":\"kuery\"},\"filter\":[]}"}},"references":[{"id":"flows-*","name":"kibanaSavedObjectMeta.searchSourceJSON.index","type":"index-pattern"}]}
+    {"id":"country-breakdown","type":"search","attributes":{"title":"Traffic by Country","description":"Flow volume by destination country","kibanaSavedObjectMeta":{"searchSourceJSON":"{\"index\":\"flows-*\",\"query\":{\"query\":\"\",\"language\":\"kuery\"},\"filter\":[]}"}},"references":[{"id":"flows-*","name":"kibanaSavedObjectMeta.searchSourceJSON.index","type":"index-pattern"}]}
+
+  # Investigation guide — loaded as a markdown doc in Dashboards.
+  investigation-notes.md: |
+    # Flow Investigation Quick Reference
+
+    ## Top Talkers
+    - Filter: `bytes > 0` sorted by `bytes` descending
+    - Group by: `src_ip` or `dst_ip`
+
+    ## What is server X connecting to?
+    - Filter: `src_ip: <server-ip>`
+    - Group by: `dst_ip`, `dst_port`, `app`
+
+    ## Traffic by Country
+    - Group by: `dst_country` (requires GeoIP enrichment)
+    - Filter out private ranges if needed: `NOT dst_ip: 10.0.0.0/8 AND NOT dst_ip: 172.16.0.0/12 AND NOT dst_ip: 192.168.0.0/16`
+
+    ## Traffic by App / Port
+    - Group by: `app` for well-known services
+    - Group by: `dst_port` for all ports
+    - Filter by protocol: `protocol_name: TCP` or `protocol_name: UDP`

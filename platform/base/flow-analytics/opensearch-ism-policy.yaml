@@ -1,0 +1,56 @@
+# OpenSearch ISM (Index State Management) policy for flow data retention.
+# Applied as a ConfigMap — must be loaded into OpenSearch via API after deployment.
+# See docs/observability/flow-ingest-and-cutover.md for bootstrap steps.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opensearch-ism-policy
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/component: flow-analytics
+data:
+  flow-retention-policy.json: |
+    {
+      "policy": {
+        "policy_id": "flow-retention-30d",
+        "description": "Retain granular flow data for 30 days, then delete. Aligns with approved retention model.",
+        "default_state": "hot",
+        "states": [
+          {
+            "name": "hot",
+            "actions": [],
+            "transitions": [
+              {
+                "state_name": "delete",
+                "conditions": {
+                  "min_index_age": "30d"
+                }
+              }
+            ]
+          },
+          {
+            "name": "delete",
+            "actions": [
+              {
+                "notification": {
+                  "destination": "default",
+                  "message_template": {
+                    "source": "Flow index {{ctx.index}} aged out after 30 days."
+                  }
+                }
+              },
+              {
+                "delete": {}
+              }
+            ],
+            "transitions": []
+          }
+        ],
+        "ism_template": [
+          {
+            "index_patterns": ["flows-*"],
+            "priority": 100
+          }
+        ]
+      }
+    }

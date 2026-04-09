@@ -13,6 +13,8 @@ This directory contains design documentation for the GitOps-managed network obse
 | [gitops-structure.md](gitops-structure.md) | GitOps layout, ArgoCD model, and contribution guide |
 | [telemetry-plane.md](telemetry-plane.md) | Infrastructure telemetry components, metrics, and integration details |
 | [secrets-and-bootstrap.md](secrets-and-bootstrap.md) | Required secrets, bootstrap steps, and network prerequisites |
+| [flow-analytics-plane.md](flow-analytics-plane.md) | Flow analytics components, enrichment, and investigation capabilities |
+| [flow-ingest-and-cutover.md](flow-ingest-and-cutover.md) | Softflowd cutover steps and OpenSearch bootstrap procedures |
 
 ## Platform Structure
 

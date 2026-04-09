@@ -1,0 +1,53 @@
+# OpenSearch index template for flow data.
+# Must be loaded into OpenSearch via API after deployment.
+# See docs/observability/flow-ingest-and-cutover.md for bootstrap steps.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opensearch-index-template
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/component: flow-analytics
+data:
+  flow-index-template.json: |
+    {
+      "index_patterns": ["flows-*"],
+      "template": {
+        "settings": {
+          "number_of_shards": 1,
+          "number_of_replicas": 0,
+          "index.refresh_interval": "5s"
+        },
+        "mappings": {
+          "properties": {
+            "@timestamp": { "type": "date" },
+            "flow_start": { "type": "date" },
+            "flow_end": { "type": "date" },
+            "src_ip": { "type": "ip" },
+            "dst_ip": { "type": "ip" },
+            "src_port": { "type": "integer" },
+            "dst_port": { "type": "integer" },
+            "protocol": { "type": "integer" },
+            "protocol_name": { "type": "keyword" },
+            "bytes": { "type": "long" },
+            "packets": { "type": "long" },
+            "tcp_flags": { "type": "integer" },
+            "exporter": { "type": "ip" },
+            "flow_type": { "type": "keyword" },
+            "app": { "type": "keyword" },
+            "dst_country": { "type": "keyword" },
+            "dst_country_code": { "type": "keyword" },
+            "dst_city": { "type": "keyword" },
+            "dst_latitude": { "type": "float" },
+            "dst_longitude": { "type": "float" },
+            "dst_asn": { "type": "long" },
+            "dst_as_org": { "type": "keyword" },
+            "src_country": { "type": "keyword" },
+            "src_country_code": { "type": "keyword" },
+            "src_asn": { "type": "long" },
+            "src_as_org": { "type": "keyword" }
+          }
+        }
+      },
+      "priority": 200
+    }

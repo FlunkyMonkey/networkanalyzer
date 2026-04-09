@@ -86,6 +86,32 @@ kubectl create secret generic proxmox-credentials \
   This grants read-only access to node and VM metrics.
 - The Proxmox API (`https://proxmox.local:8006`) must be network-reachable from the Kubernetes cluster.
 
+### 4. geoip-credentials (Optional)
+
+**Used by:** Flow collector init container (GeoIP database download)
+
+**Namespace:** `network-observability`
+
+**Keys:**
+
+| Key | Description |
+|---|---|
+| `license-key` | MaxMind GeoLite2 license key (free account) |
+
+**Create:**
+
+```bash
+kubectl create secret generic geoip-credentials \
+  --namespace network-observability \
+  --from-literal=license-key='<your-maxmind-license-key>'
+```
+
+**Prerequisites:**
+
+- Register a free account at [maxmind.com](https://www.maxmind.com/en/geolite2/signup).
+- Generate a license key under Account > Manage License Keys.
+- Without this secret, flows still ingest — GeoIP fields (country, ASN) will be absent.
+
 ## Bootstrap Order
 
 1. Create the `network-observability` namespace (ArgoCD will do this on first sync, or create it manually):
@@ -94,7 +120,7 @@ kubectl create secret generic proxmox-credentials \
    kubectl create namespace network-observability
    ```
 
-2. Create all three Secrets listed above.
+2. Create all Secrets listed above (grafana, unpoller, proxmox, and optionally geoip).
 
 3. Apply the ArgoCD Application or let ArgoCD sync from git:
 
@@ -152,4 +178,9 @@ Pods in the cluster must be able to reach:
 | UniFi Controller | TCP 8443 (HTTPS) | UnPoller |
 | Proxmox API | TCP 8006 (HTTPS) | PVE Exporter |
 
+| MaxMind GeoIP download | TCP 443 (HTTPS) | Flow collector init container |
+
 Verify network policies or firewall rules allow these connections from the `network-observability` namespace.
+
+Additionally, Proxmox hosts running softflowd must be able to reach the `flow-collector` Service external IP on **UDP 2055**.
+See [flow-ingest-and-cutover.md](flow-ingest-and-cutover.md) for cutover details.

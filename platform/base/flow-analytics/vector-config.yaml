@@ -1,0 +1,152 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vector-config
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: flow-collector
+    app.kubernetes.io/component: flow-analytics
+data:
+  vector.yaml: |
+    api:
+      enabled: true
+      address: "0.0.0.0:8686"
+
+    sources:
+      goflow2_file:
+        type: file
+        include:
+          - /flows/flows.jsonl
+        read_from: beginning
+        fingerprint:
+          strategy: device_and_inode
+
+    transforms:
+      parse_flow:
+        type: remap
+        inputs:
+          - goflow2_file
+        source: |
+          # Parse JSON from GoFlow2 output.
+          . = parse_json!(.message)
+
+          # Normalize field names to match the canonical entity model.
+          .src_ip = .SrcAddr
+          .dst_ip = .DstAddr
+          .src_port = .SrcPort
+          .dst_port = .DstPort
+          .protocol = .Proto
+          .bytes = .Bytes
+          .packets = .Packets
+          .tcp_flags = .TCPFlags
+
+          # Timestamp — GoFlow2 uses epoch seconds.
+          .flow_start = to_timestamp!(.TimeFlowStart, "seconds") ?? now()
+          .flow_end = to_timestamp!(.TimeFlowEnd, "seconds") ?? now()
+          .@timestamp = now()
+
+          # Flow direction and type metadata.
+          .flow_type = .Type
+          .exporter = .SamplerAddress
+
+          # Clean up raw GoFlow2 fields to reduce index size.
+          del(.SrcAddr)
+          del(.DstAddr)
+          del(.SrcPort)
+          del(.DstPort)
+          del(.Proto)
+          del(.Bytes)
+          del(.Packets)
+          del(.TCPFlags)
+          del(.TimeFlowStart)
+          del(.TimeFlowEnd)
+          del(.Type)
+          del(.SamplerAddress)
+          del(.message)
+          del(.source_type)
+          del(.file)
+          del(.host)
+
+      enrich_geoip:
+        type: remap
+        inputs:
+          - parse_flow
+        source: |
+          # GeoIP enrichment for destination IP.
+          # If GeoIP databases are not loaded (no MaxMind key), these fields will be absent.
+          geoip_city = get_enrichment_table_record("geoip_city", {"ip": .dst_ip}) ?? {}
+          if geoip_city != {} {
+            .dst_country = geoip_city.country_name
+            .dst_country_code = geoip_city.country_code
+            .dst_city = geoip_city.city_name
+            .dst_latitude = geoip_city.latitude
+            .dst_longitude = geoip_city.longitude
+          }
+
+          geoip_asn = get_enrichment_table_record("geoip_asn", {"ip": .dst_ip}) ?? {}
+          if geoip_asn != {} {
+            .dst_asn = geoip_asn.asn
+            .dst_as_org = geoip_asn.as_organization
+          }
+
+          # Also enrich source IP (useful for inbound flows).
+          src_geoip = get_enrichment_table_record("geoip_city", {"ip": .src_ip}) ?? {}
+          if src_geoip != {} {
+            .src_country = src_geoip.country_name
+            .src_country_code = src_geoip.country_code
+          }
+
+          src_asn = get_enrichment_table_record("geoip_asn", {"ip": .src_ip}) ?? {}
+          if src_asn != {} {
+            .src_asn = src_asn.asn
+            .src_as_org = src_asn.as_organization
+          }
+
+          # Well-known port to app/service mapping.
+          port = to_int(.dst_port) ?? 0
+          .app = if port == 80 { "HTTP" }
+            else if port == 443 { "HTTPS" }
+            else if port == 53 { "DNS" }
+            else if port == 22 { "SSH" }
+            else if port == 25 || port == 465 || port == 587 { "SMTP" }
+            else if port == 143 || port == 993 { "IMAP" }
+            else if port == 110 || port == 995 { "POP3" }
+            else if port == 3306 { "MySQL" }
+            else if port == 5432 { "PostgreSQL" }
+            else if port == 6379 { "Redis" }
+            else if port == 8080 || port == 8443 { "HTTP-Alt" }
+            else if port == 1194 { "OpenVPN" }
+            else if port == 51820 { "WireGuard" }
+            else if port == 123 { "NTP" }
+            else if port == 161 || port == 162 { "SNMP" }
+            else { null }
+
+          # Protocol number to name.
+          proto = to_int(.protocol) ?? 0
+          .protocol_name = if proto == 6 { "TCP" }
+            else if proto == 17 { "UDP" }
+            else if proto == 1 { "ICMP" }
+            else if proto == 47 { "GRE" }
+            else { to_string(proto) }
+
+    enrichment_tables:
+      geoip_city:
+        type: geoip
+        path: /geoip/GeoLite2-City.mmdb
+      geoip_asn:
+        type: geoip
+        path: /geoip/GeoLite2-ASN.mmdb
+
+    sinks:
+      opensearch:
+        type: elasticsearch
+        inputs:
+          - enrich_geoip
+        endpoints:
+          - "http://opensearch-cluster-master:9200"
+        mode: bulk
+        bulk:
+          index: "flows-%Y.%m.%d"
+          action: create
+        healthcheck:
+          enabled: true
