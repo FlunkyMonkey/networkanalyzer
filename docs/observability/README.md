@@ -20,6 +20,12 @@ This directory contains design documentation for the GitOps-managed network obse
 | [unified-ux-and-correlation.md](unified-ux-and-correlation.md) | Unified UX approach, dashboard organization, cross-plane data access |
 | [navigation-model.md](navigation-model.md) | Navigation structure, drill-down paths, link implementation |
 | [investigation-playbooks.md](investigation-playbooks.md) | Guided investigation workflows for common network scenarios |
+| [deployment-plan.md](deployment-plan.md) | Phased rollout waves (Wave 0–5) with execution order and rollback |
+| [rollout-checklists.md](rollout-checklists.md) | Operator-executable checklists for each rollout wave |
+| [operator-test-procedures.md](operator-test-procedures.md) | Detailed test cases (T1–T11) for operator execution |
+| [regression-test-plan.md](regression-test-plan.md) | Regression matrix to run after each rollout wave |
+| [codex-qa-sow.md](codex-qa-sow.md) | Independent QA/regression subcontract scope for Codex |
+| [go-no-go-gates.md](go-no-go-gates.md) | Explicit approval gates for each rollout wave |
 
 ## Platform Structure
 
