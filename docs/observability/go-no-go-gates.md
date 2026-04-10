@@ -9,7 +9,7 @@ Explicit approval gates for each rollout wave. No wave proceeds without passing 
 **Required evidence:**
 
 - [ ] All preflight checklist items (Wave 0) pass
-- [ ] Kustomize renders ~121 objects with no errors (Wave 1 scope: namespace + infra-telemetry)
+- [ ] Kustomize renders ~28 objects with no errors (Wave 1 scope: namespace + Grafana + exporters)
 - [ ] Kubernetes Secrets verified (grafana, unpoller, proxmox — already created)
 - [ ] ArgoCD has repo access
 - [ ] `rook-ceph-block` StorageClass is available
@@ -36,21 +36,25 @@ Explicit approval gates for each rollout wave. No wave proceeds without passing 
 **Required evidence:**
 
 - [ ] All Wave 1 checklist items pass
-- [ ] Prometheus is scraping all 3 exporters (SNMP, UnPoller, Proxmox)
-- [ ] Grafana is accessible with dashboards loaded
-- [ ] PVCs are bound
+- [ ] Existing Prometheus (in `monitoring`) is scraping all 3 exporters (SNMP, UnPoller, Proxmox)
+- [ ] Grafana is accessible with Prometheus datasource connected
+- [ ] Grafana dashboards show live data
+- [ ] Grafana PVC is bound
 - [ ] Regression checks R1.1–R1.5 pass
 - [ ] Test procedures T1–T3 pass (interface util, WiFi clients, Proxmox VMs)
 
-**Minimum pass criteria:** All 3 exporters UP. Grafana shows live data on all 3 infra dashboards.
+**Minimum pass criteria:** All 3 exporters UP in existing Prometheus. Grafana shows live data on all 3 infra dashboards.
+
+**Retention note:** Existing Prometheus has 7d retention. 30d objective deferred to Phase 9.
 
 **Blockers:**
 
+- Existing Prometheus not picking up ServiceMonitors (check `release: kube-prometheus-stack` label)
 - Any exporter not scraping after 10 minutes
-- PVC not binding (Ceph issue)
-- Grafana not loading
+- Grafana PVC not binding
+- Grafana cannot connect to existing Prometheus
 
-**Rollback criteria:** If any exporter remains DOWN after investigation, or if Prometheus itself is unhealthy, roll back Wave 1.
+**Rollback criteria:** If exporters don't appear in existing Prometheus targets after label verification, or if Grafana cannot connect, roll back Wave 1.
 
 ---
 

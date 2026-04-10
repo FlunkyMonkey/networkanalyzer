@@ -3,6 +3,10 @@
 
 serviceMonitor:
   enabled: true
+  # Override the default selector label so the existing cluster Prometheus picks this up.
+  # Existing Prometheus selects: release: kube-prometheus-stack
+  selector:
+    release: kube-prometheus-stack
   module:
     - mikrotik
   auth:

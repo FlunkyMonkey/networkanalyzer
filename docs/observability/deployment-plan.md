@@ -51,18 +51,18 @@ This document defines the phased rollout model for the network observability pla
 
 ### Wave 1 — Telemetry Plane Only
 
-**Purpose:** Deploy Prometheus, Grafana, Alertmanager, and all infrastructure exporters. Verify metrics collection before adding flow analytics.
+**Purpose:** Deploy standalone Grafana and infrastructure exporters (SNMP, UnPoller, Proxmox). Scraping is handled by the existing cluster Prometheus in the `monitoring` namespace.
 
-**Prerequisites:** Wave 0 passed. Lab overlay already includes only namespace + infra-telemetry (default state).
+**Prerequisites:** Wave 0 passed. Lab overlay already includes only namespace + infra-telemetry (default state). Existing Prometheus must be healthy and watching all namespaces for ServiceMonitors labeled `release: kube-prometheus-stack`.
 
 **Wave enablement:** No repo change needed — the lab overlay ships with Wave 1 enabled. See [wave-enablement-model.md](wave-enablement-model.md).
 
 **Execution order:**
 
 1. Apply the ArgoCD Application: `kubectl apply -f platform/apps/network-observability.yaml`
-1. Wait for infra-telemetry pods to become Ready
-1. Verify Prometheus is scraping targets
-1. Verify Grafana is accessible and dashboards are loaded
+1. Wait for all pods to become Ready (Grafana, SNMP exporter, UnPoller, Proxmox exporter)
+1. Verify existing Prometheus has picked up the new ServiceMonitors: check Prometheus Targets page in the `monitoring` namespace
+1. Verify Grafana is accessible and can query metrics from existing Prometheus
 1. Verify SNMP exporter is collecting MikroTik interface metrics
 1. Verify UnPoller is collecting WLAN client metrics
 1. Verify Proxmox exporter is collecting VM metrics
@@ -70,12 +70,15 @@ This document defines the phased rollout model for the network observability pla
 **Verification:**
 
 - `kubectl get pods -n network-observability` — all pods Running/Ready
-- Prometheus Targets page shows all exporters as UP
+- Existing Prometheus Targets page shows 3 new targets (snmp, unpoller, proxmox) as UP
 - Grafana dashboards show live data: interface utilization, WiFi clients, Proxmox VMs
+- Grafana datasource test passes for Prometheus connection
 
-**Stop conditions:** Any exporter fails to scrape. Prometheus cannot reach targets. Grafana does not load.
+**Retention note:** Existing Prometheus retains 7 days. The 30-day retention objective is not yet satisfied. This is accepted for Wave 1. Address in Phase 9.
 
-**Rollback:** Delete the ArgoCD Application: `kubectl delete -f platform/apps/network-observability.yaml`. Then delete PVCs if needed.
+**Stop conditions:** Exporters not appearing in existing Prometheus targets (check ServiceMonitor labels). Grafana cannot connect to Prometheus. Exporters crash-looping.
+
+**Rollback:** Delete the ArgoCD Application: `kubectl delete -f platform/apps/network-observability.yaml`. Then delete PVCs if needed. Existing Prometheus is unaffected.
 
 ---
 

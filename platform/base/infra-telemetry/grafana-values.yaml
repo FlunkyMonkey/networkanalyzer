@@ -1,0 +1,50 @@
+# Standalone Grafana for the network observability platform.
+# Uses the existing cluster Prometheus in the monitoring namespace as its datasource.
+# Does NOT deploy Prometheus, Prometheus Operator, or any monitoring control plane.
+
+persistence:
+  enabled: true
+  storageClassName: rook-ceph-block
+  size: 5Gi
+
+admin:
+  existingSecret: grafana-admin-credentials
+  userKey: admin-user
+  passwordKey: admin-password
+
+# Dashboard sidecar — auto-loads dashboards from ConfigMaps labeled grafana_dashboard: "1"
+sidecar:
+  dashboards:
+    enabled: true
+    label: grafana_dashboard
+    labelValue: "1"
+    searchNamespace: network-observability
+  datasources:
+    enabled: true
+    label: grafana_datasource
+    labelValue: "1"
+    searchNamespace: network-observability
+
+plugins:
+  - grafana-opensearch-datasource
+
+# Datasource pointing to the existing cluster Prometheus.
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+        isDefault: true
+        jsonData:
+          timeInterval: "30s"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

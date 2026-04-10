@@ -2,22 +2,51 @@
 
 ## Component Stack
 
-| Component | Version | Purpose |
-|---|---|---|
-| kube-prometheus-stack | 83.3.0 | Prometheus + Grafana + Alertmanager foundation |
-| prometheus-snmp-exporter | 9.13.1 | SNMP polling proxy for MikroTik CRS328 |
-| unpoller | 2.39.0 | UniFi controller/AP/client metrics exporter |
-| prometheus-pve-exporter | 3.5.3 | Proxmox VE node and VM metrics exporter |
+| Component | Version | Purpose | Deployed By |
+|---|---|---|---|
+| Grafana (standalone) | 10.5.15 | Visualization and dashboards | This repo |
+| prometheus-snmp-exporter | 9.13.1 | SNMP polling proxy for MikroTik CRS328 | This repo |
+| unpoller | 2.39.0 | UniFi controller/AP/client metrics exporter | This repo |
+| prometheus-pve-exporter | 3.5.3 | Proxmox VE node and VM metrics exporter | This repo |
+| Prometheus | (existing) | Scrape backend — 7d retention | Cluster infra (`monitoring` namespace) |
+| Prometheus Operator | (existing) | ServiceMonitor CRD controller | Cluster infra (`monitoring` namespace) |
+
+### Architecture (Wave 1 Pivot)
+
+This repo does **not** deploy Prometheus or the Prometheus Operator. The cluster already has both in the `monitoring` namespace. This repo deploys:
+
+- **Exporters** (SNMP, UnPoller, Proxmox) with ServiceMonitors labeled `release: kube-prometheus-stack`
+- **Grafana** (standalone) configured to query the existing Prometheus
+
+The existing Prometheus watches ServiceMonitors across all namespaces and selects those with `release: kube-prometheus-stack`. It scrapes our exporters automatically.
+
+```text
+monitoring namespace (existing):
+  Prometheus Operator → manages Prometheus CRD
+  Prometheus instance → scrapes ServiceMonitors with release: kube-prometheus-stack
+    ↑ scrapes                    ↑ scrapes                    ↑ scrapes
+    │                            │                            │
+network-observability namespace (this repo):
+  SNMP Exporter + SM ────────────┘                            │
+  UnPoller + SM ─────────────────────────────────────────────┘
+  Proxmox Exporter + SM ─────────────────────────────────────┘
+  Grafana → queries Prometheus at:
+    http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+```
+
+### Retention Limitation
+
+The existing cluster Prometheus has **7-day retention**. The approved retention model calls for 30-day granular data. This limitation is accepted for Wave 1 — the priority is signal collection and validation. Retention will be addressed in Phase 9, potentially via Thanos, Mimir, or a dedicated long-retention Prometheus instance.
 
 ### Why This Stack
 
-- **Prometheus** is the standard for Kubernetes-native metrics. 30-day granular retention aligns with the approved retention model.
-- **Grafana** provides visualization with ConfigMap-based dashboard provisioning — dashboards are version-controlled in git.
-- **SNMP Exporter** is the Prometheus project's official SNMP integration. It operates as a proxy: Prometheus tells it which target to scrape.
-- **UnPoller** is the most mature Prometheus exporter for UniFi. It polls the controller API and exposes per-client, per-AP, and per-site metrics.
-- **PVE Exporter** is the standard Prometheus exporter for Proxmox VE. It exposes per-node and per-VM metrics via the Proxmox API.
+- **Standalone Grafana** avoids deploying a second Prometheus Operator (which causes CRD conflicts with the existing one).
+- **Existing Prometheus** is already healthy, watching all namespaces, and has capacity for additional scrape targets.
+- **SNMP Exporter** is the Prometheus project's official SNMP integration.
+- **UnPoller** is the most mature Prometheus exporter for UniFi.
+- **PVE Exporter** is the standard Prometheus exporter for Proxmox VE.
 
-All components are deployed via the single ArgoCD Application. Helm charts are referenced in the Kustomize `helmCharts` field — no separate Helm releases.
+All components are deployed via the single ArgoCD Application. Helm charts are referenced in the Kustomize `helmCharts` field.
 
 ## Source Integration
 

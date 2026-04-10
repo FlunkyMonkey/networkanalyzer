@@ -2,7 +2,9 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # Infrastructure / Telemetry Plane
-# Prometheus + Grafana foundation with exporters for MikroTik, UniFi, and Proxmox.
+# Standalone Grafana + exporters for MikroTik, UniFi, and Proxmox.
+# Scrape backend is the existing cluster Prometheus in the monitoring namespace.
+# This repo does NOT deploy Prometheus or Prometheus Operator.
 
 labels:
   - pairs:
@@ -17,12 +19,12 @@ resources:
   - grafana-dashboards-configmap.yaml
 
 helmCharts:
-  - name: kube-prometheus-stack
-    repo: https://prometheus-community.github.io/helm-charts
-    version: "83.3.0"
-    releaseName: prometheus
+  - name: grafana
+    repo: https://grafana.github.io/helm-charts
+    version: "10.5.15"
+    releaseName: grafana
     namespace: network-observability
-    valuesFile: prometheus-values.yaml
+    valuesFile: grafana-values.yaml
 
   - name: prometheus-snmp-exporter
     repo: https://prometheus-community.github.io/helm-charts

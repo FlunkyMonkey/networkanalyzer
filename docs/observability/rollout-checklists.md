@@ -8,7 +8,7 @@ Operator-executable checklists for each rollout wave. Print, execute line by lin
 
 | # | Check | Command | Expected | Pass |
 |---|---|---|---|---|
-| 0.1 | Kustomize renders | `kustomize build --enable-helm platform/overlays/lab \| grep '^kind:' \| wc -l` | ~121 objects (Wave 1 scope), no errors | [ ] |
+| 0.1 | Kustomize renders | `kustomize build --enable-helm platform/overlays/lab \| grep '^kind:' \| wc -l` | ~28 objects (Wave 1 scope), no errors | [ ] |
 | 0.2 | Markdown lint | `npx markdownlint-cli2 "docs/**/*.md"` | 0 errors | [ ] |
 | 0.3 | Cluster accessible | `kubectl get nodes` | All nodes Ready | [ ] |
 | 0.4 | ArgoCD repo registered | `argocd repo list \| grep networkanalyzer` | Repo listed | [ ] |
@@ -28,24 +28,27 @@ Operator-executable checklists for each rollout wave. Print, execute line by lin
 
 ## Wave 1 — Telemetry Plane
 
+**Note:** This repo does not deploy Prometheus. The existing cluster Prometheus in `monitoring` scrapes our exporters via ServiceMonitors labeled `release: kube-prometheus-stack`.
+
 | # | Check | Command | Expected | Pass |
 |---|---|---|---|---|
 | 1.1 | Apply ArgoCD app | `kubectl apply -f platform/apps/network-observability.yaml` | Application created | [ ] |
 | 1.2 | ArgoCD sync status | `argocd app get network-observability` | Synced, Healthy | [ ] |
-| 1.3 | All pods Running | `kubectl get pods -n network-observability` | All Running/Ready | [ ] |
-| 1.4 | Prometheus up | `kubectl port-forward svc/prometheus-kube-prometheus-prometheus 9090:9090 -n network-observability` then check `/targets` | All targets UP | [ ] |
+| 1.3 | All pods Running | `kubectl get pods -n network-observability` | All Running/Ready (4 pods: grafana, snmp, unpoller, proxmox) | [ ] |
+| 1.4 | Existing Prometheus sees targets | Port-forward existing Prometheus (:9090 in monitoring), check `/targets` | snmp, unpoller, proxmox targets appear | [ ] |
 | 1.5 | SNMP exporter scraping | Check Prometheus targets for snmp-exporter | UP, last scrape < 2m | [ ] |
 | 1.6 | UnPoller scraping | Check Prometheus targets for unpoller | UP, last scrape < 2m | [ ] |
 | 1.7 | Proxmox exporter scraping | Check Prometheus targets for proxmox-exporter | UP, last scrape < 2m | [ ] |
-| 1.8 | Grafana accessible | `kubectl port-forward svc/prometheus-grafana 3000:80 -n network-observability` | Login page loads | [ ] |
-| 1.9 | Interface dashboard works | Navigate to Switch Interface Utilization | Shows live data | [ ] |
-| 1.10 | UniFi dashboard works | Navigate to UniFi AP & WLAN Clients | Shows live data | [ ] |
-| 1.11 | Proxmox dashboard works | Navigate to Proxmox Node & VM Network | Shows live data | [ ] |
-| 1.12 | PVCs bound | `kubectl get pvc -n network-observability` | All Bound | [ ] |
+| 1.8 | Grafana accessible | `kubectl port-forward svc/grafana 3000:80 -n network-observability` | Login page loads | [ ] |
+| 1.9 | Grafana datasource healthy | Grafana → Settings → Data Sources → Prometheus → Test | Connection successful | [ ] |
+| 1.10 | Interface dashboard works | Navigate to Switch Interface Utilization | Shows live data | [ ] |
+| 1.11 | UniFi dashboard works | Navigate to UniFi AP & WLAN Clients | Shows live data | [ ] |
+| 1.12 | Proxmox dashboard works | Navigate to Proxmox Node & VM Network | Shows live data | [ ] |
+| 1.13 | PVC bound | `kubectl get pvc -n network-observability` | Grafana PVC Bound | [ ] |
 
 **Gate:** All items pass → proceed to Wave 2.
 
-**Rollback trigger:** Prometheus, Grafana, or any exporter fails to become healthy after 10 minutes.
+**Rollback trigger:** Grafana or any exporter fails to become healthy after 10 minutes. Existing Prometheus does not pick up ServiceMonitors (check labels).
 
 **Rollback:** `kubectl delete -f platform/apps/network-observability.yaml && kubectl delete pvc --all -n network-observability`
 

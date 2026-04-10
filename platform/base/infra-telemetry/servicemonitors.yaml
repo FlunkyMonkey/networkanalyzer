@@ -1,6 +1,7 @@
 # ServiceMonitors for custom exporters.
-# These tell Prometheus to scrape unpoller and proxmox-exporter.
-# The SNMP exporter's ServiceMonitor is managed by its Helm chart.
+# These are scraped by the existing cluster Prometheus in the monitoring namespace.
+# The existing Prometheus selects ServiceMonitors with: release: kube-prometheus-stack
+# The SNMP exporter's ServiceMonitor is managed by its Helm chart (see snmp-exporter-values.yaml).
 
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -10,6 +11,7 @@ metadata:
   labels:
     app.kubernetes.io/name: unpoller
     app.kubernetes.io/component: infra-telemetry
+    release: kube-prometheus-stack
 spec:
   selector:
     matchLabels:
@@ -27,6 +29,7 @@ metadata:
   labels:
     app.kubernetes.io/name: proxmox-exporter
     app.kubernetes.io/component: infra-telemetry
+    release: kube-prometheus-stack
 spec:
   selector:
     matchLabels:
@@ -37,6 +40,5 @@ spec:
       path: /pve
       params:
         target:
-          # Proxmox cluster API endpoint — set to your PVE host.
-          # Override in overlays/lab if needed.
+          # Proxmox cluster API endpoint.
           - proxmox.local:8006
