@@ -13,7 +13,7 @@ serviceMonitor:
     - mikrotik_v2
   params:
     - name: mikrotik-crs328
-      target: mikrotik-crs328.local
+      target: 172.18.1.13
       interval: 60s
       scrapeTimeout: 30s
 

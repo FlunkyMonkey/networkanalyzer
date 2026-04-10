@@ -21,6 +21,8 @@ spec:
       interval: 30s
       path: /metrics
 ---
+# Proxmox VE Exporter — one endpoint per Proxmox host.
+# The exporter acts as a proxy: Prometheus scrapes /pve?target=<host> for each.
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -40,5 +42,28 @@ spec:
       path: /pve
       params:
         target:
-          # Proxmox cluster API endpoint.
-          - proxmox.local:8006
+          - "172.18.1.10:8006"
+    - port: metrics
+      interval: 60s
+      path: /pve
+      params:
+        target:
+          - "172.18.1.20:8006"
+    - port: metrics
+      interval: 60s
+      path: /pve
+      params:
+        target:
+          - "172.18.1.30:8006"
+    - port: metrics
+      interval: 60s
+      path: /pve
+      params:
+        target:
+          - "172.18.1.40:8006"
+    - port: metrics
+      interval: 60s
+      path: /pve
+      params:
+        target:
+          - "172.18.1.50:8006"
