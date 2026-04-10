@@ -52,6 +52,14 @@ grafana:
 alertmanager:
   enabled: false
 
+# -- Node exporter
+# Disabled — the cluster already runs a node-exporter DaemonSet in the
+# monitoring namespace (port 9100). Deploying a second one causes port
+# conflicts. To scrape the existing one, add a ServiceMonitor targeting
+# the monitoring namespace's node-exporter Service.
+nodeExporter:
+  enabled: false
+
 # -- Disable components not needed in Phase 3.
 # Kubernetes-level monitoring is Phase 5 scope.
 kubeEtcd:
