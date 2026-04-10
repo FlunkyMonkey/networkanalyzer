@@ -8,7 +8,7 @@ Operator-executable checklists for each rollout wave. Print, execute line by lin
 
 | # | Check | Command | Expected | Pass |
 |---|---|---|---|---|
-| 0.1 | Kustomize renders | `kustomize build --enable-helm platform/overlays/lab \| grep '^kind:' \| wc -l` | ~149 objects, no errors | [ ] |
+| 0.1 | Kustomize renders | `kustomize build --enable-helm platform/overlays/lab \| grep '^kind:' \| wc -l` | ~121 objects (Wave 1 scope), no errors | [ ] |
 | 0.2 | Markdown lint | `npx markdownlint-cli2 "docs/**/*.md"` | 0 errors | [ ] |
 | 0.3 | Cluster accessible | `kubectl get nodes` | All nodes Ready | [ ] |
 | 0.4 | ArgoCD repo registered | `argocd repo list \| grep networkanalyzer` | Repo listed | [ ] |
@@ -71,6 +71,8 @@ Operator-executable checklists for each rollout wave. Print, execute line by lin
 **Gate:** All items pass → proceed to Wave 3.
 
 **Rollback trigger:** OpenSearch PVC fails to bind. Flow collector cannot start. MetalLB fails to assign IP.
+
+**Rollback:** Re-comment `../../base/flow-analytics` in the lab overlay, commit, push. ArgoCD auto-prune removes flow resources.
 
 ---
 

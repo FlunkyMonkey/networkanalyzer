@@ -8,7 +8,9 @@ platform/
 │   └── network-observability.yaml   # Single ArgoCD Application
 ├── base/
 │   ├── kustomization.yaml           # Root kustomization composing all planes
-│   ├── namespace.yaml               # network-observability namespace
+│   ├── common/
+│   │   ├── kustomization.yaml       # Shared resources (namespace)
+│   │   └── namespace.yaml           # network-observability namespace
 │   ├── infra-telemetry/
 │   │   └── kustomization.yaml       # Infrastructure / Telemetry plane
 │   ├── flow-analytics/
@@ -27,25 +29,25 @@ platform/
 The platform is managed by **one** ArgoCD Application (`platform/apps/network-observability.yaml`).
 
 - The Application points at an overlay (e.g., `platform/overlays/lab`).
-- The overlay references `platform/base`, which composes all four planes.
-- ArgoCD sees a single sync unit — all planes deploy together as one logical application.
+- The overlay selectively includes planes from `platform/base/` — not all at once.
+- Planes are enabled incrementally by uncommenting resource lines in the overlay (wave-gated rollout).
+- ArgoCD sees a single sync unit — enabled planes deploy together as one logical application.
 
-This avoids app-of-apps complexity while keeping plane manifests separated for readability and ownership.
+This avoids app-of-apps complexity while supporting phased rollout. See [wave-enablement-model.md](wave-enablement-model.md) for the full model.
 
 ## How ArgoCD Composes the Platform
 
 ```text
 ArgoCD Application
   └── platform/overlays/lab/kustomization.yaml
-        └── ../../base/kustomization.yaml
-              ├── namespace.yaml
-              ├── infra-telemetry/kustomization.yaml
-              ├── flow-analytics/kustomization.yaml
-              ├── k8s-visibility/kustomization.yaml
-              └── correlation-ux/kustomization.yaml
+        ├── ../../base/common                    (always)
+        ├── ../../base/infra-telemetry           (Wave 1 — enabled)
+        ├── ../../base/flow-analytics            (Wave 2 — uncomment to enable)
+        ├── ../../base/k8s-visibility            (Wave 4 — uncomment to enable)
+        └── ../../base/correlation-ux            (Wave 5 — uncomment to enable)
 ```
 
-ArgoCD runs `kustomize build` on the overlay path. The overlay inherits everything from base and can add patches, resource limits, or environment-specific configuration.
+ArgoCD runs `kustomize build` on the overlay path. The overlay selectively includes planes and can add patches, resource limits, or environment-specific configuration. `platform/base/kustomization.yaml` still composes all planes as a reusable building block for future environments.
 
 ## Adding Resources to a Plane
 
@@ -109,9 +111,16 @@ Each plane adds its own component label:
    platform/overlays/staging/kustomization.yaml
    ```
 
-2. Reference the base:
+2. Reference the planes you want (or the full base for an all-at-once deployment):
 
    ```yaml
+   # Wave-gated (selective):
+   resources:
+     - ../../base/common
+     - ../../base/infra-telemetry
+     # - ../../base/flow-analytics    # enable when ready
+
+   # Or all-at-once:
    resources:
      - ../../base
    ```

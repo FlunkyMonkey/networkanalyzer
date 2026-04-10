@@ -108,7 +108,7 @@ This document defines the phased rollout model for the network observability pla
 
 **Stop conditions:** OpenSearch fails to start. PVC does not bind. MetalLB does not assign an IP.
 
-**Rollback:** The flow-analytics components are part of the single ArgoCD app. To isolate: set `resources: []` in `platform/base/flow-analytics/kustomization.yaml`, commit, and let ArgoCD prune. Or scale down: `kubectl scale deploy/flow-collector --replicas=0 -n network-observability`.
+**Rollback:** Re-comment the `../../base/flow-analytics` line in `platform/overlays/lab/kustomization.yaml`, commit, and push. ArgoCD auto-prune removes flow-analytics resources. Or for immediate relief: `kubectl scale deploy/flow-collector --replicas=0 -n network-observability`.
 
 ---
 
@@ -189,7 +189,7 @@ This document defines the phased rollout model for the network observability pla
 
 **Purpose:** Verify the full platform experience: homepage, drill-downs, playbooks, and cross-plane correlation.
 
-**Prerequisites:** Waves 1–4 passed. All data sources are flowing.
+**Prerequisites:** Waves 1–3 passed. Wave 4 passed or deferred (Cilium not required for UX go-live). All infra and flow data sources are flowing.
 
 **Wave enablement:** Uncomment `../../base/correlation-ux` in `platform/overlays/lab/kustomization.yaml`, commit, and push. See [wave-enablement-model.md](wave-enablement-model.md).
 

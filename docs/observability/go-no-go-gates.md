@@ -9,7 +9,7 @@ Explicit approval gates for each rollout wave. No wave proceeds without passing 
 **Required evidence:**
 
 - [ ] All preflight checklist items (Wave 0) pass
-- [ ] Kustomize renders 149+ objects with no errors
+- [ ] Kustomize renders ~121 objects with no errors (Wave 1 scope: namespace + infra-telemetry)
 - [ ] Kubernetes Secrets verified (grafana, unpoller, proxmox — already created)
 - [ ] ArgoCD has repo access
 - [ ] `rook-ceph-block` StorageClass is available
@@ -136,11 +136,11 @@ Explicit approval gates for each rollout wave. No wave proceeds without passing 
 
 - [ ] All Wave 5 checklist items pass
 - [ ] Homepage displays locked card order with live data
-- [ ] Cross-plane drill-down works (IP → Entity Investigation → OpenSearch → Hubble)
+- [ ] Cross-plane drill-down works (IP → Entity Investigation → OpenSearch; Hubble if Wave 4 was completed)
 - [ ] All 6 investigation playbooks are accessible
 - [ ] Platform Health dashboard shows all targets UP
 - [ ] Degraded-state behavior verified (T9)
-- [ ] Full regression suite passes (R1–R5 + T1–T11)
+- [ ] Regression suite passes for completed waves (R1–R3 + R5; R4 only if Wave 4 was completed)
 - [ ] Codex QA report has zero Critical/High open findings
 - [ ] Operator has completed end-to-end walkthrough of at least 1 playbook
 
