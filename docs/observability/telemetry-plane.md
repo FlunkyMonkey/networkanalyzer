@@ -6,7 +6,7 @@
 |---|---|---|
 | kube-prometheus-stack | 83.3.0 | Prometheus + Grafana + Alertmanager foundation |
 | prometheus-snmp-exporter | 9.13.1 | SNMP polling proxy for MikroTik CRS328 |
-| unpoller | 2.14.2 | UniFi controller/AP/client metrics exporter |
+| unpoller | 2.39.0 | UniFi controller/AP/client metrics exporter |
 | prometheus-pve-exporter | 3.5.3 | Proxmox VE node and VM metrics exporter |
 
 ### Why This Stack

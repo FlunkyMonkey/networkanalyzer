@@ -45,17 +45,12 @@ grafana:
     passwordKey: admin-password
 
 # -- Alertmanager
+# Disabled for Wave 1. The Alertmanager CRD spec in this chart version
+# includes fields (e.g., hostNetwork) that cause ServerSideApply schema
+# validation failures against older CRD versions on the cluster.
+# Re-enable after CRD versions are aligned or after upgrading the cluster.
 alertmanager:
-  enabled: true
-  alertmanagerSpec:
-    storage:
-      volumeClaimTemplate:
-        spec:
-          storageClassName: rook-ceph-block
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 2Gi
+  enabled: false
 
 # -- Disable components not needed in Phase 3.
 # Kubernetes-level monitoring is Phase 5 scope.
