@@ -28,6 +28,8 @@ This directory contains design documentation for the GitOps-managed network obse
 | [go-no-go-gates.md](go-no-go-gates.md) | Explicit approval gates for each rollout wave |
 | [wave-enablement-model.md](wave-enablement-model.md) | How phased rollout works with a single ArgoCD app |
 | [gemini-strategy-sow.md](gemini-strategy-sow.md) | External strategic review role for GeminiCLI |
+| [backlog.md](backlog.md) | Future-wave items: server hardware monitoring, switch hardware monitoring |
+| [operations-notes.md](operations-notes.md) | Runtime ops decisions and context (legacy monitoring cleanup, etc.) |
 
 ## Platform Structure
 
