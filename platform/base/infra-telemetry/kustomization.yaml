@@ -12,7 +12,6 @@ labels:
     includeSelectors: false
 
 resources:
-  - snmp-module-configmap.yaml
   - unpoller-deployment.yaml
   - proxmox-exporter-deployment.yaml
   - servicemonitors.yaml
