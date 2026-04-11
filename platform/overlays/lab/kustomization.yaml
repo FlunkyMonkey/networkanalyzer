@@ -23,7 +23,7 @@ resources:
 
   # Wave 2 — Flow analytics plane (OpenSearch, GoFlow2, Vector)
   # Uncomment when Wave 1 is verified and Gate 1 passes.
-  # - ../../base/flow-analytics
+  - ../../base/flow-analytics
 
   # Wave 4 — K8s visibility (Hubble UI)
   # Uncomment when Cilium/Hubble are installed and Gate 3 passes.
