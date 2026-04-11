@@ -95,10 +95,10 @@ Detailed test cases for the operator to execute after each rollout wave. These v
 1. Verify it shows country names with byte volumes (requires GeoIP)
 1. Check the "Top Apps/Services" bar gauge
 1. Verify it shows app names (HTTPS, DNS, SSH, etc.) with byte volumes
-1. In OpenSearch Dashboards, run: `dst_port:443` — verify results
-1. In OpenSearch Dashboards, run: `dst_country:United States` — verify results (if GeoIP enabled)
+1. In Grafana → Flow — Traffic Mix dashboard: verify "Top Destination Ports" table includes port 443
+1. In Grafana → Flow — Traffic Mix dashboard: verify "Traffic by Destination Country" pie includes expected countries (if GeoIP enabled)
 
-**Pass criteria:** Country and app breakdowns reflect real traffic. OpenSearch queries return expected results.
+**Pass criteria:** Country and app breakdowns reflect real traffic. Grafana flow dashboards return expected results.
 
 **Note:** If GeoIP was not configured, country fields will be absent. Document this as a known limitation, not a failure.
 
@@ -134,7 +134,7 @@ Detailed test cases for the operator to execute after each rollout wave. These v
 1. Verify the freshness bar at the top shows green/healthy indicators
 1. Click an IP in Top Talkers → verify Entity Investigation opens with the IP pre-filled
 1. In Entity Investigation, verify: outbound flow table, inbound flow table, flow timeline
-1. Click "Open in OpenSearch" link — verify OpenSearch Dashboards opens with the correct filter
+1. In Entity Investigation, click "View flows for this IP" link — verify Grafana Flow — Destination Analysis opens with IP pre-filtered
 1. Click "Open in Hubble UI" link — verify Hubble UI opens
 1. Navigate to Investigation Playbooks — verify all 6 playbooks are listed
 1. Click the "Back to Home" link on any sub-dashboard — verify it returns to the homepage
@@ -190,10 +190,11 @@ Detailed test cases for the operator to execute after each rollout wave. These v
    - Expected: `"status": "green"`, `"number_of_nodes": 1`
 1. Verify index template: `curl localhost:9200/_index_template/flows`
    - Expected: template with `flows-*` pattern
-1. Verify ISM policy: `curl localhost:9200/_plugins/_ism/policies/flow-retention-30d`
-   - Expected: policy with 30-day transition to delete
-1. Port-forward to Dashboards: `kubectl port-forward svc/opensearch-dashboards 5601:5601 -n network-observability`
-1. Open `http://localhost:5601`
-1. Verify `flows-*` index pattern exists in Management → Index Patterns
+1. Verify ISM policy: `curl localhost:9200/_plugins/_ism/policies/flow-retention-14d`
+   - Expected: policy with 14-day transition to delete
+1. Verify Grafana datasource: Grafana → Configuration → Data Sources → "OpenSearch Flows" → Test
+   - Expected: "Data source is working"
+1. Verify flow dashboards loaded: Grafana → Dashboards → Browse
+   - Expected: `flow-top-talkers`, `flow-destinations`, `flow-traffic-mix` all present
 
-**Pass criteria:** OpenSearch is healthy, index template is loaded, ISM policy is active, Dashboards is accessible.
+**Pass criteria:** OpenSearch is healthy, index template is loaded, ISM policy `flow-retention-14d` is active, Grafana flow datasource test passes, flow dashboards are visible.

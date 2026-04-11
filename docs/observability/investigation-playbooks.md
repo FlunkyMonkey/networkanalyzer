@@ -29,15 +29,16 @@ Playbooks are accessible from the homepage dropdown or directly at the Investiga
 
 ### Investigate: Suspicious Outbound Country
 
-**Entry point:** Homepage country pie chart → OpenSearch Dashboards
+**Entry point:** Homepage country pie chart → Flow — Traffic Mix dashboard
 
 | Step | Dashboard | What to Check |
 |---|---|---|
 | 1 | Home — Countries | Which country has unexpected volume? |
-| 2 | OpenSearch Dashboards | Filter: `dst_country:<country>`, identify source IPs |
-| 3 | Entity Investigation | For each source, what else are they connecting to? |
-| 4 | Entity Investigation — Ports | Known services (443, 80) or unusual ports? |
-| 5 | Entity Investigation — ASN | Known CDN/cloud or unknown AS organization? |
+| 2 | Flow — Traffic Mix | "Traffic by Destination Country" — confirm country volume |
+| 3 | Flow — Destinations | Filter by destination country, identify source IPs |
+| 4 | Entity Investigation | For each source, what else are they connecting to? |
+| 5 | Entity Investigation — Ports | Known services (443, 80) or unusual ports? |
+| 6 | Entity Investigation — ASN | Known CDN/cloud or unknown AS organization? |
 
 ### Investigate: Noisy Pod / Workload
 
@@ -80,7 +81,7 @@ All playbooks follow the same investigation pattern:
 Symptom (homepage/alert)
   → Identify source (infra-telemetry dashboards)
     → Correlate entity (Entity Investigation dashboard)
-      → Deep dive (OpenSearch Dashboards / Hubble UI)
+      → Deep dive (Grafana flow dashboards / Hubble UI)
 ```
 
 This mirrors the approved **WAN → work downward** default investigation flow.

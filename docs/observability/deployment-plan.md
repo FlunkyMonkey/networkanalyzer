@@ -84,7 +84,9 @@ This document defines the phased rollout model for the network observability pla
 
 ### Wave 2 — Flow Plane Infrastructure
 
-**Purpose:** Deploy OpenSearch, OpenSearch Dashboards, and the GoFlow2+Vector collector. Verify the stack is healthy before repointing softflowd.
+**Purpose:** Deploy OpenSearch and the GoFlow2+Vector collector. Verify the stack is healthy before repointing softflowd. Grafana is provisioned with the OpenSearch datasource and flow dashboards as part of this wave.
+
+**Note:** OpenSearch Dashboards is NOT deployed. Grafana is the sole UI surface. Flow investigation is done via the `flow-top-talkers`, `flow-destinations`, and `flow-traffic-mix` dashboards in the existing platform Grafana.
 
 **Prerequisites:** Wave 1 passed. All infra-telemetry metrics are flowing.
 
@@ -93,56 +95,63 @@ This document defines the phased rollout model for the network observability pla
 **Execution order:**
 
 1. Enable flow-analytics in the lab overlay (repo commit), then ArgoCD sync
-1. Wait for OpenSearch StatefulSet to become Ready
-1. Wait for OpenSearch Dashboards pod to become Ready
-1. Wait for flow-collector pod to become Ready
+1. Wait for OpenSearch StatefulSet to become Ready (3–7 min — JVM startup)
+1. Wait for flow-collector pod to become Ready (both goflow2 + vector containers)
 1. Load the OpenSearch index template (see [flow-ingest-and-cutover.md](flow-ingest-and-cutover.md))
-1. Load the ISM retention policy
-1. Import OpenSearch Dashboards saved objects
+1. Load the ISM retention policy (`flow-retention-14d`)
 1. Verify the flow-collector Service has an external IP assigned by MetalLB
+1. Verify Grafana has picked up the OpenSearch datasource and flow dashboards
 
 **Verification:**
 
 - OpenSearch cluster health is green: `curl http://localhost:9200/_cluster/health` (via port-forward)
 - Flow collector pod shows both containers (goflow2 + vector) Running
 - `flow-collector` Service has an EXTERNAL-IP
-- OpenSearch index template exists
-- ISM policy is active
+- OpenSearch index template exists: `curl http://localhost:9200/_index_template/flows`
+- ISM policy `flow-retention-14d` is active
+- Grafana: Configuration → Data Sources → "OpenSearch Flows" → Test passes
+- Grafana: Dashboards → Browse shows `flow-top-talkers`, `flow-destinations`, `flow-traffic-mix`
 
-**Stop conditions:** OpenSearch fails to start. PVC does not bind. MetalLB does not assign an IP.
+**Security stance (canary stage):** OpenSearch security plugin is disabled (`plugins.security.disabled: true`). Access is unauthenticated in-cluster HTTP. This is acceptable for the canary stage only. Hardening (TLS, authentication) is required before any production promotion. Documented as a future hardening item in [flow-analytics-plane.md](flow-analytics-plane.md).
 
-**Rollback:** Re-comment the `../../base/flow-analytics` line in `platform/overlays/lab/kustomization.yaml`, commit, and push. ArgoCD auto-prune removes flow-analytics resources. Or for immediate relief: `kubectl scale deploy/flow-collector --replicas=0 -n network-observability`.
+**Stop conditions:** OpenSearch fails to start. PVC does not bind. MetalLB does not assign an IP. Grafana cannot connect to OpenSearch.
+
+**Rollback:** Re-comment the `../../base/flow-analytics` line in `platform/overlays/lab/kustomization.yaml`, commit, and push. ArgoCD auto-prune removes flow-analytics resources including the Grafana flow ConfigMaps. Grafana reverts to Prometheus-only datasource automatically.
 
 ---
 
-### Wave 3 — Softflowd Cutover
+### Wave 3 — Softflowd Canary Cutover
 
-**Purpose:** Repoint existing softflowd exporters from their current destination to the in-cluster flow collector. This is the first live data cutover.
+**Purpose:** Repoint softflowd exporters from the legacy collector to the in-cluster flow collector. This is the first live data cutover. Uses a canary-first approach.
 
-**Prerequisites:** Wave 2 passed. Flow collector is Running with an external IP. No flows are being received yet.
+**Legacy rollback target:** `172.18.1.207:2055/UDP`
+**Canary host:** prox5 (already exporting NetFlow v9)
+
+**Prerequisites:** Wave 2 passed. Flow collector is Running with an external IP. Grafana flow dashboards are loading. See full runbook: [wave2-canary-cutover.md](wave2-canary-cutover.md).
 
 **Execution order:**
 
 1. Record the current softflowd destination on each Proxmox host (for rollback)
-1. Repoint softflowd on **one** Proxmox host first (canary)
+1. Repoint softflowd on **prox5 only** (canary)
 1. Verify flows appear in GoFlow2: `kubectl exec deploy/flow-collector -c goflow2 -- tail -5 /flows/flows.jsonl`
 1. Verify flows appear in OpenSearch: `curl http://localhost:9200/flows-*/_count`
+1. Verify canary soak for 15+ minutes — doc count growing, no Vector errors
+1. Verify Grafana "Flow — Top Talkers" dashboard shows data
 1. If canary is healthy, repoint remaining Proxmox hosts
-1. Verify all hosts are exporting flows
-1. Verify OpenSearch Dashboards show flow data
+1. Verify all hosts are exporting flows (one exporter bucket per host in OpenSearch)
 
 **Verification:**
 
-- GoFlow2 is writing JSON records
+- GoFlow2 is writing JSON records with correct `exporter` field (= prox5 IP)
 - Vector health endpoint returns 200
 - OpenSearch has flow indices with growing document counts
-- OpenSearch Dashboards can query flows
-- Flow data includes expected fields (src_ip, dst_ip, bytes, protocol)
+- Flow data includes expected fields (src_ip, dst_ip, bytes, protocol_name, exporter)
 - GeoIP enrichment is present if MaxMind key was configured
+- Grafana "Flow — Top Talkers" table shows real IP data
 
-**Stop conditions:** GoFlow2 not receiving flows (check firewall/routing). Vector failing to index (check OpenSearch connectivity). Corrupted flow data.
+**Stop conditions:** GoFlow2 not receiving flows (check firewall/routing from prox5 to FLOW_COLLECTOR_IP:2055/UDP). Vector failing to index (check OpenSearch connectivity). Corrupted flow data.
 
-**Rollback:** Repoint softflowd back to the original destination on each Proxmox host. Restart softflowd. In-cluster collector stops receiving but remains deployed.
+**Rollback:** Restore `/etc/default/softflowd.bak` on prox5, restart softflowd. Legacy collector at `172.18.1.207:2055` resumes immediately. In-cluster collector stops receiving but remains deployed.
 
 ---
 
@@ -207,7 +216,7 @@ This document defines the phased rollout model for the network observability pla
 1. Enter an IP in Entity Investigation — verify flow tables populate
 1. Navigate to Investigation Playbooks — verify all 6 playbooks are present
 1. Navigate to Platform Health — verify scrape targets are UP
-1. Click the OpenSearch Dashboards link — verify it opens and shows flow data
+1. Click "View in Flow — Top Talkers" link — verify Grafana flow dashboard opens with data
 1. Click the Hubble UI link — verify it opens and shows K8s flows
 1. Test the "slow internet" playbook end-to-end
 

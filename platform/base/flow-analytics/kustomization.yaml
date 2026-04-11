@@ -1,8 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Flow Analytics Plane
-# GoFlow2 + Vector (collector/enrichment) → OpenSearch (storage) → OpenSearch Dashboards (UI)
+# Flow Analytics Plane — Wave 2
+# GoFlow2 + Vector (collector/enrichment) → OpenSearch (storage) → Grafana (UI)
+# OpenSearch Dashboards is NOT deployed. Grafana is the sole UI surface.
 
 labels:
   - pairs:
@@ -14,7 +15,8 @@ resources:
   - vector-config.yaml
   - opensearch-ism-policy.yaml
   - opensearch-index-template.yaml
-  - opensearch-dashboards-objects.yaml
+  - grafana-flow-datasource.yaml
+  - grafana-flow-dashboards.yaml
 
 helmCharts:
   - name: opensearch
@@ -23,10 +25,3 @@ helmCharts:
     releaseName: opensearch
     namespace: network-observability
     valuesFile: opensearch-values.yaml
-
-  - name: opensearch-dashboards
-    repo: https://opensearch-project.github.io/helm-charts/
-    version: "3.6.0"
-    releaseName: opensearch-dashboards
-    namespace: network-observability
-    valuesFile: opensearch-dashboards-values.yaml

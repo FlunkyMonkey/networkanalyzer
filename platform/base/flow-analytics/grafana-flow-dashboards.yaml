@@ -1,0 +1,531 @@
+# Grafana dashboards for flow analytics.
+# Picked up automatically by the Grafana sidecar (label: grafana_dashboard: "1").
+# Uses the opensearch-flows datasource provisioned by grafana-flow-datasource.yaml.
+#
+# Query strategy:
+#   - All panels use Lucene aggregation queries (bucketAggs + metrics).
+#   - PPL is NOT used. Lucene agg mode is compatible with all versions of the
+#     grafana-opensearch-datasource plugin that support the plugin's ES-compat API.
+#   - PPL query path requires live validation before deployment; Lucene agg mode
+#     does not — it maps to the standard OpenSearch /_search aggregations API.
+#
+# Dashboards:
+#   flow-top-talkers     uid: flow-top-talkers    — top source IPs by bytes
+#   flow-destinations    uid: flow-destinations   — per-host destination/port breakdown
+#   flow-traffic-mix     uid: flow-traffic-mix    — protocol, app, country distribution
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-flow-dashboards
+  namespace: network-observability
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/component: flow-analytics
+data:
+  flow-top-talkers.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "Top Source IPs by Bytes",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 12, "w": 12, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "terms",
+                  "field": "src_ip",
+                  "settings": { "size": "20", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Sum bytes" },
+                "properties": [{ "id": "unit", "value": "bytes" }]
+              }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "src_ip": "Source IP", "Sum bytes": "Total Bytes" } } }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Bytes", "desc": true }] }
+        },
+        {
+          "title": "Top Destination IPs by Bytes",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 12, "w": 12, "x": 12, "y": 0 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "terms",
+                  "field": "dst_ip",
+                  "settings": { "size": "20", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Sum bytes" },
+                "properties": [{ "id": "unit", "value": "bytes" }]
+              }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "dst_ip": "Destination IP", "Sum bytes": "Total Bytes" } } }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Bytes", "desc": true }] }
+        },
+        {
+          "title": "Total Flow Volume Over Time",
+          "type": "timeseries",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "date_histogram",
+                  "field": "@timestamp",
+                  "settings": { "interval": "auto", "min_doc_count": "0" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "custom": { "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "title": "Flow Count Over Time",
+          "type": "timeseries",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "count" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "date_histogram",
+                  "field": "@timestamp",
+                  "settings": { "interval": "auto", "min_doc_count": "0" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": { "fillOpacity": 10 }
+            }
+          }
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["network", "flows", "top-talkers", "flow-analytics"],
+      "templating": { "list": [] },
+      "time": { "from": "now-24h", "to": "now" },
+      "title": "Flow — Top Talkers",
+      "uid": "flow-top-talkers"
+    }
+
+  flow-destinations.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "Top Destinations for $src_ip",
+          "description": "Set $src_ip variable to filter by source IP. Leave as * to see all destinations.",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "src_ip:$src_ip",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "3",
+                  "type": "terms",
+                  "field": "dst_ip",
+                  "settings": { "size": "30", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Sum bytes" },
+                "properties": [{ "id": "unit", "value": "bytes" }]
+              }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "dst_ip": "Destination IP", "Sum bytes": "Total Bytes", "Count": "Flow Count" } } }
+          ]
+        },
+        {
+          "title": "Top Destination Ports for $src_ip",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 12 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "src_ip:$src_ip",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "terms",
+                  "field": "dst_port",
+                  "settings": { "size": "20", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Sum bytes" },
+                "properties": [{ "id": "unit", "value": "bytes" }]
+              }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "dst_port": "Port", "Sum bytes": "Total Bytes" } } }
+          ]
+        },
+        {
+          "title": "Destination Countries for $src_ip",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 12 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "src_ip:$src_ip AND _exists_:dst_country",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "terms",
+                  "field": "dst_country",
+                  "settings": { "size": "20", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Sum bytes" },
+                "properties": [{ "id": "unit", "value": "bytes" }]
+              }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "dst_country": "Country", "Sum bytes": "Total Bytes" } } }
+          ]
+        },
+        {
+          "title": "Who is connecting to $dst_ip?",
+          "description": "Set $dst_ip variable to see inbound sources.",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 22 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "dst_ip:$dst_ip",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "3",
+                  "type": "terms",
+                  "field": "src_ip",
+                  "settings": { "size": "20", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Sum bytes" },
+                "properties": [{ "id": "unit", "value": "bytes" }]
+              }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "src_ip": "Source IP", "Sum bytes": "Total Bytes", "Count": "Flow Count" } } }
+          ]
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["network", "flows", "destinations", "investigation", "flow-analytics"],
+      "templating": {
+        "list": [
+          {
+            "name": "src_ip",
+            "type": "textbox",
+            "label": "Source IP",
+            "current": { "value": "*" },
+            "query": "*",
+            "hide": 0
+          },
+          {
+            "name": "dst_ip",
+            "type": "textbox",
+            "label": "Destination IP",
+            "current": { "value": "*" },
+            "query": "*",
+            "hide": 0
+          }
+        ]
+      },
+      "time": { "from": "now-24h", "to": "now" },
+      "title": "Flow — Destination Analysis",
+      "uid": "flow-destinations"
+    }
+
+  flow-traffic-mix.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "Traffic by Application (port-based)",
+          "type": "piechart",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 8, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "_exists_:app",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "terms",
+                  "field": "app",
+                  "settings": { "size": "15", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "options": { "pieType": "pie", "displayLabels": ["name", "percent"] }
+        },
+        {
+          "title": "Traffic by Protocol",
+          "type": "piechart",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 8, "x": 8, "y": 0 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "terms",
+                  "field": "protocol_name",
+                  "settings": { "size": "10", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "options": { "pieType": "pie", "displayLabels": ["name", "percent"] }
+        },
+        {
+          "title": "Traffic by Destination Country",
+          "type": "piechart",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 8, "x": 16, "y": 0 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "_exists_:dst_country",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "terms",
+                  "field": "dst_country",
+                  "settings": { "size": "15", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "options": { "pieType": "pie", "displayLabels": ["name", "percent"] }
+        },
+        {
+          "title": "Top Destination Ports",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 10 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "3",
+                  "type": "terms",
+                  "field": "dst_port",
+                  "settings": { "size": "25", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Sum bytes" },
+                "properties": [{ "id": "unit", "value": "bytes" }]
+              }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "dst_port": "Port", "Sum bytes": "Total Bytes", "Count": "Flow Count" } } }
+          ]
+        },
+        {
+          "title": "Top ASNs (destination)",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 10 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "_exists_:dst_as_org",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "terms",
+                  "field": "dst_as_org",
+                  "settings": { "size": "20", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Sum bytes" },
+                "properties": [{ "id": "unit", "value": "bytes" }]
+              }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "dst_as_org": "AS Organization", "Sum bytes": "Total Bytes" } } }
+          ]
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["network", "flows", "traffic", "protocol", "country", "flow-analytics"],
+      "templating": { "list": [] },
+      "time": { "from": "now-24h", "to": "now" },
+      "title": "Flow — Traffic Mix",
+      "uid": "flow-traffic-mix"
+    }

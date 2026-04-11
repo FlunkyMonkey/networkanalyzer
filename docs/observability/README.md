@@ -28,6 +28,8 @@ This directory contains design documentation for the GitOps-managed network obse
 | [go-no-go-gates.md](go-no-go-gates.md) | Explicit approval gates for each rollout wave |
 | [wave-enablement-model.md](wave-enablement-model.md) | How phased rollout works with a single ArgoCD app |
 | [gemini-strategy-sow.md](gemini-strategy-sow.md) | External strategic review role for GeminiCLI |
+| [wave2-canary-cutover.md](wave2-canary-cutover.md) | Wave 3 canary cutover runbook: prox5 first, rollback to 172.18.1.207:2055 |
+| [wave2-codex-qa.md](wave2-codex-qa.md) | Codex QA packet for Wave 2/3 readiness |
 | [backlog.md](backlog.md) | Future-wave items: server hardware monitoring, switch hardware monitoring |
 | [operations-notes.md](operations-notes.md) | Runtime ops decisions and context (legacy monitoring cleanup, etc.) |
 

@@ -1,6 +1,7 @@
-# OpenSearch Dashboards saved objects for flow investigation.
-# Must be imported via Dashboards UI or API after deployment.
-# See docs/observability/flow-ingest-and-cutover.md for bootstrap steps.
+# DEPRECATED — NOT REFERENCED IN KUSTOMIZATION
+# OpenSearch Dashboards is NOT deployed in Wave 2.
+# Grafana is the sole UI surface. Flow investigation uses grafana-flow-dashboards.yaml.
+# This file is retained for reference only. Do not add to kustomization.yaml.
 apiVersion: v1
 kind: ConfigMap
 metadata:

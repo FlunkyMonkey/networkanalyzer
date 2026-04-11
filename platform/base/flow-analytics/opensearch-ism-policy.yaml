@@ -12,8 +12,8 @@ data:
   flow-retention-policy.json: |
     {
       "policy": {
-        "policy_id": "flow-retention-30d",
-        "description": "Retain granular flow data for 30 days, then delete. Aligns with approved retention model.",
+        "policy_id": "flow-retention-14d",
+        "description": "Retain granular flow data for 14 days, then delete. Wave 2 approved retention.",
         "default_state": "hot",
         "states": [
           {
@@ -23,7 +23,7 @@ data:
               {
                 "state_name": "delete",
                 "conditions": {
-                  "min_index_age": "30d"
+                  "min_index_age": "14d"
                 }
               }
             ]
@@ -31,14 +31,6 @@ data:
           {
             "name": "delete",
             "actions": [
-              {
-                "notification": {
-                  "destination": "default",
-                  "message_template": {
-                    "source": "Flow index {{ctx.index}} aged out after 30 days."
-                  }
-                }
-              },
               {
                 "delete": {}
               }

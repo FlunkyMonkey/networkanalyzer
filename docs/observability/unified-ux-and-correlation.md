@@ -2,7 +2,7 @@
 
 ## Approach
 
-**Grafana is the primary "front door" UI.** OpenSearch Dashboards and Hubble UI remain as specialist drill-down destinations, linked from Grafana dashboards.
+**Grafana is the primary "front door" UI and the sole flow investigation surface.** Hubble UI remains as a specialist drill-down destination for K8s visibility, linked from Grafana dashboards. OpenSearch Dashboards is not deployed.
 
 ### Why Grafana as the Front Door
 
@@ -16,8 +16,7 @@
 
 | UI | Owns | Accessed Via |
 |---|---|---|
-| **Grafana** | Homepage, investigation dashboards, playbooks, health/freshness, cross-plane navigation | Primary entry point |
-| **OpenSearch Dashboards** | Full flow search, ad-hoc flow queries, raw flow investigation | Linked from Grafana |
+| **Grafana** | Homepage, investigation dashboards, flow dashboards, playbooks, health/freshness, cross-plane navigation | Primary entry point |
 | **Hubble UI** | Real-time K8s pod/service flow visualization, L7 inspection | Linked from Grafana |
 
 ## Dashboard Organization
@@ -31,6 +30,9 @@
 | Switch Interface Utilization | `infra-iface-util` | (infra plane) | Per-port bandwidth |
 | UniFi AP & WLAN Clients | `infra-unifi-clients` | (infra plane) | Per-client WiFi metrics |
 | Proxmox Node & VM Network | `infra-proxmox-net` | (infra plane) | VM bandwidth |
+| Flow — Top Talkers | `flow-top-talkers` | `flow-analytics` | Top source/dest IPs by bytes; total volume timeseries |
+| Flow — Destination Analysis | `flow-destinations` | `flow-analytics`, `investigation` | Per-host destinations, ports, country breakdown |
+| Flow — Traffic Mix | `flow-traffic-mix` | `flow-analytics` | Protocol, app, country, ASN distribution |
 
 ### Navigation Model
 
@@ -48,7 +50,7 @@ Grafana queries two datasources:
 | Datasource | Name | Provides |
 |---|---|---|
 | Prometheus | `prometheus` (default) | Infra metrics: interface counters, WiFi clients, VM stats, scrape health |
-| OpenSearch | `OpenSearch-Flows` | Flow data: top talkers, destinations, countries, apps, ports |
+| OpenSearch | `opensearch-flows` (UID) | Flow data: top talkers, destinations, countries, apps, ports |
 
 The OpenSearch datasource is provisioned via a ConfigMap with the `grafana_datasource: "1"` label, automatically loaded by the Grafana sidecar.
 
@@ -89,7 +91,7 @@ For a given IP, the dashboard shows:
 - Outbound flow table (destinations, ports, countries, apps, AS orgs)
 - Inbound flow table (sources hitting this entity)
 - Flow volume over time
-- Links to OpenSearch Dashboards for full flow search
+- Links to Flow — Destination Analysis for full flow breakdown
 - Links to Hubble UI for K8s workload context
 
 ### Path Visualization Limitation
@@ -102,4 +104,4 @@ True graphical path visualization (a rendered graph showing entity-to-entity rel
 
 ## OpenSearch Datasource Plugin
 
-The `grafana-opensearch-datasource` plugin is installed via the kube-prometheus-stack Helm values (`grafana.plugins`). This is a modification to the infra-telemetry plane values file — the only cross-plane change in Phase 6.
+The `grafana-opensearch-datasource` plugin is installed via the standalone Grafana Helm values (`grafana-values.yaml` in the infra-telemetry plane). The datasource itself is provisioned by a labeled ConfigMap in the flow-analytics plane (`grafana-flow-datasource.yaml`), picked up by the Grafana sidecar when Wave 2 is enabled.

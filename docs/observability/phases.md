@@ -150,7 +150,7 @@
 - Go-live exit criteria met:
   - All planes receiving live data
   - Grafana dashboards populated
-  - OpenSearch Dashboards showing flows
+  - Grafana flow dashboards showing flows (flow-top-talkers, flow-destinations, flow-traffic-mix)
   - Hubble UI connected to Relay
   - No degraded-state warnings
   - Operator walkthrough completed

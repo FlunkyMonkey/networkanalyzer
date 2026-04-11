@@ -1,5 +1,7 @@
 # OpenSearch values for flow analytics storage.
-# Single-node deployment appropriate for homelab.
+# Single-node deployment for homelab.
+# Node affinity: prefer kube4 (primary), kube2 (fallback).
+# Rationale: pin storage-heavy StatefulSet to predictable nodes, avoid scheduler churn.
 
 singleNode: true
 
@@ -17,6 +19,24 @@ resources:
   limits:
     cpu: "2"
     memory: 4Gi
+
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - kube4
+      - weight: 50
+        preference:
+          matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - kube2
 
 config:
   opensearch.yml: |

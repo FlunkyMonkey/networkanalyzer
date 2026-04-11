@@ -1,4 +1,9 @@
-# OpenSearch Dashboards values for flow investigation UI.
+# DEPRECATED — NOT REFERENCED IN KUSTOMIZATION
+# OpenSearch Dashboards is NOT deployed in Wave 2.
+# Grafana is the sole UI surface.
+# This file is retained for reference only. Do not add to kustomization.yaml.
+#
+# Original content preserved below:
 
 replicaCount: 1
 

@@ -1,0 +1,30 @@
+# Grafana datasource ConfigMap for OpenSearch flow data.
+# Picked up automatically by the Grafana sidecar (label: grafana_datasource: "1").
+# Only deployed when Wave 2 is enabled in the overlay — so OpenSearch will be running.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-flow-datasource
+  namespace: network-observability
+  labels:
+    grafana_datasource: "1"
+    app.kubernetes.io/component: flow-analytics
+data:
+  opensearch-flows-datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: OpenSearch Flows
+        type: grafana-opensearch-datasource
+        uid: opensearch-flows
+        access: proxy
+        url: http://opensearch-cluster-master:9200
+        isDefault: false
+        jsonData:
+          database: flows-*
+          timeField: "@timestamp"
+          flavor: opensearch
+          version: "2.17.0"
+          maxConcurrentShardRequests: 5
+          logMessageField: ""
+          logLevelField: ""
+        editable: false

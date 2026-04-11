@@ -55,7 +55,7 @@ All Wave 1–4 regressions plus:
 |---|---|---|
 | R5.1 | Homepage loads correctly | `/d/correlation-home` renders in < 5s |
 | R5.2 | All specialist dashboards still work | Check each infra dashboard, flow dashboard, health dashboard |
-| R5.3 | OpenSearch Dashboards still accessible | Port-forward :5601, query `flows-*` |
+| R5.3 | Grafana flow dashboards still return data | Open Flow — Top Talkers, verify table populated |
 | R5.4 | Hubble UI still connected | Port-forward :12000, verify service map |
 | R5.5 | No new firing alerts | Check Platform Health dashboard — firing alerts count |
 

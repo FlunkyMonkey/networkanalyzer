@@ -19,7 +19,7 @@ Grafana serves as the platform's front door. All investigation paths start here.
 │                                               │
 │  1. Top Talkers (table, clickable IPs)       │
 │     └── click IP → Entity Investigation      │
-│     └── click IP → OpenSearch Dashboards     │
+│     └── click IP → Flow — Destination Analysis │
 │                                               │
 │  2. Destinations for Source IP (table)        │
 │                                               │
@@ -29,11 +29,13 @@ Grafana serves as the platform's front door. All investigation paths start here.
 └─────────────────────────────────────────────┘
          │              │              │
          ▼              ▼              ▼
- ┌──────────────┐ ┌──────────┐ ┌──────────────┐
- │   Entity     │ │ OpenSearch│ │  Hubble UI   │
- │Investigation │ │Dashboards│ │ (K8s flows)  │
- │  (Grafana)   │ │(flow UI) │ │              │
- └──────────────┘ └──────────┘ └──────────────┘
+ ┌──────────────┐ ┌───────────────┐ ┌──────────────┐
+ │   Entity     │ │ Flow Dashboards│ │  Hubble UI   │
+ │Investigation │ │ (Grafana)     │ │ (K8s flows)  │
+ │  (Grafana)   │ │ top-talkers   │ │              │
+ └──────────────┘ │ destinations  │ └──────────────┘
+                  │ traffic-mix   │
+                  └───────────────┘
 ```
 
 ## Drill-Down Paths
@@ -45,7 +47,7 @@ Switch Interface Utilization dashboard
   → identify saturated port
     → (manual) look up device on port
       → Entity Investigation for device IP
-        → OpenSearch for full flow detail
+        → Flow — Destination Analysis for full flow detail
 ```
 
 ### IP/Endpoint → Destinations
@@ -55,7 +57,7 @@ Homepage Top Talkers
   → click source IP link
     → Entity Investigation (pre-filtered)
       → outbound destinations table
-        → OpenSearch for raw flow search
+        → Flow — Destination Analysis for full flow breakdown
 ```
 
 ### Pod/Workload → Hubble → Flows
@@ -95,7 +97,7 @@ UniFi Clients dashboard
 | Homepage → Specialist | Dashboard tag dropdown | `tags: ["specialist"]` |
 | Homepage → Playbook | Dashboard tag dropdown | `tags: ["playbook"]` |
 | Table cell → Entity Investigation | Data link on IP field | `/d/correlation-entity-investigation?var-entity_ip=${__value.text}` |
-| Table cell → OpenSearch | Data link on IP field | `http://opensearch-dashboards:5601/app/discover#/?_a=(query:...)` |
+| Table cell → Flow Destination Analysis | Data link on IP field | `/d/flow-destinations?var-src_ip=${__value.text}` |
 | Any dashboard → Hubble UI | Static link | `http://hubble-ui:80` |
 | Any dashboard → Home | Static link | `/d/correlation-home` |
 
@@ -111,5 +113,5 @@ UniFi Clients dashboard
 
 1. **No automatic entity resolution** — the operator must know or discover the IP to investigate. A future entity search feature could provide typeahead lookup across all planes.
 2. **No graphical path visualization** — entity chains are represented as structured tables with links, not as a rendered graph. See [unified-ux-and-correlation.md](unified-ux-and-correlation.md) for future options.
-3. **OpenSearch/Hubble links are internal cluster addresses** — these work via `kubectl port-forward` or when accessed from within the cluster network. For external access, configure Ingress resources.
+3. **Hubble link is an internal cluster address** — works via `kubectl port-forward` or from within the cluster network. For external access, configure Ingress resources.
 4. **Flow ingest freshness** — the homepage shows Prometheus scrape health and flow collector status, but not "last flow indexed N seconds ago" from OpenSearch directly.

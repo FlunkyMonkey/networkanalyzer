@@ -58,47 +58,58 @@ Operator-executable checklists for each rollout wave. Print, execute line by lin
 
 **Enable:** Uncomment `../../base/flow-analytics` in `platform/overlays/lab/kustomization.yaml`, commit, push. Wait for ArgoCD sync.
 
+**Note:** OpenSearch Dashboards is NOT deployed. Grafana is the sole UI surface. The Grafana flow datasource and dashboards are provisioned via labeled ConfigMaps in the flow-analytics plane.
+
 | # | Check | Command | Expected | Pass |
 |---|---|---|---|---|
 | 2.0 | Plane enabled in overlay | Verify flow-analytics line is uncommented in lab kustomization.yaml | Uncommented | [ ] |
 | 2.1 | OpenSearch Running | `kubectl get pods -n network-observability -l app.kubernetes.io/name=opensearch` | 1/1 Running | [ ] |
 | 2.2 | OpenSearch health | Port-forward 9200, `curl localhost:9200/_cluster/health` | `"status":"green"` | [ ] |
-| 2.3 | Dashboards Running | `kubectl get pods -n network-observability -l app.kubernetes.io/name=opensearch-dashboards` | Running | [ ] |
-| 2.4 | Flow collector Running | `kubectl get pods -n network-observability -l app.kubernetes.io/name=flow-collector` | 2/2 Running | [ ] |
-| 2.5 | Collector external IP | `kubectl get svc flow-collector -n network-observability` | EXTERNAL-IP assigned | [ ] |
-| 2.6 | Index template loaded | `curl localhost:9200/_index_template/flows` | Template exists | [ ] |
-| 2.7 | ISM policy loaded | `curl localhost:9200/_plugins/_ism/policies/flow-retention-30d` | Policy exists | [ ] |
-| 2.8 | Dashboards objects imported | Access Dashboards at :5601, check index pattern `flows-*` | Exists | [ ] |
-| 2.9 | Wave 1 still healthy | Re-run checks 1.3–1.7 | All still passing | [ ] |
+| 2.3 | OpenSearch node placement | `kubectl get pod opensearch-0 -n network-observability -o jsonpath='{.spec.nodeName}'` | kube4 (preferred) or kube2 (fallback) | [ ] |
+| 2.4 | Flow collector Running | `kubectl get pods -n network-observability -l app.kubernetes.io/name=flow-collector` | 2/2 Running (goflow2 + vector) | [ ] |
+| 2.5 | Collector external IP | `kubectl get svc flow-collector -n network-observability` | EXTERNAL-IP assigned by MetalLB | [ ] |
+| 2.6 | Index template loaded | Port-forward 9200, `curl localhost:9200/_index_template/flows` | Template exists (not 404) | [ ] |
+| 2.7 | ISM policy loaded | `curl localhost:9200/_plugins/_ism/policies/flow-retention-14d` | Policy exists, min_index_age: 14d | [ ] |
+| 2.8 | Grafana datasource loaded | Grafana → Configuration → Data Sources | "OpenSearch Flows" datasource present | [ ] |
+| 2.9 | Grafana datasource healthy | Grafana → Data Sources → OpenSearch Flows → Test | "Data source is working" | [ ] |
+| 2.10 | Flow dashboards visible | Grafana → Dashboards → Browse | flow-top-talkers, flow-destinations, flow-traffic-mix listed | [ ] |
+| 2.11 | Vector healthy | `kubectl exec deploy/flow-collector -c vector -- curl -s localhost:8686/health` | HTTP 200 | [ ] |
+| 2.12 | Wave 1 still healthy | Re-run checks 1.3–1.7 | All still passing | [ ] |
+| 2.13 | **Query validation** — flow dashboards return data after Wave 3 canary | After prox5 cutover: open Flow — Top Talkers, confirm table rows are populated | At least one src_ip row visible — datasource "Test" passing is not sufficient; actual query data required | [ ] |
 
 **Gate:** All items pass → proceed to Wave 3.
 
-**Rollback trigger:** OpenSearch PVC fails to bind. Flow collector cannot start. MetalLB fails to assign IP.
+**Rollback trigger:** OpenSearch PVC fails to bind. Flow collector cannot start. MetalLB fails to assign IP. Grafana datasource cannot connect to OpenSearch.
 
-**Rollback:** Re-comment `../../base/flow-analytics` in the lab overlay, commit, push. ArgoCD auto-prune removes flow resources.
+**Rollback:** Re-comment `../../base/flow-analytics` in the lab overlay, commit, push. ArgoCD auto-prune removes flow resources. Grafana loses the OpenSearch datasource and flow dashboards automatically (their ConfigMaps are pruned).
 
 ---
 
-## Wave 3 — Softflowd Cutover
+## Wave 3 — Softflowd Canary Cutover
+
+**Canary host:** prox5 (already exporting NetFlow v9)
+**Legacy rollback target:** `172.18.1.207:2055/UDP`
+**Full cutover runbook:** See [wave2-canary-cutover.md](wave2-canary-cutover.md)
 
 | # | Check | Command | Expected | Pass |
 |---|---|---|---|---|
-| 3.1 | Record current softflowd targets | `ssh each-host cat /etc/default/softflowd` | Targets documented | [ ] |
-| 3.2 | Canary: repoint 1 host | Update softflowd config on 1 host, restart | Service restarted | [ ] |
-| 3.3 | GoFlow2 receiving | `kubectl exec deploy/flow-collector -c goflow2 -- tail -3 /flows/flows.jsonl` | JSON records appearing | [ ] |
-| 3.4 | OpenSearch indexing | `curl localhost:9200/flows-*/_count` | Count > 0 and growing | [ ] |
-| 3.5 | Flow fields correct | `curl 'localhost:9200/flows-*/_search?size=1&pretty'` | src_ip, dst_ip, bytes present | [ ] |
-| 3.6 | GeoIP enrichment (if configured) | Check for dst_country field in flow doc | Present if MaxMind key was set | [ ] |
-| 3.7 | Repoint remaining hosts | Update softflowd config on all remaining hosts | All restarted | [ ] |
-| 3.8 | All hosts exporting | Check flow count growth rate | Steady increase | [ ] |
-| 3.9 | OpenSearch Dashboards show data | Query `flows-*` in Discover | Results returned | [ ] |
-| 3.10 | Waves 1–2 still healthy | Re-run checks 1.3–1.7, 2.1–2.4 | All still passing | [ ] |
+| 3.1 | Record all softflowd targets | `ssh <each-host> cat /etc/default/softflowd` | All documented as `172.18.1.207:2055` | [ ] |
+| 3.2 | Canary: repoint prox5 | Update prox5 softflowd to FLOW_COLLECTOR_IP:2055, restart | softflowd active/running | [ ] |
+| 3.3 | GoFlow2 receiving | `kubectl exec deploy/flow-collector -c goflow2 -- tail -3 /flows/flows.jsonl` | JSON records appearing (exporter field = prox5 IP) | [ ] |
+| 3.4 | OpenSearch indexing | Port-forward 9200, `curl localhost:9200/flows-*/_count` | Count > 0 and growing | [ ] |
+| 3.5 | Flow fields correct | `curl 'localhost:9200/flows-*/_search?size=1&pretty'` | src_ip, dst_ip, bytes, protocol_name, exporter present | [ ] |
+| 3.6 | GeoIP enrichment (if configured) | Check `dst_country` in a flow doc | Present if MaxMind key was set | [ ] |
+| 3.7 | Canary soak: 15 minutes | Monitor doc count growth for 15 min | Steady increase, no Vector errors | [ ] |
+| 3.8 | Grafana Top Talkers shows data | Navigate to Flow — Top Talkers in Grafana | Table populated with src_ip/bytes | [ ] |
+| 3.9 | Repoint remaining hosts | Update softflowd on all non-canary hosts | All restarted, pointing to FLOW_COLLECTOR_IP | [ ] |
+| 3.10 | All hosts exporting | Check exporter bucket agg in OpenSearch | One bucket per active Proxmox host | [ ] |
+| 3.11 | Waves 1–2 still healthy | Re-run checks 1.3–1.7, 2.1–2.4 | All still passing | [ ] |
 
 **Gate:** All items pass → proceed to Wave 4.
 
-**Rollback trigger:** Flows not arriving after 5 minutes. Corrupted data. OpenSearch indexing errors.
+**Rollback trigger:** GoFlow2 file empty after 5 minutes. Vector indexing errors. Corrupted flow data. doc count not growing.
 
-**Rollback:** Repoint softflowd back to original target on all hosts. Restart softflowd.
+**Rollback:** `ssh prox5; sudo cp /etc/default/softflowd.bak /etc/default/softflowd; sudo systemctl restart softflowd`. Repeat on any other repointed host. Legacy collector at `172.18.1.207:2055` resumes immediately.
 
 ---
 
