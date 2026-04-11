@@ -120,7 +120,7 @@ data:
           "gridPos": { "h": 3, "w": 6, "x": 18, "y": 2 },
           "options": {
             "mode": "markdown",
-            "content": "**Specialist UIs:**\n- [OpenSearch Dashboards](http://opensearch-dashboards:5601) — Flow investigation\n- [Hubble UI](http://hubble-ui:80) — K8s workload visibility\n\n**Drill-Down:**\n- [Entity Investigation](/d/correlation-entity-investigation) — Path-style drill-down"
+            "content": "**Flow Investigation:**\n- [Top Talkers](/d/flow-top-talkers) — Top source/dest IPs by bytes\n- [Destination Analysis](/d/flow-destinations) — Per-host destination breakdown\n- [Traffic Mix](/d/flow-traffic-mix) — Protocol, app, country, ASN\n\n**Other Specialist UIs:**\n- [Entity Investigation](/d/correlation-entity-investigation) — Path-style drill-down\n- [Hubble UI](http://hubble-ui:80) — K8s workload visibility"
           }
         },
         {
@@ -157,7 +157,7 @@ data:
                   { "id": "displayName", "value": "Source IP" },
                   { "id": "links", "value": [
                     { "title": "Investigate destinations for ${__value.text}", "url": "/d/correlation-entity-investigation?var-entity_ip=${__value.text}&var-direction=src" },
-                    { "title": "View flows in OpenSearch", "url": "http://opensearch-dashboards:5601/app/discover#/?_a=(query:(language:kuery,query:'src_ip:${__value.text}'))", "targetBlank": true }
+                    { "title": "View flow destinations", "url": "/d/flow-destinations?var-src_ip=${__value.text}", "targetBlank": false }
                   ]}
                 ]
               }
@@ -166,7 +166,7 @@ data:
         },
         {
           "title": "2. Destinations — What is server X connecting to?",
-          "description": "Select a source IP to see its top destinations. Drill into OpenSearch for full flow detail.",
+          "description": "Select a source IP to see its top destinations. Click a destination IP to drill into Flow — Destination Analysis.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 8, "w": 24, "x": 0, "y": 13 },

@@ -149,7 +149,7 @@ Operator-executable checklists for each rollout wave. Print, execute line by lin
 | 5.4 | Card 3: WiFi clients | Check WiFi bandwidth chart | Shows client RX/TX | [ ] |
 | 5.5 | Freshness bar | Check source health / scrape % / flow ingest | All green/healthy | [ ] |
 | 5.6 | Drill-down: IP → Entity | Click an IP in Top Talkers | Opens Entity Investigation | [ ] |
-| 5.7 | Drill-down: IP → OpenSearch | Click "View flows in OpenSearch" link | Opens OSD with filter | [ ] |
+| 5.7 | Drill-down: IP → Flow Destinations | Click "View flow destinations" link on Top Talkers row | Opens Flow — Destination Analysis with src_ip pre-filled | [ ] |
 | 5.8 | Playbooks accessible | Click "Investigation Playbooks" dropdown | All 6 playbooks visible | [ ] |
 | 5.9 | Health dashboard | Navigate to Platform Health | All targets shown UP | [ ] |
 | 5.10 | End-to-end playbook | Execute "Investigate slow internet" | Can follow all steps | [ ] |

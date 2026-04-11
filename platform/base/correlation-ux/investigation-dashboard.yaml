@@ -27,9 +27,9 @@ data:
           "asDropdown": false,
           "icon": "external link",
           "keepTime": false,
-          "title": "Open in OpenSearch",
-          "url": "http://opensearch-dashboards:5601/app/discover#/?_a=(query:(language:kuery,query:'src_ip:${entity_ip} OR dst_ip:${entity_ip}'))",
-          "targetBlank": true,
+          "title": "Flow — Destination Analysis",
+          "url": "/d/flow-destinations?var-src_ip=${entity_ip}",
+          "targetBlank": false,
           "type": "link"
         },
         {
