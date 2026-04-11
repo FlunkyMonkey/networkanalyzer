@@ -206,11 +206,11 @@ data:
           "gridPos": { "h": 8, "w": 24, "x": 0, "y": 21 },
           "targets": [
             {
-              "expr": "rate(unifipoller_client_receive_bytes_total[5m]) * 8",
+              "expr": "rate(unpoller_client_receive_bytes_total[5m]) * 8",
               "legendFormat": "{{name}} RX"
             },
             {
-              "expr": "rate(unifipoller_client_transmit_bytes_total[5m]) * 8",
+              "expr": "rate(unpoller_client_transmit_bytes_total[5m]) * 8",
               "legendFormat": "{{name}} TX"
             }
           ],

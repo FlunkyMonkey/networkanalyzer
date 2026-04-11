@@ -199,7 +199,7 @@ This document defines the phased rollout model for the network observability pla
 **Execution order:**
 
 1. Enable correlation-ux in the lab overlay (repo commit), then ArgoCD sync
-1. Access Grafana: `kubectl port-forward -n network-observability svc/prometheus-grafana 3000:80`
+1. Access Grafana: `kubectl port-forward -n network-observability svc/grafana 3000:80`
 1. Navigate to the homepage dashboard (`/d/correlation-home`)
 1. Verify homepage card order: top talkers, destinations, WiFi client bandwidth
 1. Verify the freshness bar shows healthy status

@@ -83,11 +83,11 @@ data:
           "gridPos": { "h": 4, "w": 12, "x": 12, "y": 3 },
           "targets": [
             {
-              "expr": "rate(unifipoller_client_receive_bytes_total{ip=~\"${entity_ip}\"}[5m]) * 8",
+              "expr": "rate(unpoller_client_receive_bytes_total{ip=~\"${entity_ip}\"}[5m]) * 8",
               "legendFormat": "RX bps"
             },
             {
-              "expr": "rate(unifipoller_client_transmit_bytes_total{ip=~\"${entity_ip}\"}[5m]) * 8",
+              "expr": "rate(unpoller_client_transmit_bytes_total{ip=~\"${entity_ip}\"}[5m]) * 8",
               "legendFormat": "TX bps"
             }
           ],

@@ -105,7 +105,7 @@ data:
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
           "targets": [
             {
-              "expr": "rate(unifipoller_client_receive_bytes_total[5m]) * 8",
+              "expr": "rate(unpoller_client_receive_bytes_total[5m]) * 8",
               "legendFormat": "{{name}} ({{mac}})"
             }
           ],
@@ -123,7 +123,7 @@ data:
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
           "targets": [
             {
-              "expr": "rate(unifipoller_client_transmit_bytes_total[5m]) * 8",
+              "expr": "rate(unpoller_client_transmit_bytes_total[5m]) * 8",
               "legendFormat": "{{name}} ({{mac}})"
             }
           ],
@@ -141,7 +141,7 @@ data:
           "gridPos": { "h": 4, "w": 8, "x": 0, "y": 8 },
           "targets": [
             {
-              "expr": "count(unifipoller_client_receive_bytes_total{radio!=\"\"})",
+              "expr": "count(unpoller_client_receive_bytes_total{radio!=\"\"})",
               "legendFormat": "WiFi Clients"
             }
           ]
@@ -153,7 +153,7 @@ data:
           "gridPos": { "h": 4, "w": 16, "x": 8, "y": 8 },
           "targets": [
             {
-              "expr": "unifipoller_device_uptime_seconds",
+              "expr": "unpoller_device_uptime_seconds",
               "legendFormat": "{{name}}",
               "format": "table",
               "instant": true

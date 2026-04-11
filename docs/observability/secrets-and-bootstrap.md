@@ -139,14 +139,14 @@ kubectl create secret generic geoip-credentials \
 5. Access Grafana:
 
    ```bash
-   kubectl port-forward -n network-observability svc/prometheus-grafana 3000:80
+   kubectl port-forward -n network-observability svc/grafana 3000:80
    ```
 
    Then open `http://localhost:3000` and log in with the Grafana admin credentials.
 
 ## SNMP Community String
 
-The current SNMP module configuration (`snmp-module-configmap.yaml`) contains a placeholder SNMP community string (`SNMP_COMMUNITY`). Before deployment:
+The SNMP config is inlined in the chart's `config` value (`snmp-exporter-values.yaml`). It contains a placeholder community string (`SNMP_COMMUNITY`). Before deployment:
 
 - **Option A (quick start):** Edit the ConfigMap to replace `SNMP_COMMUNITY` with the actual community string. This is acceptable for a private lab but not recommended for production.
 - **Option B (recommended):** Migrate to SNMPv3 with auth credentials stored in a Kubernetes Secret. The snmp_exporter supports `--config.expand-environment-variables` for this pattern.

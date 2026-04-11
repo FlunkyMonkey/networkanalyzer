@@ -57,7 +57,7 @@ All components are deployed via the single ArgoCD Application. Helm charts are r
 - **Labels:** Each metric carries `ifDescr` (port name) and `ifAlias` (port description) for human-readable identification.
 - **Scrape interval:** 60 seconds.
 - **SNMP target:** Configured in the snmp-exporter values as `mikrotik-crs328.local`. Override in lab overlay if DNS differs.
-- **Auth:** SNMP community string is in the `snmp-module-config` ConfigMap. For production, move to SNMPv3 with credentials from a Secret.
+- **Auth:** SNMP community string is inlined in the chart's `config` value (`snmp-exporter-values.yaml`). Replace `SNMP_COMMUNITY` with the real value before deployment. For production, move to SNMPv3 with credentials from a Secret.
 
 ### UniFi Controller / APs / WLAN Clients
 
@@ -100,9 +100,9 @@ These are functional starting points — expect iteration in later phases when t
 
 ### From UnPoller (UniFi)
 
-- `unifipoller_client_receive_bytes_total` / `unifipoller_client_transmit_bytes_total` — per-client bandwidth
-- `unifipoller_device_uptime_seconds` — AP uptime
-- `unifipoller_device_transmit_bytes_total` / `unifipoller_device_receive_bytes_total` — per-AP bandwidth
+- `unpoller_client_receive_bytes_total` / `unpoller_client_transmit_bytes_total` — per-client bandwidth
+- `unpoller_device_uptime_seconds` — AP uptime
+- `unpoller_device_transmit_bytes_total` / `unpoller_device_receive_bytes_total` — per-AP bandwidth
 - Various DPI, site, and SSID metrics
 
 ### From PVE Exporter (Proxmox)
@@ -118,11 +118,20 @@ These are functional starting points — expect iteration in later phases when t
 2. **UniFi historical data** — UnPoller captures point-in-time snapshots. Historical data beyond Prometheus retention depends on the controller's own limited history.
 3. **Proxmox aggregate counters** — VM netin/netout are cumulative since boot. Requires `rate()` for meaningful throughput. Resets on VM restart.
 4. **No flow-level data** — This phase provides bandwidth/utilization only. Top talkers, destinations, app classification require the flow analytics plane (Phase 4).
-5. **SNMP community in ConfigMap** — The current SNMP module config has a placeholder community string. For production, use SNMPv3 with credentials from a Kubernetes Secret.
+5. **SNMP community in config** — The inlined SNMP config has a placeholder community string (`SNMP_COMMUNITY`). Replace before deployment or migrate to SNMPv3.
 
 ## Self-Health
 
-- Prometheus, Grafana, and Alertmanager expose readiness/liveness probes via the Helm chart.
-- UnPoller and PVE Exporter have explicit liveness/readiness probes on their metrics endpoints.
-- SNMP Exporter has probes via the Helm chart.
-- Scrape target health is visible in Prometheus under Status > Targets.
+This repo deploys Grafana and three exporters. Prometheus and its operator are managed externally in the `monitoring` namespace.
+
+**Deployed by this repo (network-observability):**
+
+- Grafana has readiness/liveness probes via the Helm chart
+- UnPoller and PVE Exporter have explicit liveness/readiness probes on their metrics endpoints
+- SNMP Exporter has probes via the Helm chart
+
+**External dependency (monitoring namespace):**
+
+- Scrape target health is visible in the existing Prometheus under Status > Targets
+- If the existing Prometheus in `monitoring` goes down, Grafana dashboards lose their data source — but the exporters continue running and will be scraped again when Prometheus recovers
+- Existing Prometheus health is outside this repo's control — monitor it via the cluster's own monitoring stack
