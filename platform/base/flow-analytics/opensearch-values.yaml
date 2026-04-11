@@ -44,8 +44,8 @@ config:
     node.name: opensearch-0
     plugins.security.disabled: true
 
+opensearchJavaOpts: "-Xms2g -Xmx2g"
+
 extraEnvs:
-  - name: OPENSEARCH_JAVA_OPTS
-    value: "-Xms2g -Xmx2g"
   - name: DISABLE_INSTALL_DEMO_CONFIG
     value: "true"

@@ -64,7 +64,7 @@ spec:
               mountPath: /geoip
       containers:
         - name: goflow2
-          image: netsampler/goflow2:v2.3.1
+          image: netsampler/goflow2:v2
           args:
             - "-transport.file"
             - "/flows/flows.jsonl"
