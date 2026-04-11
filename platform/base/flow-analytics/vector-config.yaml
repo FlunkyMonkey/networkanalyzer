@@ -40,10 +40,13 @@ data:
           .packets = .Packets
           .tcp_flags = .TCPFlags
 
-          # Timestamp — GoFlow2 uses epoch seconds.
-          .flow_start = to_timestamp!(.TimeFlowStart, "seconds") ?? now()
-          .flow_end = to_timestamp!(.TimeFlowEnd, "seconds") ?? now()
-          .@timestamp = now()
+          # Timestamp — GoFlow2 emits integer epoch seconds.
+          # Multiply by 1000 → epoch_millis, which OpenSearch date fields accept
+          # by default (strict_date_optional_time||epoch_millis).
+          # Avoids to_timestamp so no VRL runtime compatibility risk.
+          .flow_start = (to_int(.TimeFlowStart) ?? 0) * 1000
+          .flow_end   = (to_int(.TimeFlowEnd)   ?? 0) * 1000
+          .@timestamp = format_timestamp!(now(), "%Y-%m-%dT%H:%M:%SZ")
 
           # Flow direction and type metadata.
           .flow_type = .Type
@@ -67,81 +70,44 @@ data:
           del(.file)
           del(.host)
 
-      enrich_geoip:
+      enrich_meta:
         type: remap
         inputs:
           - parse_flow
         source: |
-          # GeoIP enrichment for destination IP.
-          # If GeoIP databases are not loaded (no MaxMind key), these fields will be absent.
-          geoip_city = get_enrichment_table_record("geoip_city", {"ip": .dst_ip}) ?? {}
-          if geoip_city != {} {
-            .dst_country = geoip_city.country_name
-            .dst_country_code = geoip_city.country_code
-            .dst_city = geoip_city.city_name
-            .dst_latitude = geoip_city.latitude
-            .dst_longitude = geoip_city.longitude
-          }
-
-          geoip_asn = get_enrichment_table_record("geoip_asn", {"ip": .dst_ip}) ?? {}
-          if geoip_asn != {} {
-            .dst_asn = geoip_asn.asn
-            .dst_as_org = geoip_asn.as_organization
-          }
-
-          # Also enrich source IP (useful for inbound flows).
-          src_geoip = get_enrichment_table_record("geoip_city", {"ip": .src_ip}) ?? {}
-          if src_geoip != {} {
-            .src_country = src_geoip.country_name
-            .src_country_code = src_geoip.country_code
-          }
-
-          src_asn = get_enrichment_table_record("geoip_asn", {"ip": .src_ip}) ?? {}
-          if src_asn != {} {
-            .src_asn = src_asn.asn
-            .src_as_org = src_asn.as_organization
-          }
-
-          # Well-known port to app/service mapping.
+          # Port-to-app lookup using object key access.
+          # (Avoids else-if chain: VRL parser treats } at end-of-line as statement
+          # end, so else on the next line becomes a syntax error.)
           port = to_int(.dst_port) ?? 0
-          .app = if port == 80 { "HTTP" }
-            else if port == 443 { "HTTPS" }
-            else if port == 53 { "DNS" }
-            else if port == 22 { "SSH" }
-            else if port == 25 || port == 465 || port == 587 { "SMTP" }
-            else if port == 143 || port == 993 { "IMAP" }
-            else if port == 110 || port == 995 { "POP3" }
-            else if port == 3306 { "MySQL" }
-            else if port == 5432 { "PostgreSQL" }
-            else if port == 6379 { "Redis" }
-            else if port == 8080 || port == 8443 { "HTTP-Alt" }
-            else if port == 1194 { "OpenVPN" }
-            else if port == 51820 { "WireGuard" }
-            else if port == 123 { "NTP" }
-            else if port == 161 || port == 162 { "SNMP" }
-            else { null }
+          port_apps = {
+            "80": "HTTP",   "443": "HTTPS",  "53": "DNS",    "22": "SSH",
+            "25": "SMTP",   "465": "SMTP",   "587": "SMTP",
+            "143": "IMAP",  "993": "IMAP",
+            "110": "POP3",  "995": "POP3",
+            "3306": "MySQL", "5432": "PostgreSQL", "6379": "Redis",
+            "8080": "HTTP-Alt", "8443": "HTTP-Alt",
+            "1194": "OpenVPN", "51820": "WireGuard",
+            "123": "NTP",   "161": "SNMP",   "162": "SNMP"
+          }
+          .app = get(port_apps, [to_string(port)]) ?? null
 
           # Protocol number to name.
           proto = to_int(.protocol) ?? 0
-          .protocol_name = if proto == 6 { "TCP" }
-            else if proto == 17 { "UDP" }
-            else if proto == 1 { "ICMP" }
-            else if proto == 47 { "GRE" }
-            else { to_string(proto) }
+          proto_names = { "1": "ICMP", "6": "TCP", "17": "UDP", "47": "GRE" }
+          .protocol_name = get(proto_names, [to_string(proto)]) ?? to_string(proto)
 
-    enrichment_tables:
-      geoip_city:
-        type: geoip
-        path: /geoip/GeoLite2-City.mmdb
-      geoip_asn:
-        type: geoip
-        path: /geoip/GeoLite2-ASN.mmdb
+          # GeoIP enrichment is disabled — no MaxMind license key is configured.
+          # When a license key is available, re-enable by:
+          #   1. Adding enrichment_tables (geoip_city, geoip_asn) back to this config.
+          #   2. Adding get_enrichment_table_record calls here for dst_ip / src_ip.
+          # The geoip-init init container already handles the download when the
+          # geoip-credentials secret is present.
 
     sinks:
       opensearch:
         type: elasticsearch
         inputs:
-          - enrich_geoip
+          - enrich_meta
         endpoints:
           - "http://opensearch-cluster-master:9200"
         mode: bulk
