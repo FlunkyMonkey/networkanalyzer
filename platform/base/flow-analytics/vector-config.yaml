@@ -27,44 +27,39 @@ data:
         inputs:
           - goflow2_file
         source: |
-          # Parse JSON from GoFlow2 output.
+          # Parse JSON from GoFlow2 v2 output.
+          # GoFlow2 v2 emits snake_case field names and nanosecond timestamps.
           . = parse_json!(.message)
 
           # Normalize field names to match the canonical entity model.
-          .src_ip = .SrcAddr
-          .dst_ip = .DstAddr
-          .src_port = .SrcPort
-          .dst_port = .DstPort
-          .protocol = .Proto
-          .bytes = .Bytes
-          .packets = .Packets
-          .tcp_flags = .TCPFlags
+          .src_ip  = .src_addr
+          .dst_ip  = .dst_addr
+          .src_port = .src_port
+          .dst_port = .dst_port
+          .protocol = .proto
+          .bytes    = .bytes
+          .packets  = .packets
+          .tcp_flags = .tcp_flags
 
-          # Timestamp — GoFlow2 emits integer epoch seconds.
-          # Multiply by 1000 → epoch_millis, which OpenSearch date fields accept
-          # by default (strict_date_optional_time||epoch_millis).
-          # Avoids to_timestamp so no VRL runtime compatibility risk.
-          .flow_start = (to_int(.TimeFlowStart) ?? 0) * 1000
-          .flow_end   = (to_int(.TimeFlowEnd)   ?? 0) * 1000
+          # Timestamp — GoFlow2 v2 emits nanosecond epoch integers.
+          # Divide by 1_000_000 → epoch_millis (OpenSearch date default format).
+          .flow_start = (to_int(.time_flow_start_ns) ?? 0) / 1000000
+          .flow_end   = (to_int(.time_flow_end_ns)   ?? 0) / 1000000
           .@timestamp = format_timestamp!(now(), "%Y-%m-%dT%H:%M:%SZ")
 
           # Flow direction and type metadata.
-          .flow_type = .Type
-          .exporter = .SamplerAddress
+          .flow_type = .type
+          .exporter  = .sampler_address
 
           # Clean up raw GoFlow2 fields to reduce index size.
-          del(.SrcAddr)
-          del(.DstAddr)
-          del(.SrcPort)
-          del(.DstPort)
-          del(.Proto)
-          del(.Bytes)
-          del(.Packets)
-          del(.TCPFlags)
-          del(.TimeFlowStart)
-          del(.TimeFlowEnd)
-          del(.Type)
-          del(.SamplerAddress)
+          del(.src_addr)
+          del(.dst_addr)
+          del(.proto)
+          del(.time_flow_start_ns)
+          del(.time_flow_end_ns)
+          del(.time_received_ns)
+          del(.type)
+          del(.sampler_address)
           del(.message)
           del(.source_type)
           del(.file)
@@ -110,6 +105,8 @@ data:
           - enrich_meta
         endpoints:
           - "http://opensearch-cluster-master:9200"
+        # api_version v8 suppresses the _type field that OpenSearch 2+ rejects.
+        api_version: "v8"
         mode: bulk
         bulk:
           index: "flows-%Y.%m.%d"
