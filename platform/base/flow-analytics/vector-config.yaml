@@ -29,17 +29,19 @@ data:
         source: |
           # Parse JSON from GoFlow2 v2 output.
           # GoFlow2 v2 emits snake_case field names and nanosecond timestamps.
-          . = parse_json!(.message)
+          # Use fallible parse_json (no !) so malformed lines are dropped
+          # gracefully instead of hard-aborting the transform.
+          result, err = parse_json(.message)
+          if err != null { abort }
+          . = result
 
           # Normalize field names to match the canonical entity model.
+          # src_port, dst_port, bytes, packets, tcp_flags keep their names.
           .src_ip  = .src_addr
           .dst_ip  = .dst_addr
-          .src_port = .src_port
-          .dst_port = .dst_port
-          .protocol = .proto
-          .bytes    = .bytes
-          .packets  = .packets
-          .tcp_flags = .tcp_flags
+          # .proto is intentionally NOT renamed here; enrich_meta reads it
+          # as a string label (e.g. "TCP") to derive both protocol_name and
+          # the IANA integer for .protocol.
 
           # Timestamp — GoFlow2 v2 emits nanosecond epoch integers.
           # Divide by 1_000_000 → epoch_millis (OpenSearch date default format).
@@ -51,10 +53,10 @@ data:
           .flow_type = .type
           .exporter  = .sampler_address
 
-          # Clean up raw GoFlow2 fields to reduce index size.
+          # Clean up raw GoFlow2 fields no longer needed after this stage.
+          # .proto is NOT deleted here — enrich_meta uses it.
           del(.src_addr)
           del(.dst_addr)
-          del(.proto)
           del(.time_flow_start_ns)
           del(.time_flow_end_ns)
           del(.time_received_ns)
@@ -70,6 +72,14 @@ data:
         inputs:
           - parse_flow
         source: |
+          # Protocol: GoFlow2 v2 emits .proto as a string label ("TCP", "UDP"…).
+          # Derive protocol_name from the raw label, then reverse-map to IANA
+          # integer for the OpenSearch integer-typed .protocol field.
+          .protocol_name = to_string(.proto) ?? null
+          proto_int_map = { "ICMP": 1, "TCP": 6, "UDP": 17, "GRE": 47 }
+          .protocol = get(proto_int_map, [to_string(.proto) ?? ""]) ?? null
+          del(.proto)
+
           # Port-to-app lookup using object key access.
           # (Avoids else-if chain: VRL parser treats } at end-of-line as statement
           # end, so else on the next line becomes a syntax error.)
@@ -85,11 +95,6 @@ data:
             "123": "NTP",   "161": "SNMP",   "162": "SNMP"
           }
           .app = get(port_apps, [to_string(port)]) ?? null
-
-          # Protocol number to name.
-          proto = to_int(.protocol) ?? 0
-          proto_names = { "1": "ICMP", "6": "TCP", "17": "UDP", "47": "GRE" }
-          .protocol_name = get(proto_names, [to_string(proto)]) ?? to_string(proto)
 
           # GeoIP enrichment is disabled — no MaxMind license key is configured.
           # When a license key is available, re-enable by:
