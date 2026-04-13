@@ -22,3 +22,52 @@ Runtime decisions and operational context that affect how the platform is unders
 - If the legacy monitoring stack is fully removed in the future, only the Prometheus instance must be preserved (or replaced with an equivalent scrape backend).
 
 **Decision owner:** Mike Beil (operator), runtime ops action.
+
+## 2026-04-12 — Softflowd Service Pattern: Explicit Unit Required
+
+**Context:** During Wave 2 host rollout, several Proxmox hosts had both the
+package-installed default softflowd paths and a custom `softflowd-netflow.service`
+unit. Running both simultaneously caused double-exporting or silent conflicts.
+
+**Why legacy paths are unsafe:**
+
+The package-installed `softflowd.service` and `softflowd@default.service` units
+read from `/etc/default/softflowd` but are not controlled by this platform's
+deployment. If the package is upgraded or the default config is reset, flows may
+revert to the old target (`172.18.1.207:2055`) or stop entirely without operator
+notice. Masking these units prevents accidental re-activation.
+
+**Supported pattern — explicit custom unit:**
+
+```bash
+# 1. Stop and mask the package/default paths
+sudo systemctl stop softflowd || true
+sudo systemctl disable softflowd || true
+sudo systemctl mask softflowd || true
+sudo systemctl stop softflowd@default || true
+
+# 2. Activate the explicit platform unit
+sudo systemctl start softflowd-netflow.service
+sudo systemctl enable softflowd-netflow.service
+```
+
+The `softflowd-netflow.service` unit is the sole authoritative exporter for this
+platform. It is not managed by the Debian/Ubuntu package lifecycle.
+
+**Interface autodetect lesson learned:**
+
+Different Proxmox hosts use different interface names (`eno1`, `eth0`, `bond0`).
+Hardcoding the interface name in the service unit template caused silent failures
+on hosts where the interface name differed from the expected value.
+
+The correct pattern is to derive the interface from the existing
+`/etc/default/softflowd` config on each host:
+
+```bash
+IFACE=$(grep -oP '(?<=-i )\S+' /etc/default/softflowd)
+```
+
+This extracts the `-i <interface>` argument from the host's own config, which was
+set correctly at initial softflowd setup and reflects the actual primary interface.
+
+**Decision owner:** Mike Beil (operator), Wave 2 rollout.

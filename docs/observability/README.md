@@ -30,8 +30,9 @@ This directory contains design documentation for the GitOps-managed network obse
 | [gemini-strategy-sow.md](gemini-strategy-sow.md) | External strategic review role for GeminiCLI |
 | [wave2-canary-cutover.md](wave2-canary-cutover.md) | Wave 3 canary cutover runbook: prox5 first, rollback to 172.18.1.207:2055 |
 | [wave2-codex-qa.md](wave2-codex-qa.md) | Codex QA packet for Wave 2/3 readiness |
-| [backlog.md](backlog.md) | Future-wave items: server hardware monitoring, switch hardware monitoring |
-| [operations-notes.md](operations-notes.md) | Runtime ops decisions and context (legacy monitoring cleanup, etc.) |
+| [wave-2-closeout.md](wave-2-closeout.md) | Wave 2 formal closeout: acceptance state, residual conditions, sign-off |
+| [backlog.md](backlog.md) | Hardening items and future-wave work not blocking active rollout |
+| [operations-notes.md](operations-notes.md) | Runtime ops decisions and context (softflowd service pattern, legacy cleanup) |
 
 ## Platform Structure
 
