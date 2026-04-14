@@ -84,15 +84,17 @@ Kubernetes entity:
 | Field | Type | Description |
 |---|---|---|
 | `src_k8s_namespace` | keyword | Namespace of the source pod/service |
-| `src_k8s_workload` | keyword | Deployment/DaemonSet/StatefulSet name |
+| `src_k8s_workload` | keyword | Deployment/DaemonSet/StatefulSet name (absent for service and node IPs) |
+| `src_k8s_service` | keyword | Service name (present only when IP resolves to a ClusterIP service; absent for pod, node, and external IPs) |
 | `src_k8s_pod` | keyword | Pod name (absent for service and node IPs) |
 | `src_k8s_node` | keyword | Node name the source pod runs on (absent for service/external IPs) |
-| `src_k8s_type` | keyword | `pod`, `node`, `service`, or `external` |
+| `src_k8s_type` | keyword | `pod`, `service`, `node`, `internal-unknown`, or `external` |
 | `dst_k8s_namespace` | keyword | Namespace of the destination pod/service |
-| `dst_k8s_workload` | keyword | Deployment/DaemonSet/StatefulSet name |
+| `dst_k8s_workload` | keyword | Deployment/DaemonSet/StatefulSet name (absent for service and node IPs) |
+| `dst_k8s_service` | keyword | Service name (present only when IP resolves to a ClusterIP service; absent for pod, node, and external IPs) |
 | `dst_k8s_pod` | keyword | Pod name (absent for service and node IPs) |
 | `dst_k8s_node` | keyword | Node name the destination pod runs on (absent for service/external IPs) |
-| `dst_k8s_type` | keyword | `pod`, `node`, `service`, or `external` |
+| `dst_k8s_type` | keyword | `pod`, `service`, `node`, `internal-unknown`, or `external` |
 
 Not all flows will have these fields. Absence means the IP did not resolve to a
 known Kubernetes entity at enrichment time.
@@ -104,7 +106,7 @@ Classification is applied in order. The first matching rule wins.
 | Priority | Test | Classification | Fields set |
 |---|---|---|---|
 | 1 | IP is in the pod CIDR range and found in pod lookup table | `pod` | namespace, workload, pod, node, type |
-| 2 | IP is in the service CIDR range and found in service lookup table | `service` | namespace, workload, type (pod and node absent) |
+| 2 | IP is in the service CIDR range and found in service lookup table | `service` | namespace, service, type (workload, pod, and node absent) |
 | 3 | IP matches a known cluster node IP (from node lookup table) | `node` | node, type (namespace, workload, pod absent) |
 | 4 | IP is in the pod or service CIDR range but NOT found in any lookup table | `internal-unknown` | type only — IP is internal but lookup is stale or incomplete |
 | 5 | IP is outside all known CIDRs and node IPs | `external` | type only |
@@ -135,9 +137,9 @@ procedures.
 
 | Range | Classification |
 |---|---|
-| Pod CIDR (from cluster config) | Pod or internal-unknown — look up by pod IP |
-| Service CIDR (from cluster config) | Service or internal-unknown — look up by cluster IP |
-| Known node IPs (from `kubectl get nodes`) | Node |
+| `10.244.0.0/16` (pod CIDR) | Pod or internal-unknown — look up by pod IP |
+| `10.96.0.0/12` (service CIDR) | Service or internal-unknown — look up by cluster IP |
+| `172.18.1.61`–`172.18.1.64` (kube1–kube4 node IPs) | Node |
 | All others | External |
 
 ### Lookup table lifecycle contract
@@ -146,7 +148,7 @@ procedures.
 files on each run:
 
 - `k8s-pods.csv` — one row per running pod: `ip,namespace,workload,pod,node,_timestamp`
-- `k8s-services.csv` — one row per ClusterIP service: `ip,namespace,workload,_timestamp`
+- `k8s-services.csv` — one row per ClusterIP service: `ip,namespace,service,_timestamp`
 - `k8s-nodes.csv` — one row per node: `ip,node,_timestamp`
 
 The `_timestamp` column records the Unix epoch at export time. Vector does not use
@@ -158,20 +160,33 @@ for pod IP assignments. Pod churn faster than 2 minutes will produce some
 
 **Atomic replacement:** The CronJob writes to a `.tmp` file first, validates that
 the file is non-empty and contains a parseable header, then renames it over the
-live file. Vector polls for file changes on a configured interval. A write that
-is interrupted mid-rename cannot produce a partial read because the rename is
-atomic on the same filesystem.
+live file. A write that is interrupted mid-rename cannot produce a partial read
+because the rename is atomic on the same filesystem.
 
 **Behavior when CSV is empty or malformed:** If the CronJob produces an empty file
 or a file with only a header row, the atomic rename is skipped and the previous
 version remains in place. Vector continues to use the last valid table. An empty
 output is treated as a transient error, not a signal to clear the lookup.
 
-**Vector reload behavior:** Vector's file-based enrichment tables reload
-automatically when the file on disk changes, without requiring a pod restart or
-rollout. The reload happens within the configured scan interval (default: 30s).
-During the brief window between file change and Vector reload, some flows will use
-the previous table version — this is acceptable.
+**Vector reload behavior (Vector 0.45.0):** Vector 0.45.0 does **not** live-reload
+enrichment tables when files change on disk. A pod restart is required to pick up
+new CSV content. The safe update pattern is:
+
+1. CronJob writes all three CSV files to `.tmp` paths.
+2. CronJob validates each `.tmp` file: non-empty, parseable header, at least one
+   data row.
+3. CronJob atomically renames all three `.tmp` files to their live paths.
+4. CronJob restarts the flow-collector pod **once**, after all three files are valid.
+
+If any file fails validation, no rename occurs and no restart is triggered. Vector
+continues using the previous table version. Never restart the pod until all three
+CSV files are in their final valid state.
+
+**hostNetwork pod exclusion:** Pods running with `hostNetwork: true` bind to the
+node's IP address, not a pod CIDR IP. These pods must be **excluded** from
+`k8s-pods.csv`. If included, a node IP would match Priority 1 (pod CIDR lookup
+table hit) and suppress the correct `node` classification. The CronJob must filter
+out `hostNetwork: true` pods before writing the CSV.
 
 **Operator-visible failure mode:** If the CronJob fails (RBAC error, API
 unavailable, write error), the last valid CSV remains in place. The CronJob
@@ -179,6 +194,28 @@ failure is visible via `kubectl get jobs -n network-observability` and its pod
 logs. A Prometheus alert on CronJob failure is a hardening backlog item. There is
 no automatic fallback — the operator must investigate the CronJob failure
 directly.
+
+### Minimum RBAC requirements
+
+The CronJob service account requires the following permissions to populate the
+lookup tables:
+
+| API group | Resource | Verbs |
+|---|---|---|
+| `""` (core) | `pods` | `get`, `list` |
+| `""` (core) | `services` | `get`, `list` |
+| `""` (core) | `nodes` | `get`, `list` |
+| `apps` | `replicasets` | `get`, `list` |
+| `batch` | `jobs` | `get`, `list` (optional — only if exporting job-managed pods) |
+| `discovery.k8s.io` | `endpointslices` | `get`, `list` (optional — only if service endpoint resolution is added) |
+
+The `replicasets` permission is required to resolve the owning Deployment or
+StatefulSet name for a pod (pod → replicaset → deployment ownerReference chain).
+Without it, the `workload` field in `k8s-pods.csv` will be absent or require a
+name-heuristic fallback.
+
+Do not grant `watch`, `create`, `update`, or `delete` permissions. The CronJob is
+read-only against the Kubernetes API.
 
 ---
 
@@ -197,8 +234,8 @@ against the table.
   Grafana queries are simple aggregations.
 - Cons: lookup table is eventually consistent (refresh latency = CronJob interval,
   typically 1–5 min); pod churn means some IPs are stale or missing; CSV file
-  management adds operational complexity; Vector restart required to reload tables
-  in some configurations.
+  management adds operational complexity; **Vector 0.45.0 requires a pod restart to
+  reload enrichment tables** — unconditional, not configuration-dependent.
 - VRL risk: `get_enrichment_table_record` was the function that previously caused
   the GeoIP enrichment failure. Re-introducing it requires careful validation
   against the production Vector image.
@@ -243,11 +280,12 @@ Rationale:
   do not have this problem.
 - Implementation is self-contained in Vector and does not require a new component.
 
-**Mitigation for VRL/table risk:** The CronJob that exports the lookup CSV can
-include a health check that only replaces the live file when the new content is
-non-empty and parseable. Vector's file-based enrichment table reloads on a poll
-interval without restart. Validate against the production Vector image before
-activating (same process used for previous VRL fixes).
+**Mitigation for VRL/table risk:** The CronJob validates each CSV before atomic
+rename; an invalid or empty file leaves the previous version in place and no
+restart is triggered. The restart cadence is bounded: once per CronJob run at
+most, and only after all three CSV files are confirmed valid. Validate
+`get_enrichment_table_record` against the production Vector image
+(`timberio/vector:0.45.0-distroless-static`) before activating.
 
 **Option B** remains a viable fallback if the CSV table approach proves operationally
 difficult. The dashboard layer can do partial joins for a subset of high-value
@@ -263,17 +301,18 @@ Deliverables:
 
 - Finalize the K8s entity fields to add to the OpenSearch index template
   (including `src_k8s_node` and `dst_k8s_node` as defined above)
-- Confirm pod CIDR and service CIDR from authoritative cluster sources:
-  - Pod CIDR: `kubectl get node <node> -o jsonpath='{.spec.podCIDR}'` —
-    this is set by the CNI and is the ground truth for per-node allocation.
-    Alternatively `kubectl cluster-info dump | grep -m1 cluster-cidr`.
-  - Service CIDR: `kubectl describe cm kubeadm-config -n kube-system | grep serviceSubnet`
-    or, if kubeadm config is unavailable, read the kube-apiserver manifest:
-    `ssh <control-plane> grep service-cluster-ip-range /etc/kubernetes/manifests/kube-apiserver.yaml`
-  - Do not rely on observed IPs to infer CIDR boundaries. Use cluster
-    configuration as the source of truth.
-- Enumerate node IPs: `kubectl get nodes -o wide` — record the INTERNAL-IP
-  column. This is the static source for node IP classification.
+- Confirm pod CIDR and service CIDR from authoritative cluster sources. The
+  confirmed values for this cluster are:
+  - **Pod CIDR: `10.244.0.0/16`** — confirmed via `kubectl get node kube1 -o jsonpath='{.spec.podCIDR}'`
+  - **Service CIDR: `10.96.0.0/12`** — confirmed via kube-apiserver `--service-cluster-ip-range`
+  - If the cluster is ever rebuilt, re-confirm from cluster configuration before
+    Phase 2. Do not rely on observed IPs to infer CIDR boundaries.
+- Enumerate node IPs: `kubectl get nodes -o wide` — record the INTERNAL-IP column.
+  The confirmed node IPs for this cluster are:
+  - kube1: `172.18.1.61`
+  - kube2: `172.18.1.62`
+  - kube3: `172.18.1.63`
+  - kube4: `172.18.1.64`
 - Define the lookup table schema (columns: `ip`, `namespace`, `workload`,
   `pod`, `node`, `type`, `_timestamp`)
 - Define the CronJob spec for exporting IP→entity mappings
@@ -286,6 +325,13 @@ Acceptance:
 - Updated index template draft (field additions only, no removals)
 - Lookup table schema documented with all columns including `_timestamp`
 - CronJob spec sketched with atomic rename behavior specified
+
+**Phase 2 implementation blocker:** Phase 2 manifests (CronJob, ConfigMap, Vector
+config changes) must not be created until the restart model in the lifecycle
+contract above is reviewed and accepted. The critical requirement is that Vector
+0.45.0 is restart-required — not live-reload — and the CronJob must implement
+the atomic-rename-then-restart pattern. Proceeding with manifests based on a
+live-reload assumption requires rework of the CronJob spec and rollout strategy.
 
 ### Phase 2 — Minimal enrichment path
 
@@ -375,10 +421,10 @@ Wave 3 is complete when:
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
 | Pod CIDR / service CIDR not confirmed | Medium | High — wrong ranges cause silent miss | Confirm ranges from cluster before Phase 2 |
-| Vector CSV enrichment table reload causes brief outage | Low | Medium | Validate reload behavior on test pod before production apply |
+| Vector pod restart required on each enrichment table update | Low | Medium | Restart cadence bounded: once per CronJob cycle, only after all three CSVs validated |
 | VRL reintroduction of `get_enrichment_table_record` fails on production image | Medium | High | Validate on `timberio/vector:0.45.0-distroless-static` before any changes go to cluster |
 | Pod churn causes stale lookups during investigations | High | Low — flows are already delayed | Document staleness window; acceptable for operator use case |
-| CronJob RBAC insufficient to read pod/service IPs | Medium | High — lookup CSV empty | Define minimal RBAC (get/list pods, services) and test in Phase 2 |
+| CronJob RBAC insufficient to read pod/service/node IPs | Medium | High — lookup CSV empty | Minimum RBAC spec in lifecycle contract section; validate all resources readable before Phase 2 |
 | Index template update rejected on existing indices | Low | Medium | Add new fields only; no field type changes; test on a scratch index first |
 
 **Hard dependency:** Wave 3 does not require Cilium. Wave 4 (Hubble UI) does.

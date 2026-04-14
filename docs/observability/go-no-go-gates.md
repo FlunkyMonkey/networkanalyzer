@@ -115,22 +115,28 @@ independently of the Cilium migration required for Gate 4.
 
 **Required evidence:**
 
-- [ ] All Wave 3b checklist items (3b.0–3b.17) pass
-- [ ] Pod CIDR and service CIDR confirmed from cluster configuration (not inferred)
+- [ ] All Wave 3b checklist items (3b.0–3b.25) pass
+- [ ] Pod CIDR (`10.244.0.0/16`) and service CIDR (`10.96.0.0/12`) confirmed from
+  cluster configuration (not inferred)
+- [ ] Restart model accepted: Vector 0.45.0 restart-required; atomic-rename-then-restart
+  pattern implemented in CronJob; no live-reload assumed
 - [ ] Scratch-index validation passed before production index template was applied
 - [ ] CronJob is running and producing non-empty CSV files for pods, services, and nodes
 - [ ] CronJob has run at least 3 successful cycles (confirms atomic refresh works)
+- [ ] hostNetwork pods excluded from k8s-pods.csv (node IPs absent from pod CSV)
 - [ ] `vector validate` passes on the enriched config against the production image
 - [ ] At least one flow document contains `src_k8s_namespace` or `dst_k8s_namespace`
 - [ ] At least one pod-type flow document contains `src_k8s_node` or `dst_k8s_node`
+- [ ] At least one service-type flow document contains `src_k8s_service` or `dst_k8s_service`
 - [ ] `src_k8s_type: "internal-unknown"` is observed — confirms CIDR-internal
   IPs with no matching lookup row are not silently classified as `external`
 - [ ] Grafana "K8s Flow Context" dashboard loads and shows namespace aggregations
 - [ ] Wave 2 regression checks still pass (flow ingest unaffected, existing fields unchanged)
 
 **Minimum pass criteria:** Lookup tables populated across all three entity types.
-Pod IPs resolve to namespace, workload, pod name, and node name. `internal-unknown`
-classification is confirmed working. Wave 2 unaffected.
+Pod IPs resolve to namespace, workload, pod name, and node name. Service IPs resolve
+to namespace and service name (not workload). `internal-unknown` classification is
+confirmed working. hostNetwork pods absent from pod CSV. Wave 2 unaffected.
 
 **Blockers:**
 

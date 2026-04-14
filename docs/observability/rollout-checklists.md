@@ -128,8 +128,9 @@ lookup table in Vector. It does not require Cilium or Hubble.
 | 3b.0 | Pod CIDR confirmed from cluster config | `kubectl get node <node> -o jsonpath='{.spec.podCIDR}'` and/or `ssh <control-plane> grep service-cluster-ip-range /etc/kubernetes/manifests/kube-apiserver.yaml` | CIDR documented from authoritative source | [ ] |
 | 3b.1 | Service CIDR confirmed from cluster config | `kubectl describe cm kubeadm-config -n kube-system \| grep serviceSubnet` or kube-apiserver manifest | CIDR documented from authoritative source | [ ] |
 | 3b.2 | Node IPs enumerated | `kubectl get nodes -o wide` — record INTERNAL-IP column | All node IPs listed | [ ] |
-| 3b.3 | Index template draft reviewed | Review proposed field additions including `src_k8s_node`, `dst_k8s_node` | No field type conflicts with existing fields | [ ] |
-| 3b.4 | Lookup table schema approved | Review wave-3-plan.md Phase 1 output including `_timestamp` column | Schema agreed including all columns | [ ] |
+| 3b.3 | Index template draft reviewed | Review proposed field additions including `src_k8s_node`, `dst_k8s_node`, `src_k8s_service`, `dst_k8s_service` | No field type conflicts with existing fields | [ ] |
+| 3b.4 | Lookup table schema approved | Review wave-3-plan.md Phase 1 output including `_timestamp` column and `service` column in k8s-services.csv | Schema agreed including all columns | [ ] |
+| 3b.23 | Restart model accepted | Confirm lifecycle contract in wave-3-plan.md: Vector 0.45.0 restart-required, atomic-rename-then-single-restart pattern, no live-reload | Restart model documented and accepted before Phase 2 manifests begin | [ ] |
 
 **Phase 2 gate** (enrichment active — after manifests applied):
 
@@ -140,13 +141,15 @@ Scratch-index validation must complete before production template apply (item 3b
 | 3b.5 | CronJob deployed | `kubectl get cronjob -n network-observability` | k8s-ip-exporter present | [ ] |
 | 3b.6 | CronJob has run successfully | `kubectl get jobs -n network-observability` | At least 1 successful job | [ ] |
 | 3b.7 | **Scratch-index validation** | Create temp index with new template, index synthetic doc with all K8s fields, verify no mapping exceptions, delete scratch index | 0 mapping errors on all new fields before production apply | [ ] |
-| 3b.8 | Production index template applied | `curl localhost:9200/_index_template/flows` | Template includes `src_k8s_node`, `dst_k8s_node` fields | [ ] |
+| 3b.8 | Production index template applied | `curl localhost:9200/_index_template/flows` | Template includes `src_k8s_node`, `dst_k8s_node`, `src_k8s_service`, `dst_k8s_service` fields | [ ] |
 | 3b.9 | All lookup CSVs non-empty | `kubectl exec deploy/flow-collector -c vector -- wc -l /etc/vector/k8s-pods.csv /etc/vector/k8s-services.csv /etc/vector/k8s-nodes.csv` | All files > 1 line | [ ] |
 | 3b.10 | Vector config validates | Run validate pod against production image | `Validated`, 0 errors | [ ] |
 | 3b.11 | Enriched document exists | `curl localhost:9200/flows-*/_search?q=src_k8s_namespace:*&size=1&pretty` | Document with `src_k8s_namespace` field present | [ ] |
 | 3b.12 | Node field present on pod-type doc | Check document where `src_k8s_type: pod` | `src_k8s_node` field populated | [ ] |
 | 3b.13 | internal-unknown classification works | Find a CIDR-internal IP with no pod/service row | `src_k8s_type: internal-unknown` (not `external`) | [ ] |
 | 3b.14 | Wave 2 still healthy | Re-run checks 2.1–2.4, confirm doc count growing | All passing | [ ] |
+| 3b.24 | CronJob restart mechanism validated | Confirm CronJob performs atomic rename then single pod restart; check CronJob logs show restart only after all CSV files valid | Restart occurs once per cycle, only on all-valid outcome | [ ] |
+| 3b.25 | hostNetwork pods excluded from pod CSV | Inspect k8s-pods.csv — confirm no rows with a node IP (172.18.1.61–.64) as the IP column | No node IPs appear in pod CSV | [ ] |
 
 **Phase 3 gate** (dashboards validated):
 
@@ -166,7 +169,7 @@ Scratch-index validation must complete before production template apply (item 3b
 | 3b.21 | No Vector enrichment errors | `kubectl logs deploy/flow-collector -c vector \| grep -i 'error\|warn'` | No new errors vs baseline | [ ] |
 | 3b.22 | ArgoCD sync clean | `argocd app get network-observability` | Synced, Healthy | [ ] |
 
-**Gate:** All Phase 1–4 items (3b.0–3b.22) pass → Gate 3b met. Proceed to Wave 4 or Wave 5.
+**Gate:** All Phase 1–4 items (3b.0–3b.25) pass → Gate 3b met. Proceed to Wave 4 or Wave 5.
 
 **Rollback trigger:** Vector enrichment errors appear after table changes. Existing
 flow fields become null or change type. Document count drops significantly.
