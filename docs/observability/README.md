@@ -31,6 +31,7 @@ This directory contains design documentation for the GitOps-managed network obse
 | [wave2-canary-cutover.md](wave2-canary-cutover.md) | Wave 3 canary cutover runbook: prox5 first, rollback to 172.18.1.207:2055 |
 | [wave2-codex-qa.md](wave2-codex-qa.md) | Codex QA packet for Wave 2/3 readiness |
 | [wave-2-closeout.md](wave-2-closeout.md) | Wave 2 formal closeout: acceptance state, residual conditions, sign-off |
+| [wave-3-plan.md](wave-3-plan.md) | Wave 3 plan: Kubernetes flow correlation, enrichment strategy, phased implementation |
 | [backlog.md](backlog.md) | Hardening items and future-wave work not blocking active rollout |
 | [operations-notes.md](operations-notes.md) | Runtime ops decisions and context (softflowd service pattern, legacy cleanup) |
 

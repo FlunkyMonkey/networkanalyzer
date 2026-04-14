@@ -108,6 +108,38 @@ Explicit approval gates for each rollout wave. No wave proceeds without passing 
 
 ---
 
+## Gate 3b — Kubernetes Correlation Active
+
+**Prerequisite:** Gate 3 (Flows Ingesting) must pass first. Gate 3b can proceed
+independently of the Cilium migration required for Gate 4.
+
+**Required evidence:**
+
+- [ ] All Wave 3 checklist items pass
+- [ ] CronJob is running and producing a non-empty lookup CSV
+- [ ] At least one flow document contains `src_k8s_namespace` or `dst_k8s_namespace`
+- [ ] `src_k8s_type` and `dst_k8s_type` correctly classify pod, node, service, and external IPs
+- [ ] Grafana "K8s Flow Context" dashboard loads and shows namespace-level aggregations
+- [ ] CronJob has run at least 3 successful cycles (confirms scheduled refresh works)
+- [ ] `vector validate` passes on the enriched config against the production image
+- [ ] Wave 2 regression checks still pass (R2.1–R2.5)
+
+**Minimum pass criteria:** Lookup table populated. At least pod and service IPs
+resolving to correct namespace/workload. Wave 2 unaffected.
+
+**Blockers:**
+
+- CronJob RBAC insufficient (lookup CSV empty or missing fields)
+- Vector errors attributable to enrichment table changes
+- Index template update rejected by OpenSearch
+- Existing flow fields changed or broken
+
+**Rollback criteria:** If Vector enrichment table reintroduction causes indexing
+failures or pipeline errors, remove the enrichment table config, redeploy, and
+fall back to unenriched flows. Existing Wave 2 data is unaffected.
+
+---
+
 ## Gate 4 — K8s Visibility Connected
 
 **Hard prerequisite:** Cilium CNI with Hubble + Relay must be installed and running before this gate. If Cilium migration has not been completed, Gate 4 can be deferred — Waves 1–3 and Wave 5 are independent.

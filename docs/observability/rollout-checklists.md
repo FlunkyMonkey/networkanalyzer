@@ -105,11 +105,68 @@ Operator-executable checklists for each rollout wave. Print, execute line by lin
 | 3.10 | All hosts exporting | Check exporter bucket agg in OpenSearch | One bucket per active Proxmox host | [ ] |
 | 3.11 | Waves 1–2 still healthy | Re-run checks 1.3–1.7, 2.1–2.4 | All still passing | [ ] |
 
-**Gate:** All items pass → proceed to Wave 4.
+**Gate:** All items pass → proceed to Wave 3b (K8s Correlation) or Wave 4 (K8s Visibility).
 
 **Rollback trigger:** GoFlow2 file empty after 5 minutes. Vector indexing errors. Corrupted flow data. doc count not growing.
 
 **Rollback:** `ssh prox5; sudo cp /etc/default/softflowd.bak /etc/default/softflowd; sudo systemctl restart softflowd`. Repeat on any other repointed host. Legacy collector at `172.18.1.207:2055` resumes immediately.
+
+---
+
+## Wave 3b — Kubernetes Correlation
+
+**Prerequisite:** Gate 3 (Flows Ingesting) must pass. Cilium is NOT required for this wave.
+
+**Note:** Wave 3b is the K8s Correlation wave defined in [wave-3-plan.md](wave-3-plan.md).
+It adds Kubernetes entity enrichment to flow documents using a CronJob-managed
+lookup table in Vector. It does not require Cilium or Hubble.
+
+**Phase 1 gate** (design complete — before any manifests are applied):
+
+| # | Check | How | Expected | Pass |
+|---|---|---|---|---|
+| 3b.0 | Pod CIDR confirmed | `kubectl cluster-info dump \| grep -i cidr` | CIDR documented | [ ] |
+| 3b.1 | Service CIDR confirmed | `kubectl describe cm kubeadm-config -n kube-system` | CIDR documented | [ ] |
+| 3b.2 | Index template draft reviewed | Review proposed field additions | No field type conflicts | [ ] |
+| 3b.3 | Lookup table schema approved | Review wave-3-plan.md Phase 1 output | Schema agreed | [ ] |
+
+**Phase 2 gate** (enrichment active — after manifests applied):
+
+| # | Check | Command | Expected | Pass |
+|---|---|---|---|---|
+| 3b.4 | CronJob deployed | `kubectl get cronjob -n network-observability` | k8s-ip-exporter present | [ ] |
+| 3b.5 | CronJob has run successfully | `kubectl get jobs -n network-observability` | At least 1 successful job | [ ] |
+| 3b.6 | Lookup CSV non-empty | `kubectl exec deploy/flow-collector -c vector -- wc -l /etc/vector/k8s-pods.csv` | > 1 line | [ ] |
+| 3b.7 | Vector config validates | Run validate pod against production image | `Validated`, 0 errors | [ ] |
+| 3b.8 | Enriched document exists | `curl localhost:9200/flows-*/_search?q=src_k8s_namespace:*&size=1&pretty` | Document with k8s fields | [ ] |
+| 3b.9 | IP classification correct | Check `src_k8s_type` on a known pod IP | `pod` value present | [ ] |
+| 3b.10 | Wave 2 still healthy | Re-run checks 2.1–2.4, confirm doc count growing | All passing | [ ] |
+
+**Phase 3 gate** (dashboards validated):
+
+| # | Check | Action | Expected | Pass |
+|---|---|---|---|---|
+| 3b.11 | K8s Flow Context dashboard loads | Navigate to dashboard in Grafana | Loads in < 5s | [ ] |
+| 3b.12 | Namespace aggregation populated | Check namespace breakdown panel | Shows namespaces with bytes | [ ] |
+| 3b.13 | Unknown IPs handled gracefully | Confirm external IP rows have empty K8s fields | No errors or broken panels | [ ] |
+| 3b.14 | Entity Investigation shows K8s fields | Open Entity Investigation for a pod IP | `src_k8s_*` fields visible | [ ] |
+
+**Phase 4 gate** (soak complete):
+
+| # | Check | Command | Expected | Pass |
+|---|---|---|---|---|
+| 3b.15 | CronJob ran 3+ successful cycles | `kubectl get jobs -n network-observability` | 3+ Completed | [ ] |
+| 3b.16 | No Vector enrichment errors | `kubectl logs deploy/flow-collector -c vector \| grep -i 'error\|warn'` | No new errors vs baseline | [ ] |
+| 3b.17 | ArgoCD sync clean | `argocd app get network-observability` | Synced, Healthy | [ ] |
+
+**Gate:** All Phase 1–4 items pass → Gate 3b met. Proceed to Wave 4 or Wave 5.
+
+**Rollback trigger:** Vector enrichment errors appear after table changes. Existing
+flow fields become null or change type. Document count drops significantly.
+
+**Rollback:** Remove enrichment table config from `vector-config`, remove CronJob,
+redeploy. Existing Wave 2 flow data in OpenSearch is unaffected — the new fields
+will simply be absent on older documents.
 
 ---
 
