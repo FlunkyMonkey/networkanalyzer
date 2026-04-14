@@ -125,41 +125,48 @@ lookup table in Vector. It does not require Cilium or Hubble.
 
 | # | Check | How | Expected | Pass |
 |---|---|---|---|---|
-| 3b.0 | Pod CIDR confirmed | `kubectl cluster-info dump \| grep -i cidr` | CIDR documented | [ ] |
-| 3b.1 | Service CIDR confirmed | `kubectl describe cm kubeadm-config -n kube-system` | CIDR documented | [ ] |
-| 3b.2 | Index template draft reviewed | Review proposed field additions | No field type conflicts | [ ] |
-| 3b.3 | Lookup table schema approved | Review wave-3-plan.md Phase 1 output | Schema agreed | [ ] |
+| 3b.0 | Pod CIDR confirmed from cluster config | `kubectl get node <node> -o jsonpath='{.spec.podCIDR}'` and/or `ssh <control-plane> grep service-cluster-ip-range /etc/kubernetes/manifests/kube-apiserver.yaml` | CIDR documented from authoritative source | [ ] |
+| 3b.1 | Service CIDR confirmed from cluster config | `kubectl describe cm kubeadm-config -n kube-system \| grep serviceSubnet` or kube-apiserver manifest | CIDR documented from authoritative source | [ ] |
+| 3b.2 | Node IPs enumerated | `kubectl get nodes -o wide` — record INTERNAL-IP column | All node IPs listed | [ ] |
+| 3b.3 | Index template draft reviewed | Review proposed field additions including `src_k8s_node`, `dst_k8s_node` | No field type conflicts with existing fields | [ ] |
+| 3b.4 | Lookup table schema approved | Review wave-3-plan.md Phase 1 output including `_timestamp` column | Schema agreed including all columns | [ ] |
 
 **Phase 2 gate** (enrichment active — after manifests applied):
 
+Scratch-index validation must complete before production template apply (item 3b.7).
+
 | # | Check | Command | Expected | Pass |
 |---|---|---|---|---|
-| 3b.4 | CronJob deployed | `kubectl get cronjob -n network-observability` | k8s-ip-exporter present | [ ] |
-| 3b.5 | CronJob has run successfully | `kubectl get jobs -n network-observability` | At least 1 successful job | [ ] |
-| 3b.6 | Lookup CSV non-empty | `kubectl exec deploy/flow-collector -c vector -- wc -l /etc/vector/k8s-pods.csv` | > 1 line | [ ] |
-| 3b.7 | Vector config validates | Run validate pod against production image | `Validated`, 0 errors | [ ] |
-| 3b.8 | Enriched document exists | `curl localhost:9200/flows-*/_search?q=src_k8s_namespace:*&size=1&pretty` | Document with k8s fields | [ ] |
-| 3b.9 | IP classification correct | Check `src_k8s_type` on a known pod IP | `pod` value present | [ ] |
-| 3b.10 | Wave 2 still healthy | Re-run checks 2.1–2.4, confirm doc count growing | All passing | [ ] |
+| 3b.5 | CronJob deployed | `kubectl get cronjob -n network-observability` | k8s-ip-exporter present | [ ] |
+| 3b.6 | CronJob has run successfully | `kubectl get jobs -n network-observability` | At least 1 successful job | [ ] |
+| 3b.7 | **Scratch-index validation** | Create temp index with new template, index synthetic doc with all K8s fields, verify no mapping exceptions, delete scratch index | 0 mapping errors on all new fields before production apply | [ ] |
+| 3b.8 | Production index template applied | `curl localhost:9200/_index_template/flows` | Template includes `src_k8s_node`, `dst_k8s_node` fields | [ ] |
+| 3b.9 | All lookup CSVs non-empty | `kubectl exec deploy/flow-collector -c vector -- wc -l /etc/vector/k8s-pods.csv /etc/vector/k8s-services.csv /etc/vector/k8s-nodes.csv` | All files > 1 line | [ ] |
+| 3b.10 | Vector config validates | Run validate pod against production image | `Validated`, 0 errors | [ ] |
+| 3b.11 | Enriched document exists | `curl localhost:9200/flows-*/_search?q=src_k8s_namespace:*&size=1&pretty` | Document with `src_k8s_namespace` field present | [ ] |
+| 3b.12 | Node field present on pod-type doc | Check document where `src_k8s_type: pod` | `src_k8s_node` field populated | [ ] |
+| 3b.13 | internal-unknown classification works | Find a CIDR-internal IP with no pod/service row | `src_k8s_type: internal-unknown` (not `external`) | [ ] |
+| 3b.14 | Wave 2 still healthy | Re-run checks 2.1–2.4, confirm doc count growing | All passing | [ ] |
 
 **Phase 3 gate** (dashboards validated):
 
 | # | Check | Action | Expected | Pass |
 |---|---|---|---|---|
-| 3b.11 | K8s Flow Context dashboard loads | Navigate to dashboard in Grafana | Loads in < 5s | [ ] |
-| 3b.12 | Namespace aggregation populated | Check namespace breakdown panel | Shows namespaces with bytes | [ ] |
-| 3b.13 | Unknown IPs handled gracefully | Confirm external IP rows have empty K8s fields | No errors or broken panels | [ ] |
-| 3b.14 | Entity Investigation shows K8s fields | Open Entity Investigation for a pod IP | `src_k8s_*` fields visible | [ ] |
+| 3b.15 | K8s Flow Context dashboard loads | Navigate to dashboard in Grafana | Loads in < 5s | [ ] |
+| 3b.16 | Namespace aggregation populated | Check namespace breakdown panel | Shows namespaces with bytes | [ ] |
+| 3b.17 | internal-unknown bucket visible | Check `src_k8s_type` breakdown panel | `internal-unknown` appears as distinct bucket (not merged with external) | [ ] |
+| 3b.18 | External IPs handled gracefully | Confirm external IP rows have empty K8s fields | No errors or broken panels | [ ] |
+| 3b.19 | Entity Investigation shows K8s fields | Open Entity Investigation for a pod IP | `src_k8s_*` fields including node name visible | [ ] |
 
 **Phase 4 gate** (soak complete):
 
 | # | Check | Command | Expected | Pass |
 |---|---|---|---|---|
-| 3b.15 | CronJob ran 3+ successful cycles | `kubectl get jobs -n network-observability` | 3+ Completed | [ ] |
-| 3b.16 | No Vector enrichment errors | `kubectl logs deploy/flow-collector -c vector \| grep -i 'error\|warn'` | No new errors vs baseline | [ ] |
-| 3b.17 | ArgoCD sync clean | `argocd app get network-observability` | Synced, Healthy | [ ] |
+| 3b.20 | CronJob ran 3+ successful cycles | `kubectl get jobs -n network-observability` | 3+ Completed | [ ] |
+| 3b.21 | No Vector enrichment errors | `kubectl logs deploy/flow-collector -c vector \| grep -i 'error\|warn'` | No new errors vs baseline | [ ] |
+| 3b.22 | ArgoCD sync clean | `argocd app get network-observability` | Synced, Healthy | [ ] |
 
-**Gate:** All Phase 1–4 items pass → Gate 3b met. Proceed to Wave 4 or Wave 5.
+**Gate:** All Phase 1–4 items (3b.0–3b.22) pass → Gate 3b met. Proceed to Wave 4 or Wave 5.
 
 **Rollback trigger:** Vector enrichment errors appear after table changes. Existing
 flow fields become null or change type. Document count drops significantly.

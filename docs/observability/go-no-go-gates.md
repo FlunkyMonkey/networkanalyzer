@@ -115,28 +115,35 @@ independently of the Cilium migration required for Gate 4.
 
 **Required evidence:**
 
-- [ ] All Wave 3 checklist items pass
-- [ ] CronJob is running and producing a non-empty lookup CSV
-- [ ] At least one flow document contains `src_k8s_namespace` or `dst_k8s_namespace`
-- [ ] `src_k8s_type` and `dst_k8s_type` correctly classify pod, node, service, and external IPs
-- [ ] Grafana "K8s Flow Context" dashboard loads and shows namespace-level aggregations
-- [ ] CronJob has run at least 3 successful cycles (confirms scheduled refresh works)
+- [ ] All Wave 3b checklist items (3b.0–3b.17) pass
+- [ ] Pod CIDR and service CIDR confirmed from cluster configuration (not inferred)
+- [ ] Scratch-index validation passed before production index template was applied
+- [ ] CronJob is running and producing non-empty CSV files for pods, services, and nodes
+- [ ] CronJob has run at least 3 successful cycles (confirms atomic refresh works)
 - [ ] `vector validate` passes on the enriched config against the production image
-- [ ] Wave 2 regression checks still pass (R2.1–R2.5)
+- [ ] At least one flow document contains `src_k8s_namespace` or `dst_k8s_namespace`
+- [ ] At least one pod-type flow document contains `src_k8s_node` or `dst_k8s_node`
+- [ ] `src_k8s_type: "internal-unknown"` is observed — confirms CIDR-internal
+  IPs with no matching lookup row are not silently classified as `external`
+- [ ] Grafana "K8s Flow Context" dashboard loads and shows namespace aggregations
+- [ ] Wave 2 regression checks still pass (flow ingest unaffected, existing fields unchanged)
 
-**Minimum pass criteria:** Lookup table populated. At least pod and service IPs
-resolving to correct namespace/workload. Wave 2 unaffected.
+**Minimum pass criteria:** Lookup tables populated across all three entity types.
+Pod IPs resolve to namespace, workload, pod name, and node name. `internal-unknown`
+classification is confirmed working. Wave 2 unaffected.
 
 **Blockers:**
 
 - CronJob RBAC insufficient (lookup CSV empty or missing fields)
+- Scratch-index validation failed (mapping exception on new fields)
 - Vector errors attributable to enrichment table changes
-- Index template update rejected by OpenSearch
-- Existing flow fields changed or broken
+- Index template update rejected on existing indices
+- Existing flow fields changed, missing, or changed type
 
 **Rollback criteria:** If Vector enrichment table reintroduction causes indexing
-failures or pipeline errors, remove the enrichment table config, redeploy, and
-fall back to unenriched flows. Existing Wave 2 data is unaffected.
+failures or pipeline errors, remove the enrichment table config from Vector,
+redeploy, and fall back to unenriched flows. Existing Wave 2 data in OpenSearch
+is unaffected — the new K8s fields will simply be absent on existing documents.
 
 ---
 
