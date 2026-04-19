@@ -1,0 +1,70 @@
+# K8s IP Exporter CronJob (Wave 3b).
+#
+# Runs every 30 minutes — conservative cadence for initial soak validation.
+# After Gate 3b passes and the lookup pattern is confirmed stable, reduce
+# to */5 or */2 to lower the staleness ceiling for pod IP assignments.
+#
+# Each run:
+#   1. Queries K8s API for pods (hostNetwork excluded), services, nodes
+#   2. Validates all three outputs (non-empty, at least 1 data row each)
+#   3. If ALL valid: patches k8s-lookup-tables ConfigMap, triggers rolling
+#      restart of flow-collector (Vector 0.45.0 requires restart to reload
+#      enrichment tables — no live-reload)
+#   4. If ANY invalid: exits 1, no changes applied
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: k8s-ip-exporter
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: k8s-ip-exporter
+    app.kubernetes.io/component: flow-analytics
+spec:
+  schedule: "*/30 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 7200
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: k8s-ip-exporter
+            app.kubernetes.io/component: flow-analytics
+        spec:
+          serviceAccountName: k8s-ip-exporter
+          restartPolicy: OnFailure
+          volumes:
+            - name: scripts
+              configMap:
+                name: k8s-ip-exporter-script
+                defaultMode: 0555
+          containers:
+            - name: exporter
+              image: python:3.12-slim
+              command:
+                - python3
+                - /scripts/export.py
+              env:
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: false
+                runAsNonRoot: true
+                runAsUser: 1000

@@ -1,0 +1,33 @@
+# Lookup tables for K8s IP enrichment (Wave 3b).
+#
+# Storage handoff design: ConfigMap-based.
+#
+# The k8s-ip-exporter CronJob PATCHes this ConfigMap via the K8s API after
+# each successful export. The flow-collector Deployment mounts it at
+# /etc/vector/k8s-tables/ (read-only). After each patch, the CronJob triggers
+# a rolling restart of flow-collector so Vector 0.45.0 reads the updated files
+# at startup.
+#
+# Why ConfigMap, not PVC:
+#   rook-ceph-block is ReadWriteOnce — the CronJob and flow-collector pod may
+#   run on different nodes, making simultaneous attachment impossible without
+#   RWX storage. ConfigMap PATCH is atomic from etcd's perspective, has no
+#   cross-node constraint, and is trivially small for this cluster.
+#
+# Initial state: header-only CSVs.  Vector loads empty tables and classifies
+# all IPs as "external" until the first successful CronJob run.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k8s-lookup-tables
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: k8s-ip-exporter
+    app.kubernetes.io/component: flow-analytics
+data:
+  pods.csv: |
+    ip,namespace,workload,pod,node,_timestamp
+  services.csv: |
+    ip,namespace,service,_timestamp
+  nodes.csv: |
+    ip,node,_timestamp

@@ -1,9 +1,14 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Flow Analytics Plane — Wave 2
+# Flow Analytics Plane — Wave 2 + Wave 3b (K8s Correlation)
 # GoFlow2 + Vector (collector/enrichment) → OpenSearch (storage) → Grafana (UI)
 # OpenSearch Dashboards is NOT deployed. Grafana is the sole UI surface.
+#
+# Wave 3b resources (k8s-ip-exporter-*) are included here.
+# Gate: do not enable this plane in the overlay until Gate 3 (Flows Ingesting)
+# has passed and scratch-index validation (3b.7) is complete.
+# See docs/observability/rollout-checklists.md Wave 3b for the full checklist.
 
 labels:
   - pairs:
@@ -11,12 +16,18 @@ labels:
     includeSelectors: false
 
 resources:
+  # Wave 2 — flow collection and ingest
   - flow-collector-deployment.yaml
   - vector-config.yaml
   - opensearch-ism-policy.yaml
   - opensearch-index-template.yaml
   - grafana-flow-datasource.yaml
   - grafana-flow-dashboards.yaml
+  # Wave 3b — K8s IP correlation (Gate 3 prerequisite; Gate 3b for activation)
+  - k8s-lookup-tables.yaml
+  - k8s-ip-exporter-rbac.yaml
+  - k8s-ip-exporter-script.yaml
+  - k8s-ip-exporter-cronjob.yaml
 
 helmCharts:
   - name: opensearch

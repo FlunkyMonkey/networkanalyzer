@@ -1,0 +1,242 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k8s-ip-exporter-script
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: k8s-ip-exporter
+    app.kubernetes.io/component: flow-analytics
+data:
+  export.py: |
+    #!/usr/bin/env python3
+    """K8s IP Exporter — exports pod/service/node IP→entity mappings and
+    updates the k8s-lookup-tables ConfigMap, then triggers a rolling restart
+    of flow-collector so Vector 0.45.0 picks up the new enrichment tables.
+
+    Called by the k8s-ip-exporter CronJob every 30 minutes.
+
+    Exit 0: all three CSVs valid, ConfigMap patched, restart triggered.
+    Exit 1: any validation or API failure — no changes applied.
+
+    Storage design: ConfigMap-based handoff.
+    The CronJob updates the k8s-lookup-tables ConfigMap via K8s API (atomic
+    from etcd's perspective). The flow-collector Deployment mounts this
+    ConfigMap as a read-only volume. The rolling restart caused by this script
+    ensures Vector 0.45.0 reads the updated files at startup — Vector 0.45.0
+    does not live-reload enrichment tables; a pod restart is required.
+    """
+    import json
+    import os
+    import ssl
+    import sys
+    import time
+    import urllib.error
+    import urllib.request
+    from datetime import datetime, timezone
+
+    K8S_HOST = os.environ["KUBERNETES_SERVICE_HOST"]
+    K8S_PORT = os.environ.get("KUBERNETES_SERVICE_PORT_HTTPS", "443")
+    NS       = os.environ.get("NAMESPACE", "network-observability")
+    CM_NAME  = "k8s-lookup-tables"
+    DEPLOY   = "flow-collector"
+    TOKEN    = open("/var/run/secrets/kubernetes.io/serviceaccount/token").read().strip()
+    CA_FILE  = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+    TS       = int(time.time())
+
+    ctx = ssl.create_default_context(cafile=CA_FILE)
+
+
+    def api(method, path, body=None, content_type="application/json"):
+        url  = f"https://{K8S_HOST}:{K8S_PORT}{path}"
+        data = json.dumps(body).encode() if body else None
+        hdrs = {"Authorization": f"Bearer {TOKEN}", "Accept": "application/json"}
+        if data:
+            hdrs["Content-Type"] = content_type
+        req = urllib.request.Request(url, data=data, method=method, headers=hdrs)
+        try:
+            with urllib.request.urlopen(req, context=ctx, timeout=15) as r:
+                return json.loads(r.read()), None
+        except urllib.error.HTTPError as e:
+            msg = e.read().decode(errors="replace")[:300]
+            return None, f"HTTP {e.code} {path}: {msg}"
+        except Exception as e:
+            return None, f"{type(e).__name__}: {e}"
+
+
+    def rows_to_csv(header, rows):
+        lines = [header] + [",".join(str(v) for v in row) for row in rows]
+        return "\n".join(lines) + "\n"
+
+
+    def validate(name, content, min_rows=1):
+        lines = [l for l in content.splitlines() if l.strip()]
+        data_rows = len(lines) - 1  # subtract header
+        if data_rows < min_rows:
+            print(f"WARN: {name}: {data_rows} data rows (need >= {min_rows})", flush=True)
+            return False
+        print(f"OK:   {name}: {data_rows} data rows", flush=True)
+        return True
+
+
+    def resolve_workload(owner_refs, rs_map):
+        """Walk ownerReference chain to find the top-level workload name."""
+        for ref in (owner_refs or []):
+            kind = ref.get("kind", "")
+            name = ref.get("name", "")
+            if kind in ("Deployment", "StatefulSet", "DaemonSet", "Job"):
+                return name
+            if kind == "ReplicaSet":
+                rs = rs_map.get(name, {})
+                for pref in (rs.get("metadata", {}).get("ownerReferences") or []):
+                    if pref.get("kind") in ("Deployment", "StatefulSet"):
+                        return pref["name"]
+                # Fallback: strip the ReplicaSet hash suffix (name-<hash>)
+                parts = name.rsplit("-", 1)
+                return parts[0] if len(parts) == 2 else name
+        return ""
+
+
+    def build_pods_csv():
+        pods, err = api("GET", "/api/v1/pods")
+        if err:
+            print(f"ERROR: list pods: {err}", flush=True)
+            return None
+
+        rsets, err = api("GET", "/apis/apps/v1/replicasets")
+        if err:
+            print(f"ERROR: list replicasets: {err}", flush=True)
+            return None
+
+        rs_map = {rs["metadata"]["name"]: rs for rs in rsets.get("items", [])}
+        rows   = []
+        for pod in pods.get("items", []):
+            spec   = pod.get("spec", {})
+            status = pod.get("status", {})
+            meta   = pod.get("metadata", {})
+
+            # Exclude hostNetwork pods: their IP is a node IP, not a pod CIDR IP.
+            # Including them would cause Priority 1 (pod) to shadow Priority 3 (node).
+            if spec.get("hostNetwork"):
+                continue
+
+            ip = status.get("podIP", "")
+            if not ip or status.get("phase") not in ("Running", "Pending"):
+                continue
+
+            workload = resolve_workload(meta.get("ownerReferences"), rs_map)
+            rows.append([
+                ip,
+                meta.get("namespace", ""),
+                workload,
+                meta.get("name", ""),
+                spec.get("nodeName", ""),
+                TS,
+            ])
+
+        return rows_to_csv("ip,namespace,workload,pod,node,_timestamp", rows)
+
+
+    def build_services_csv():
+        svcs, err = api("GET", "/api/v1/services")
+        if err:
+            print(f"ERROR: list services: {err}", flush=True)
+            return None
+
+        rows = []
+        for svc in svcs.get("items", []):
+            spec = svc.get("spec", {})
+            meta = svc.get("metadata", {})
+            if spec.get("type") != "ClusterIP":
+                continue
+            ip = spec.get("clusterIP", "")
+            if not ip or ip == "None":
+                continue
+            rows.append([ip, meta.get("namespace", ""), meta.get("name", ""), TS])
+
+        return rows_to_csv("ip,namespace,service,_timestamp", rows)
+
+
+    def build_nodes_csv():
+        nodes, err = api("GET", "/api/v1/nodes")
+        if err:
+            print(f"ERROR: list nodes: {err}", flush=True)
+            return None
+
+        rows = []
+        for node in nodes.get("items", []):
+            meta = node.get("metadata", {})
+            for addr in node.get("status", {}).get("addresses", []):
+                if addr.get("type") == "InternalIP":
+                    rows.append([addr["address"], meta.get("name", ""), TS])
+
+        return rows_to_csv("ip,node,_timestamp", rows)
+
+
+    def update_configmap(pods_csv, services_csv, nodes_csv):
+        patch = {"data": {
+            "pods.csv":     pods_csv,
+            "services.csv": services_csv,
+            "nodes.csv":    nodes_csv,
+        }}
+        _, err = api(
+            "PATCH",
+            f"/api/v1/namespaces/{NS}/configmaps/{CM_NAME}",
+            patch,
+            "application/strategic-merge-patch+json",
+        )
+        if err:
+            print(f"ERROR: patch configmap {CM_NAME}: {err}", flush=True)
+            return False
+        print(f"OK:   ConfigMap {CM_NAME} updated", flush=True)
+        return True
+
+
+    def restart_deployment():
+        ts    = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        patch = {"spec": {"template": {"metadata": {"annotations": {
+            "kubectl.kubernetes.io/restartedAt": ts,
+        }}}}}
+        _, err = api(
+            "PATCH",
+            f"/apis/apps/v1/namespaces/{NS}/deployments/{DEPLOY}",
+            patch,
+            "application/strategic-merge-patch+json",
+        )
+        if err:
+            print(f"ERROR: restart deployment {DEPLOY}: {err}", flush=True)
+            return False
+        print(f"OK:   rolling restart triggered for {DEPLOY}", flush=True)
+        return True
+
+
+    def main():
+        print(f"k8s-ip-exporter starting (ts={TS}, ns={NS})", flush=True)
+
+        pods_csv     = build_pods_csv()
+        services_csv = build_services_csv()
+        nodes_csv    = build_nodes_csv()
+
+        if pods_csv is None or services_csv is None or nodes_csv is None:
+            print("FAIL: K8s API call failed — aborting, no changes applied", flush=True)
+            sys.exit(1)
+
+        ok_pods  = validate("pods.csv",     pods_csv,     min_rows=1)
+        ok_svcs  = validate("services.csv", services_csv, min_rows=1)
+        ok_nodes = validate("nodes.csv",    nodes_csv,    min_rows=1)
+
+        if not (ok_pods and ok_svcs and ok_nodes):
+            print("FAIL: validation failed — aborting, no changes applied", flush=True)
+            sys.exit(1)
+
+        if not update_configmap(pods_csv, services_csv, nodes_csv):
+            sys.exit(1)
+
+        if not restart_deployment():
+            sys.exit(1)
+
+        print("Done.", flush=True)
+        sys.exit(0)
+
+
+    if __name__ == "__main__":
+        main()

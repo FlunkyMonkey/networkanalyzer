@@ -12,6 +12,50 @@ data:
       enabled: true
       address: "0.0.0.0:8686"
 
+    # K8s IP lookup tables (Wave 3b).
+    # Files are written by the k8s-ip-exporter CronJob via ConfigMap PATCH.
+    # Vector 0.45.0 does not live-reload these tables — a pod restart is
+    # required to pick up new content.  The CronJob handles the restart.
+    # On initial startup (before first CronJob run), all three files contain
+    # headers only; all IPs classify as "external" until data is populated.
+    enrichment_tables:
+      k8s_pods:
+        type: file
+        file:
+          path: /etc/vector/k8s-tables/pods.csv
+          encoding:
+            type: csv
+        schema:
+          ip: string
+          namespace: string
+          workload: string
+          pod: string
+          node: string
+          _timestamp: integer
+
+      k8s_services:
+        type: file
+        file:
+          path: /etc/vector/k8s-tables/services.csv
+          encoding:
+            type: csv
+        schema:
+          ip: string
+          namespace: string
+          service: string
+          _timestamp: integer
+
+      k8s_nodes:
+        type: file
+        file:
+          path: /etc/vector/k8s-tables/nodes.csv
+          encoding:
+            type: csv
+        schema:
+          ip: string
+          node: string
+          _timestamp: integer
+
     sources:
       goflow2_file:
         type: file
@@ -103,11 +147,88 @@ data:
           # The geoip-init init container already handles the download when the
           # geoip-credentials secret is present.
 
+      enrich_k8s:
+        type: remap
+        inputs:
+          - enrich_meta
+        source: |
+          # K8s IP classification — precedence-ordered per wave-3-plan.md:
+          #   1. pod   — IP in k8s_pods table (hostNetwork pods excluded at export time)
+          #   2. service — IP in k8s_services table (ClusterIP only)
+          #   3. node  — IP in k8s_nodes table
+          #   4. internal-unknown — IP in pod/service CIDR but no table match (stale/new)
+          #   5. external — IP outside all known CIDRs and node IPs
+          #
+          # Pod CIDR 10.244.0.0/16  |  Service CIDR 10.96.0.0/12
+          # Node IPs 172.18.1.61–172.18.1.64 are covered by the k8s_nodes table.
+          #
+          # Variable naming: r/e reused across src and dst sections (VRL allows
+          # reassignment).  Nested if/else (not else-if chains) avoids the VRL
+          # parser issue where } at end-of-line terminates an assignment expression.
+
+          # --- src_ip ---
+          src = to_string(.src_ip) ?? ""
+          if src != "" {
+            r, e = get_enrichment_table_record("k8s_pods", {"ip": src})
+            if e == null {
+              .src_k8s_namespace = r.namespace
+              .src_k8s_workload  = r.workload
+              .src_k8s_pod       = r.pod
+              .src_k8s_node      = r.node
+              .src_k8s_type      = "pod"
+            } else {
+              r, e = get_enrichment_table_record("k8s_services", {"ip": src})
+              if e == null {
+                .src_k8s_namespace = r.namespace
+                .src_k8s_service   = r.service
+                .src_k8s_type      = "service"
+              } else {
+                r, e = get_enrichment_table_record("k8s_nodes", {"ip": src})
+                if e == null {
+                  .src_k8s_node = r.node
+                  .src_k8s_type = "node"
+                } else {
+                  src_int = cidr_contains("10.244.0.0/16", src) || cidr_contains("10.96.0.0/12", src)
+                  if src_int { .src_k8s_type = "internal-unknown" } else { .src_k8s_type = "external" }
+                }
+              }
+            }
+          }
+
+          # --- dst_ip ---
+          dst = to_string(.dst_ip) ?? ""
+          if dst != "" {
+            r, e = get_enrichment_table_record("k8s_pods", {"ip": dst})
+            if e == null {
+              .dst_k8s_namespace = r.namespace
+              .dst_k8s_workload  = r.workload
+              .dst_k8s_pod       = r.pod
+              .dst_k8s_node      = r.node
+              .dst_k8s_type      = "pod"
+            } else {
+              r, e = get_enrichment_table_record("k8s_services", {"ip": dst})
+              if e == null {
+                .dst_k8s_namespace = r.namespace
+                .dst_k8s_service   = r.service
+                .dst_k8s_type      = "service"
+              } else {
+                r, e = get_enrichment_table_record("k8s_nodes", {"ip": dst})
+                if e == null {
+                  .dst_k8s_node = r.node
+                  .dst_k8s_type = "node"
+                } else {
+                  dst_int = cidr_contains("10.244.0.0/16", dst) || cidr_contains("10.96.0.0/12", dst)
+                  if dst_int { .dst_k8s_type = "internal-unknown" } else { .dst_k8s_type = "external" }
+                }
+              }
+            }
+          }
+
     sinks:
       opensearch:
         type: elasticsearch
         inputs:
-          - enrich_meta
+          - enrich_k8s
         endpoints:
           - "http://opensearch-cluster-master:9200"
         # api_version v8 suppresses the _type field that OpenSearch 2+ rejects.

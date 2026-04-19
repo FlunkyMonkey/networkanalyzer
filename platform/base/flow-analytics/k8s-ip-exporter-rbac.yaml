@@ -1,0 +1,87 @@
+# RBAC for the K8s IP Exporter CronJob (Wave 3b).
+#
+# Two bindings are required:
+#   1. ClusterRole + ClusterRoleBinding — read-only access to pods, services,
+#      nodes, and replicasets across all namespaces (needed to build the full
+#      cluster-wide lookup tables).
+#   2. Role + RoleBinding scoped to network-observability — patch the
+#      k8s-lookup-tables ConfigMap and trigger a rolling restart of the
+#      flow-collector Deployment.  Scoped to named resources only.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k8s-ip-exporter
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: k8s-ip-exporter
+    app.kubernetes.io/component: flow-analytics
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k8s-ip-exporter-reader
+  labels:
+    app.kubernetes.io/name: k8s-ip-exporter
+    app.kubernetes.io/component: flow-analytics
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "nodes"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k8s-ip-exporter-reader
+  labels:
+    app.kubernetes.io/name: k8s-ip-exporter
+    app.kubernetes.io/component: flow-analytics
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: k8s-ip-exporter-reader
+subjects:
+  - kind: ServiceAccount
+    name: k8s-ip-exporter
+    namespace: network-observability
+---
+# Namespace-scoped role: write the lookup ConfigMap and restart the collector.
+# Restricted to the exact named resources — no broad configmap/deployment access.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: k8s-ip-exporter-writer
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: k8s-ip-exporter
+    app.kubernetes.io/component: flow-analytics
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["k8s-lookup-tables"]
+    verbs: ["get", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["flow-collector"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: k8s-ip-exporter-writer
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: k8s-ip-exporter
+    app.kubernetes.io/component: flow-analytics
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: k8s-ip-exporter-writer
+subjects:
+  - kind: ServiceAccount
+    name: k8s-ip-exporter
+    namespace: network-observability

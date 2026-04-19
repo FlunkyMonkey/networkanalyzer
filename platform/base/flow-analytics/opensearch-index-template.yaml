@@ -45,7 +45,19 @@ data:
             "src_country": { "type": "keyword" },
             "src_country_code": { "type": "keyword" },
             "src_asn": { "type": "long" },
-            "src_as_org": { "type": "keyword" }
+            "src_as_org": { "type": "keyword" },
+            "src_k8s_namespace": { "type": "keyword" },
+            "src_k8s_workload":  { "type": "keyword" },
+            "src_k8s_service":   { "type": "keyword" },
+            "src_k8s_pod":       { "type": "keyword" },
+            "src_k8s_node":      { "type": "keyword" },
+            "src_k8s_type":      { "type": "keyword" },
+            "dst_k8s_namespace": { "type": "keyword" },
+            "dst_k8s_workload":  { "type": "keyword" },
+            "dst_k8s_service":   { "type": "keyword" },
+            "dst_k8s_pod":       { "type": "keyword" },
+            "dst_k8s_node":      { "type": "keyword" },
+            "dst_k8s_type":      { "type": "keyword" }
           }
         }
       },

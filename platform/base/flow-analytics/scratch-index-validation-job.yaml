@@ -1,0 +1,110 @@
+# MANUAL USE ONLY — not included in kustomization.yaml.
+#
+# Run this Job ONCE before applying the updated opensearch-index-template to
+# production.  It validates that all new K8s fields map cleanly with no
+# mapping exceptions.  See rollout-checklists.md item 3b.7.
+#
+# Workflow:
+#   kubectl apply -f scratch-index-validation-job.yaml
+#   kubectl logs -n network-observability job/scratch-index-validation -f
+#   # Exit 0 → safe to proceed with Wave 3b production template apply
+#   # Exit 1 → investigate the mapping error before continuing
+#   kubectl delete job scratch-index-validation -n network-observability
+#
+# The Job applies the current opensearch-index-template ConfigMap to a scratch
+# index, indexes a synthetic document containing every new K8s field, checks
+# for mapping exceptions, then deletes the scratch index.
+# Existing production indices are not touched.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: scratch-index-validation
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: scratch-index-validation
+    app.kubernetes.io/component: flow-analytics
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      volumes:
+        - name: index-template
+          configMap:
+            name: opensearch-index-template
+      containers:
+        - name: validate
+          image: curlimages/curl:8.11.1
+          volumeMounts:
+            - name: index-template
+              mountPath: /etc/opensearch
+              readOnly: true
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              BASE="http://opensearch-cluster-master:9200"
+              SCRATCH="flows-scratch-k8s-validation"
+
+              echo "=== Applying updated index template ==="
+              curl -sf -X PUT "$BASE/_index_template/flows" \
+                -H "Content-Type: application/json" \
+                -d @/etc/opensearch/flow-index-template.json
+              echo ""
+
+              echo "=== Creating scratch index ==="
+              curl -sf -X PUT "$BASE/$SCRATCH" \
+                -H "Content-Type: application/json" \
+                -d '{"settings":{"number_of_shards":1,"number_of_replicas":0}}'
+              echo ""
+
+              echo "=== Indexing synthetic document with all K8s fields ==="
+              RESP=$(curl -sf -X POST "$BASE/$SCRATCH/_doc" \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "@timestamp":        "2024-01-01T00:00:00Z",
+                  "flow_start":        0,
+                  "flow_end":          0,
+                  "src_ip":            "10.244.3.7",
+                  "dst_ip":            "8.8.8.8",
+                  "src_port":          54321,
+                  "dst_port":          443,
+                  "protocol":          6,
+                  "protocol_name":     "TCP",
+                  "bytes":             1024,
+                  "packets":           10,
+                  "exporter":          "172.18.1.61",
+                  "flow_type":         "NETFLOW_V9",
+                  "app":               "HTTPS",
+                  "src_k8s_namespace": "kube-system",
+                  "src_k8s_workload":  "coredns",
+                  "src_k8s_service":   null,
+                  "src_k8s_pod":       "coredns-abc123-xyz",
+                  "src_k8s_node":      "kube1",
+                  "src_k8s_type":      "pod",
+                  "dst_k8s_namespace": null,
+                  "dst_k8s_workload":  null,
+                  "dst_k8s_service":   null,
+                  "dst_k8s_pod":       null,
+                  "dst_k8s_node":      null,
+                  "dst_k8s_type":      "external"
+                }')
+              echo "Response: $RESP"
+
+              echo "$RESP" | grep -q '"result":"created"' || {
+                echo "FAIL: document was not created — likely a mapping exception"
+                curl -s "$BASE/$SCRATCH/_mapping?pretty"
+                curl -s -X DELETE "$BASE/$SCRATCH"
+                exit 1
+              }
+
+              echo "=== Verifying index health ==="
+              curl -sf "$BASE/_cluster/health/$SCRATCH?pretty"
+              echo ""
+
+              echo "=== Deleting scratch index ==="
+              curl -sf -X DELETE "$BASE/$SCRATCH"
+              echo ""
+
+              echo "=== SCRATCH VALIDATION PASSED — safe to apply production template ==="

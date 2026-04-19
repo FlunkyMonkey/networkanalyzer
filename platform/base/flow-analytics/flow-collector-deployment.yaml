@@ -29,6 +29,9 @@ spec:
             name: vector-config
         - name: geoip-data
           emptyDir: {}
+        - name: k8s-tables
+          configMap:
+            name: k8s-lookup-tables
       initContainers:
         # Download GeoIP databases if a MaxMind license key is provided.
         # If no key is set, Vector skips GeoIP enrichment gracefully.
@@ -106,6 +109,9 @@ spec:
               mountPath: /etc/vector
             - name: geoip-data
               mountPath: /geoip
+              readOnly: true
+            - name: k8s-tables
+              mountPath: /etc/vector/k8s-tables
               readOnly: true
           ports:
             - name: vector-api
