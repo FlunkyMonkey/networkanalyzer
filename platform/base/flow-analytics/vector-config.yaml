@@ -188,7 +188,11 @@ data:
                   .src_k8s_node = r.node
                   .src_k8s_type = "node"
                 } else {
-                  src_int = ip_cidr_contains("10.244.0.0/16", src) || ip_cidr_contains("10.96.0.0/12", src)
+                  src_pod_cidr, err = ip_cidr_contains("10.244.0.0/16", src)
+                  if err != null { src_pod_cidr = false }
+                  src_svc_cidr, err = ip_cidr_contains("10.96.0.0/12", src)
+                  if err != null { src_svc_cidr = false }
+                  src_int = src_pod_cidr || src_svc_cidr
                   if src_int { .src_k8s_type = "internal-unknown" } else { .src_k8s_type = "external" }
                 }
               }
@@ -217,7 +221,11 @@ data:
                   .dst_k8s_node = r.node
                   .dst_k8s_type = "node"
                 } else {
-                  dst_int = ip_cidr_contains("10.244.0.0/16", dst) || ip_cidr_contains("10.96.0.0/12", dst)
+                  dst_pod_cidr, err = ip_cidr_contains("10.244.0.0/16", dst)
+                  if err != null { dst_pod_cidr = false }
+                  dst_svc_cidr, err = ip_cidr_contains("10.96.0.0/12", dst)
+                  if err != null { dst_svc_cidr = false }
+                  dst_int = dst_pod_cidr || dst_svc_cidr
                   if dst_int { .dst_k8s_type = "internal-unknown" } else { .dst_k8s_type = "external" }
                 }
               }
