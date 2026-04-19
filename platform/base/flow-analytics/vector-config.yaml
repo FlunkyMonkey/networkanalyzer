@@ -188,7 +188,7 @@ data:
                   .src_k8s_node = r.node
                   .src_k8s_type = "node"
                 } else {
-                  src_int = cidr_contains("10.244.0.0/16", src) || cidr_contains("10.96.0.0/12", src)
+                  src_int = ip_cidr_contains("10.244.0.0/16", src) || ip_cidr_contains("10.96.0.0/12", src)
                   if src_int { .src_k8s_type = "internal-unknown" } else { .src_k8s_type = "external" }
                 }
               }
@@ -217,7 +217,7 @@ data:
                   .dst_k8s_node = r.node
                   .dst_k8s_type = "node"
                 } else {
-                  dst_int = cidr_contains("10.244.0.0/16", dst) || cidr_contains("10.96.0.0/12", dst)
+                  dst_int = ip_cidr_contains("10.244.0.0/16", dst) || ip_cidr_contains("10.96.0.0/12", dst)
                   if dst_int { .dst_k8s_type = "internal-unknown" } else { .dst_k8s_type = "external" }
                 }
               }
