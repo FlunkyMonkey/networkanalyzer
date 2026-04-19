@@ -1,16 +1,32 @@
 # K8s IP Exporter CronJob (Wave 3b).
 #
-# Runs every 30 minutes — conservative cadence for initial soak validation.
-# After Gate 3b passes and the lookup pattern is confirmed stable, reduce
-# to */5 or */2 to lower the staleness ceiling for pod IP assignments.
+# STARTS SUSPENDED — spec.suspend: true by default.
+# The CronJob will not fire automatically after first apply.
+# This prevents unvalidated enrichment activity during initial soak.
+#
+# First-run procedure (after Gate 3 passes and scratch-index validation
+# completes per checklist item 3b.7):
+#
+#   # Trigger one manual run and watch it:
+#   kubectl create job --from=cronjob/k8s-ip-exporter k8s-ip-exporter-init-1 \
+#     -n network-observability
+#   kubectl logs -n network-observability job/k8s-ip-exporter-init-1 -f
+#
+#   # Verify enriched fields appear in flow documents (checklist 3b.11-3b.13),
+#   # then unsuspend for normal recurring operation:
+#   kubectl patch cronjob k8s-ip-exporter -n network-observability \
+#     -p '{"spec":{"suspend":false}}'
+#
+# Cadence: every 30 minutes — conservative for soak period.
+# After Gate 3b passes, reduce to */5 or */2 for a tighter staleness ceiling.
 #
 # Each run:
 #   1. Queries K8s API for pods (hostNetwork excluded), services, nodes
-#   2. Validates all three outputs (non-empty, at least 1 data row each)
-#   3. If ALL valid: patches k8s-lookup-tables ConfigMap, triggers rolling
-#      restart of flow-collector (Vector 0.45.0 requires restart to reload
-#      enrichment tables — no live-reload)
-#   4. If ANY invalid: exits 1, no changes applied
+#   2. Compares new content against live ConfigMap (skips restart if unchanged)
+#   3. Validates all three outputs (non-empty, at least 1 data row, <512KB)
+#   4. If changed and valid: patches k8s-lookup-tables ConfigMap, triggers
+#      rolling restart of flow-collector (Vector 0.45.0 requires restart)
+#   5. If unchanged or invalid: exits 0/1 with no changes applied
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -21,6 +37,7 @@ metadata:
     app.kubernetes.io/component: flow-analytics
 spec:
   schedule: "*/30 * * * *"
+  suspend: true
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3

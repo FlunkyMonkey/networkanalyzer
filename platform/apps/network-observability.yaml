@@ -22,3 +22,15 @@ spec:
     syncOptions:
       - CreateNamespace=false
       - ServerSideApply=true
+  # Ignore the restartedAt annotation written by k8s-ip-exporter CronJob.
+  # Without this, ArgoCD selfHeal would revert the annotation within seconds
+  # of each CronJob run, leaving flow-collector with stale enrichment tables.
+  # The annotation lives at spec.template.metadata.annotations and is written
+  # by the standard kubectl rollout restart pattern.
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: flow-collector
+      namespace: network-observability
+      jqPathExpressions:
+        - '.spec.template.metadata.annotations["kubectl.kubernetes.io/restartedAt"]'
