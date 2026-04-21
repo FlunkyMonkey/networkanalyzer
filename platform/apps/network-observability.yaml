@@ -34,3 +34,12 @@ spec:
       namespace: network-observability
       jqPathExpressions:
         - '.spec.template.metadata.annotations["kubectl.kubernetes.io/restartedAt"]'
+    # Ignore live CSV data written by k8s-ip-exporter CronJob.
+    # The repo holds header-only placeholder content; the CronJob PATCHes
+    # real pod/service/node data at runtime.  Without this, ArgoCD selfHeal
+    # reverts the ConfigMap to placeholder content on every sync cycle.
+    - kind: ConfigMap
+      name: k8s-lookup-tables
+      namespace: network-observability
+      jqPathExpressions:
+        - '.data'
