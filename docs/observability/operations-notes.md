@@ -2,6 +2,63 @@
 
 Runtime decisions and operational context that affect how the platform is understood but are not architecture changes.
 
+## 2026-04-20 — Wave 3b: VRL Hotfix History and Operational Decisions
+
+### VRL function name: `ip_cidr_contains` not `cidr_contains`
+
+Vector 0.45.0 (`timberio/vector:0.45.0-distroless-static`) exposes the CIDR check
+function as `ip_cidr_contains`. The name `cidr_contains` does not exist in this
+build and causes a hard startup failure (undefined function). The VRL documentation
+and function name diverge between Vector builds.
+
+**If upgrading Vector:** always validate CIDR function name in a test environment
+before deploying. The function name is build-specific, not stable across Vector
+versions.
+
+### `ip_cidr_contains` is fallible in Vector 0.45.0
+
+`ip_cidr_contains` returns `Result<bool>`, not `bool`. Using it in a plain
+assignment triggers Vector startup error E103 (unhandled fallible). The required
+pattern is:
+
+```vrl
+var, err = ip_cidr_contains("cidr", ip_string)
+if err != null { var = false }
+```
+
+This must be applied to every call site. A `?? false` suffix does NOT work for
+infallible coercion on this function — the err guard is required.
+
+### ArgoCD `ignoreDifferences` required for two runtime-written resources
+
+Two resources in this platform are written at runtime by the CronJob and must be
+excluded from ArgoCD `selfHeal` reconciliation:
+
+1. **`flow-collector` Deployment** — `kubectl.kubernetes.io/restartedAt` annotation
+   (written by CronJob rolling restart). Without `ignoreDifferences`, ArgoCD reverts
+   the annotation within seconds, which does not cause a functional failure but
+   produces continuous drift noise.
+
+2. **`k8s-lookup-tables` ConfigMap** — `.data` field (CronJob PATCHes live CSV
+   content; Git holds header-only placeholders). Without `ignoreDifferences`, ArgoCD
+   reverts the ConfigMap to placeholder headers on every sync cycle, causing
+   `internal-unknown` classification for all flows despite a successful CronJob run.
+   This is a silent data-quality failure — flow-collector remains healthy.
+
+Both `ignoreDifferences` entries are in `platform/apps/network-observability.yaml`.
+
+### Distroless container: no exec access
+
+The `timberio/vector:0.45.0-distroless-static` image has no shell. `kubectl exec`
+is not possible. VRL errors are only visible via pod logs at startup. To debug VRL:
+
+1. Read Vector startup logs: `kubectl logs -n network-observability deploy/flow-collector`
+2. Errors include the VRL source line and error code (e.g., E103).
+3. For interactive debugging, use a non-distroless Vector image in a test pod.
+
+**Decision owner:** Mike Beil (operator), Wave 3b rollout. Accepted as operational
+constraint; mitigation tracked in backlog.
+
 ## 2026-04-11 — Legacy Monitoring Cleanup
 
 **Context:** During Wave 1 deployment, the existing `monitoring` namespace Grafana (from `kube-prometheus-stack`) was found to be unhealthy (0/1 pods). The dedicated `network-observability` Grafana was deployed as a standalone instance and is now the active platform UI.

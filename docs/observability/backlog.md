@@ -2,6 +2,92 @@
 
 Future-wave items not in scope for the current rollout. These are tracked here so they aren't lost but do not block active waves.
 
+## Wave 3b Hardening Items
+
+These items were accepted as residual conditions at Wave 3b closeout. They do not
+block Wave 4 or Wave 5.
+
+### Build dedicated K8s Flow Context dashboard
+
+The Grafana "K8s Flow Context" dashboard (checklist 3b.15–3b.19) was not built
+during Wave 3b. K8s fields are queryable via OpenSearch ad-hoc and the Entity
+Investigation dashboard, but no purpose-built aggregation panel exists.
+
+**Action:** Build a Grafana dashboard covering: namespace traffic breakdown,
+top pod-to-pod flows, service-type flow volume, `internal-unknown` classification
+rate, and a per-node flow heatmap. Target Wave 5 UX work.
+
+### Tune CronJob schedule from 30 min to 5 min after stable soak
+
+The 30-minute interval was conservative for soak validation. Short-lived pods
+(Jobs, CronJobs) may complete before the exporter runs and will never appear as
+`pod`-type in flow documents.
+
+**Action:** After confirming stable CronJob operation (no failures across ≥7 days),
+update `k8s-ip-exporter-cronjob.yaml` schedule from `*/30 * * * *` to `*/5 * * * *`.
+Verify the change-detection no-op path keeps flow-collector restart frequency acceptable.
+
+### Add Prometheus alert for CronJob failure
+
+A CronJob failure (RBAC error, K8s API timeout, validation failure, size guard
+trip) leaves previous valid lookup tables in place but produces no alert. Operators
+must poll `kubectl get jobs` manually.
+
+**Action:** Add a Prometheus alerting rule targeting `kube_job_status_failed` for
+jobs with `job-name` matching `k8s-ip-exporter-*`. Wire to the platform alert
+routing. This requires Prometheus to scrape kube-state-metrics (already present
+via kube-prometheus-stack).
+
+### Investigate distroless container debugging limitations
+
+The `timberio/vector:0.45.0-distroless-static` image has no shell, package
+manager, or debugging tools. `kubectl exec` is not possible. VRL debugging
+during incidents requires a non-distroless test image or reproducing the config
+outside the cluster.
+
+**Action:** Document a debug workflow using a non-distroless Vector image. Consider
+maintaining a `vector:0.45.0-debian` test deployment spec (not in production) that
+can be swapped in temporarily during incidents. Evaluate whether future Vector
+upgrades ship a distroless image with vector-top or similar minimal introspection.
+
+### Review rolling restart ingestion gap
+
+Each CronJob-triggered rolling restart causes ~10–30 seconds of reduced ingest
+while the new pod starts up. GoFlow2 buffers in the shared volume, so no data is
+lost, but a gap may appear in time-series panels.
+
+**Action:** Measure actual gap duration in production. If > 30s or visible in
+dashboards, evaluate: (1) preloading enrichment tables before binding the listen
+port, or (2) adding a readiness probe delay. At 30-minute cadence with change
+detection, most CronJob runs are no-ops; restarts are infrequent.
+
+### Clean up expired init Job
+
+`k8s-ip-exporter-init-1` was the manual init Job used for Phase 2 first-run
+validation. It completed successfully but remains in the namespace consuming
+`kubectl get jobs` output.
+
+**Action:** Delete the completed init Job:
+
+```bash
+kubectl delete job k8s-ip-exporter-init-1 -n network-observability
+```
+
+TTL is set to 2 hours (`ttlSecondsAfterFinished: 7200`) for CronJob-spawned jobs,
+but manually-created jobs are not subject to CronJob TTL. The job can be deleted
+manually.
+
+### Evaluate ArgoCD/Kustomize Helm chart cache comparison noise
+
+During Wave 3b deployment, ArgoCD reported comparison errors related to Helm chart
+cache state on some sync cycles. These were transient and did not block deployment,
+but added noise to the sync status view.
+
+**Action:** After Wave 4/5 manifest work, check ArgoCD app diff output for
+persistent Helm cache drift entries. If present, evaluate adding
+`--server-side-apply` reconciliation options or a targeted `ignoreDifferences`
+entry. Low priority unless frequency increases.
+
 ## Wave 2 Hardening Items
 
 These items were accepted as residual conditions at Wave 2 closeout. They must be
