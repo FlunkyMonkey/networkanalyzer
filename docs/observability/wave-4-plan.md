@@ -1,5 +1,16 @@
 # Wave 4 Plan — Kubernetes Network Visibility (Cilium + Hubble)
 
+> **Status: DEFERRED**
+>
+> Wave 4 is blocked on Cilium CNI with Hubble being installed in the cluster.
+> That migration is managed in `k8s-lab.git` and has not been scheduled.
+> Wave 5 (Unified UX) is the active wave. Wave 4 planning content is preserved
+> below for when the CNI migration is ready to proceed.
+>
+> See [backlog.md](backlog.md) — "Wave 4: Deferred" section.
+
+---
+
 ## Executive Summary
 
 Wave 4 adds real-time Kubernetes network visibility via Cilium's Hubble observability
@@ -8,14 +19,19 @@ that shows pod-to-pod flows, namespace traffic aggregation, and service-level
 connectivity — complementing the Wave 3b enrichment approach with a dedicated K8s
 network investigation surface.
 
-**Wave 4 is gated on a prerequisite that is not yet confirmed met.** Cilium CNI
+**Wave 4 is blocked on a hard prerequisite that is not yet met.** Cilium CNI
 with Hubble must be installed and healthy in the cluster before any manifests from
-this repo can be applied. The current cluster CNI state has not been confirmed.
-Wave 4 therefore begins with Phase 1: discovery and migration risk assessment.
+this repo can be applied. The current cluster CNI state has not been confirmed and
+the Cilium migration has not been scheduled. Wave 4 is deferred to backlog until
+the migration is completed in `k8s-lab.git`.
 
-**No implementation manifests are created in this phase.** Phase 1 and 2 are
-planning and preflight work only. Manifest development begins in Phase 3, after the
-CNI migration has been completed and Hubble Relay is confirmed reachable.
+Wave 5 (Unified UX) does not require Cilium and proceeds independently. If Wave 4
+is completed later, Hubble integration becomes an additive enhancement on top of the
+Wave 5 UX baseline.
+
+**No implementation manifests are created for Wave 4.** Phase 1 and 2 are planning
+and preflight work only. Manifest development begins in Phase 3, after the CNI
+migration has been completed and Hubble Relay is confirmed reachable.
 
 ---
 

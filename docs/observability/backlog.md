@@ -2,6 +2,56 @@
 
 Future-wave items not in scope for the current rollout. These are tracked here so they aren't lost but do not block active waves.
 
+## Wave 4 — Deferred: Kubernetes Network Visibility (Cilium + Hubble)
+
+Wave 4 is deferred to backlog. The full planning document is at
+[wave-4-plan.md](wave-4-plan.md). Wave 5 (Unified UX) is the active wave and
+does not require Cilium.
+
+**Why deferred:** Wave 4 requires a Calico → Cilium (or Flannel → Cilium) CNI
+migration managed in `k8s-lab.git`. This migration involves a planned cluster-wide
+network outage window (~10–30 minutes) and has not been scheduled. The current CNI
+in the cluster has not been confirmed. Until the migration is executed and Hubble
+Relay is running in `kube-system`, none of the Wave 4 manifests in this repo can
+function.
+
+**How to unblock:** Complete Phase 1 (discovery) and Phase 2 (migration) from
+wave-4-plan.md. Once `kubectl -n kube-system get deploy hubble-relay` shows 1/1
+Ready and cross-namespace Relay connectivity is confirmed, Wave 4 Phase 3 can begin.
+
+### Phase 1 Preflight Work (preserve before migration)
+
+These tasks must be completed as part of Wave 4 Phase 1 (discovery) before any
+migration work begins in `k8s-lab.git`. They are listed here so they are not
+forgotten during the deferral period.
+
+- **Confirm current CNI:** `kubectl get ds -n kube-system` — identify Flannel,
+  Calico, or other. The cni-migration-and-rollout.md runbook assumes Calico; adapt
+  if the CNI is Flannel.
+- **Confirm CIDR continuity:** Pod CIDR must remain `10.244.0.0/16` and service
+  CIDR must remain `10.96.0.0/12` after migration — these are hardcoded in the
+  Wave 3b VRL. If Cilium would change them, update VRL first.
+- **NetworkPolicy audit:** `kubectl get networkpolicies --all-namespaces` and
+  `kubectl get globalnetworkpolicies 2>/dev/null` — any Calico-specific policies
+  must be migrated or removed before CNI removal.
+- **hostNetwork pod inventory:** Count and document pods with `hostNetwork: true`
+  as a baseline for post-migration comparison.
+- **Agree maintenance window:** The migration requires ~10–30 minutes of cluster
+  network disruption. GoFlow2 buffers flows; no data is lost but an ingest gap
+  will appear in OpenSearch.
+- **Wave 3b baseline snapshot:** Record a pre-migration baseline of CronJob success
+  count and enriched document count to verify Wave 3b is unaffected post-migration.
+
+### Hubble UI Integration (after Wave 4 is complete)
+
+Once Wave 4 is complete, these Wave 5 UX items activate automatically or require
+minor additions:
+
+- Entity Investigation dashboard Hubble link activates (the link is present but
+  points to a port-forward address that only works when Hubble UI is deployed)
+- Grafana Hubble metrics dashboard (drop rate, flow count by namespace, DNS latency)
+- Platform Health dashboard Hubble Relay target added
+
 ## Wave 3b Hardening Items
 
 These items were accepted as residual conditions at Wave 3b closeout. They do not
@@ -9,13 +59,12 @@ block Wave 4 or Wave 5.
 
 ### Build dedicated K8s Flow Context dashboard
 
-The Grafana "K8s Flow Context" dashboard (checklist 3b.15–3b.19) was not built
-during Wave 3b. K8s fields are queryable via OpenSearch ad-hoc and the Entity
-Investigation dashboard, but no purpose-built aggregation panel exists.
+~~Moved to Wave 5 scope.~~ The K8s Flow Context dashboard is now an active
+deliverable in Wave 5 Phase 2. It is no longer a backlog item.
 
-**Action:** Build a Grafana dashboard covering: namespace traffic breakdown,
-top pod-to-pod flows, service-type flow volume, `internal-unknown` classification
-rate, and a per-node flow heatmap. Target Wave 5 UX work.
+**Wave 5 Phase 2 will deliver:** namespace traffic breakdown, top pod-to-pod
+flows, service-type flow volume, `internal-unknown` classification rate, and
+per-node flow heatmap. See [wave-5-plan.md](wave-5-plan.md).
 
 ### Tune CronJob schedule from 30 min to 5 min after stable soak
 

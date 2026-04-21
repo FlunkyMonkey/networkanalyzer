@@ -153,9 +153,14 @@ is unaffected — the new K8s fields will simply be absent on existing documents
 
 ---
 
-## Gate 4 — K8s Visibility Connected
+## Gate 4 — K8s Visibility Connected *(DEFERRED)*
 
-**Hard prerequisite:** Cilium CNI with Hubble + Relay must be installed and running in `kube-system` (managed in `k8s-lab.git`) before Phases 3–5 of Wave 4 can proceed. If Cilium migration has not been completed, Gate 4 can be deferred — Waves 1–3 and Wave 5 are independent.
+> **Gate 4 is deferred.** Cilium CNI with Hubble has not been installed and no
+> migration window has been scheduled. Wave 5 (Gate 5) is the active gate.
+> Wave 4 planning content is preserved below. See [wave-4-plan.md](wave-4-plan.md)
+> and the Wave 4 section in [backlog.md](backlog.md).
+
+**Hard prerequisite:** Cilium CNI with Hubble + Relay must be installed and running in `kube-system` (managed in `k8s-lab.git`) before Phases 3–5 of Wave 4 can proceed. Wave 5 is independent of this prerequisite.
 
 Wave 4 is itself phased. Phases 1–2 are planning and migration work (no manifests from this repo). Phases 3–5 are implementation and soak work.
 
@@ -231,29 +236,92 @@ Wave 4 is itself phased. Phases 1–2 are planning and migration work (no manife
 
 ---
 
-## Gate 5 — Platform Go-Live
+## Gate 5 — Unified UX Go-Live *(ACTIVE)*
+
+**Active wave.** Wave 5 builds the unified operator UX across the existing stable
+planes (Wave 1 infra, Wave 2 flow, Wave 3b K8s enrichment). Cilium is not required.
+
+**Baseline required before Gate 5 work begins:**
+
+- Gates 1, 2, 3, 3b all passed (all data planes healthy)
+- Wave 4 deferred or not yet started
+
+Wave 5 is phased. Three sub-gates track progress through implementation.
+
+### Gate 5a — Phase 1–2: K8s Context Dashboard and Baseline Validated
 
 **Required evidence:**
 
-- [ ] All Wave 5 checklist items pass
-- [ ] Homepage displays locked card order with live data
-- [ ] Cross-plane drill-down works (IP → Entity Investigation → OpenSearch; Hubble if Wave 4 was completed)
-- [ ] All 6 investigation playbooks are accessible
-- [ ] Platform Health dashboard shows all targets UP
-- [ ] Degraded-state behavior verified (T9)
-- [ ] Regression suite passes for completed waves (R1–R3 + R5; R4 only if Wave 4 was completed)
-- [ ] Codex QA report has zero Critical/High open findings
-- [ ] Operator has completed end-to-end walkthrough of at least 1 playbook
+- [ ] Audit of all existing Grafana dashboards complete — every dashboard loads with
+  live data, no broken panels
+- [ ] Both Grafana datasources confirmed healthy: Prometheus and OpenSearch
+- [ ] K8s Flow Context dashboard deployed: namespace traffic breakdown, pod-to-pod
+  flow volume, service-type flow volume, `internal-unknown` rate visible
+- [ ] `internal-unknown` classification rate panel shows real data (not empty)
+- [ ] At least one pod-type flow document visible in the K8s Flow Context dashboard
+- [ ] Wave 3b regression: CronJob healthy, enriched fields present, doc count growing
 
-**Minimum pass criteria:** All locked homepage cards populated. All drill-down paths functional. No Critical findings. Operator signoff.
+**Minimum pass criteria:** All existing dashboards healthy. K8s Flow Context
+dashboard functional with real data from Wave 3b.
 
 **Blockers:**
 
-- Homepage does not load
-- Any locked card shows no data
-- Critical Codex QA finding open
+- Either datasource (Prometheus or OpenSearch) unhealthy
+- Wave 3b CronJob failing (would invalidate K8s dashboard data)
 
-**Rollback criteria:** UX issues are non-destructive. Fix in place and re-verify. Full rollback only if underlying data planes have regressed.
+### Gate 5b — Phase 3–5: Core Navigation Operational
+
+**Required evidence:**
+
+- [ ] Homepage (`correlation-home`) loads in < 5 seconds
+- [ ] Card 1 (Top Talkers): table populated with src\_ip and bytes from OpenSearch
+- [ ] Card 2 (Destinations): destination table populates for a given src\_ip
+- [ ] Card 3 (WiFi Client Bandwidth): at least one client visible with RX/TX
+- [ ] Freshness bar shows correct status: green when all exporters UP, degraded
+  banner appears when an exporter is stopped
+- [ ] Clicking a src\_ip in Top Talkers navigates to Entity Investigation with
+  IP pre-filled
+- [ ] Entity Investigation shows: infra context, outbound flow table, inbound flow
+  table, K8s fields (namespace, workload, type) for internal IPs
+- [ ] Platform Health dashboard loads with all targets shown UP
+- [ ] Platform Health dashboard shows correct degraded state when a target is down
+
+**Minimum pass criteria:** Homepage loads with all 3 cards populated. Freshness bar
+correct. Top Talkers → Entity Investigation drill-down works. Platform Health accurate.
+
+**Blockers:**
+
+- OpenSearch datasource returning errors on homepage queries
+- Any locked card empty (not just slow — consistently empty)
+
+### Gate 5c — Phase 6–7: Playbooks, Soak, and Closeout
+
+**Required evidence:**
+
+- [ ] Investigation Playbooks dashboard accessible; all 6 playbooks listed
+- [ ] At least one playbook followed end-to-end by the operator (verified by
+  operator, not automated)
+- [ ] "Investigate slow internet" playbook navigable start-to-finish
+- [ ] 7-day soak: no homepage load failures, no datasource errors, no new Wave 3b
+  regressions
+- [ ] ArgoCD shows Synced, Healthy across soak period
+- [ ] All previous wave regressions still passing at end of soak (Waves 1–3b)
+- [ ] wave-5-closeout.md written with evidence of successful operation
+- [ ] Wave 4 integration note confirmed: Entity Investigation Hubble link is
+  present but inactive (displays correctly without Hubble deployed)
+
+**Minimum pass criteria:** All 6 playbooks accessible. One playbook operator-verified
+end-to-end. 7-day soak clean. Closeout doc written.
+
+**Blockers:**
+
+- Homepage consistently failing to load during soak
+- Wave 3b regression during soak (enrichment fields dropping out)
+
+**Rollback criteria:** UX dashboards are additive ConfigMaps — removing them does
+not affect underlying data planes. If a dashboard causes Grafana instability, remove
+the specific ConfigMap and re-sync. Full rollback to Wave 3b baseline by disabling
+the `correlation-ux` overlay line.
 
 ---
 

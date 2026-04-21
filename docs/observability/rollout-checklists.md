@@ -180,7 +180,11 @@ will simply be absent on older documents.
 
 ---
 
-## Wave 4 — K8s Visibility
+## Wave 4 — K8s Visibility *(DEFERRED)*
+
+> **Wave 4 is deferred.** Cilium migration has not been scheduled. Skip to Wave 5.
+> The full phased checklist below is preserved for when Wave 4 is unblocked.
+> See [wave-4-plan.md](wave-4-plan.md) and backlog.md for details.
 
 **Prerequisite:** Cilium CNI with Hubble must be installed and healthy before
 Phases 3–5. If not yet migrated, complete Phases 1–2 first. Wave 4 may be deferred
@@ -297,25 +301,141 @@ section. Wave 3b resumes automatically after pod restart cycle.
 
 ---
 
-## Wave 5 — Unified UX Go-Live
+## Wave 5 — Unified UX Go-Live *(ACTIVE)*
 
-**Enable:** Uncomment `../../base/correlation-ux` in `platform/overlays/lab/kustomization.yaml`, commit, push. Wait for ArgoCD sync.
+**Baseline:** Waves 1, 2, 3, 3b complete. Wave 4 deferred.
+
+Wave 5 builds the unified operator UX across the three stable data planes (infra
+telemetry, flow analytics, K8s enrichment) using Grafana as the primary surface.
+No Cilium required. Wave 4 Hubble integration activates as an optional add-on
+if Wave 4 is completed later.
+
+**Enable (Phase 3):** Uncomment `../../base/correlation-ux` in
+`platform/overlays/lab/kustomization.yaml`, commit, push. Wait for ArgoCD sync.
+
+### Phase 1 — Baseline Audit
+
+**No new deployments. Verify all existing dashboards are healthy before building on top.**
 
 | # | Check | Command / Action | Expected | Pass |
 |---|---|---|---|---|
-| 5.0 | Plane enabled in overlay | Verify correlation-ux line is uncommented in lab kustomization.yaml | Uncommented | [ ] |
-| 5.1 | Homepage loads | Navigate to `/d/correlation-home` | Loads in < 5s | [ ] |
-| 5.2 | Card 1: Top Talkers | Check top talkers table | Shows IPs with bytes | [ ] |
-| 5.3 | Card 2: Destinations | Enter a source IP, check destination table | Shows dst IPs, ports, countries | [ ] |
-| 5.4 | Card 3: WiFi clients | Check WiFi bandwidth chart | Shows client RX/TX | [ ] |
-| 5.5 | Freshness bar | Check source health / scrape % / flow ingest | All green/healthy | [ ] |
-| 5.6 | Drill-down: IP → Entity | Click an IP in Top Talkers | Opens Entity Investigation | [ ] |
-| 5.7 | Drill-down: IP → Flow Destinations | Click "View flow destinations" link on Top Talkers row | Opens Flow — Destination Analysis with src_ip pre-filled | [ ] |
-| 5.8 | Playbooks accessible | Click "Investigation Playbooks" dropdown | All 6 playbooks visible | [ ] |
-| 5.9 | Health dashboard | Navigate to Platform Health | All targets shown UP | [ ] |
-| 5.10 | End-to-end playbook | Execute "Investigate slow internet" | Can follow all steps | [ ] |
-| 5.11 | Waves 1–4 still healthy | Spot-check key items from each wave | All passing | [ ] |
+| 5.1.1 | Prometheus datasource healthy | Grafana → Data Sources → Prometheus → Test | Connection successful | [ ] |
+| 5.1.2 | OpenSearch datasource healthy | Grafana → Data Sources → OpenSearch Flows → Test | Connection successful | [ ] |
+| 5.1.3 | Infra dashboards load with data | Open Switch Interface Util, UniFi AP, Proxmox dashboards | All three load with live data, no broken panels | [ ] |
+| 5.1.4 | Flow dashboards load with data | Open Top Talkers, Destination Analysis, Traffic Mix | All three load with data, OpenSearch queries returning rows | [ ] |
+| 5.1.5 | Wave 3b CronJob healthy | `kubectl get jobs -n network-observability --sort-by=.metadata.creationTimestamp \| tail -3` | Recent successful runs | [ ] |
+| 5.1.6 | K8s fields present in flows | `curl localhost:9200/flows-*/_search?q=src_k8s_type:pod&size=1&pretty \| grep src_k8s` | src_k8s fields populated | [ ] |
+| 5.1.7 | Document baseline flow count | `curl localhost:9200/flows-*/_count` | Record count for regression comparison | [ ] |
 
-**Gate:** All items pass → platform is go-live.
+**Gate 5a pre-work:** All items pass → proceed to Phase 2.
 
-**Rollback trigger:** Homepage fails to load. Critical drill-down paths broken. Data sources not populating.
+---
+
+### Phase 2 — K8s Flow Context Dashboard
+
+**Scope:** Build and deploy the K8s Flow Context dashboard (Wave 3b backlog item,
+now active). Add a ConfigMap to `platform/base/flow-analytics/` and include it in
+kustomization.yaml. ArgoCD deploys it automatically.
+
+| # | Check | Action | Expected | Pass |
+|---|---|---|---|---|
+| 5.2.1 | Dashboard ConfigMap created | Review new Grafana dashboard ConfigMap in flow-analytics plane | ConfigMap has correct labels for Grafana sidecar provisioning | [ ] |
+| 5.2.2 | ArgoCD sync picks up new dashboard | `argocd app get network-observability` | Synced, Healthy | [ ] |
+| 5.2.3 | Dashboard appears in Grafana | Grafana → Dashboards → Browse | "K8s Flow Context" dashboard listed | [ ] |
+| 5.2.4 | Namespace breakdown panel | Open dashboard, check namespace panel | Shows at least two K8s namespaces with flow bytes | [ ] |
+| 5.2.5 | Pod-to-pod flow panel | Check top pod flows panel | Shows src\_k8s\_pod/dst\_k8s\_pod pairs with bytes | [ ] |
+| 5.2.6 | internal-unknown rate panel | Check classification breakdown | `internal-unknown` visible as distinct bucket, not merged into external | [ ] |
+| 5.2.7 | Service-type flow panel | Check service flow panel | service-type flows visible with namespace and service name | [ ] |
+| 5.2.8 | External flows panel | Check external panel | External IPs shown with no broken panels (K8s fields empty — expected) | [ ] |
+| 5.2.9 | Wave 3b regression | Re-run 5.1.5 and 5.1.6 | CronJob still healthy, enriched fields still present | [ ] |
+
+**Gate 5a:** Phases 1–2 complete → K8s Flow Context dashboard operational.
+
+---
+
+### Phase 3 — Homepage and Navigation
+
+**Enable:** Uncomment `../../base/correlation-ux` in
+`platform/overlays/lab/kustomization.yaml`, commit, push. ArgoCD syncs the plane.
+
+| # | Check | Command / Action | Expected | Pass |
+|---|---|---|---|---|
+| 5.3.1 | Plane enabled in overlay | Verify correlation-ux line is uncommented in lab kustomization.yaml | Uncommented and committed | [ ] |
+| 5.3.2 | ArgoCD sync healthy | `argocd app get network-observability` | Synced, Healthy | [ ] |
+| 5.3.3 | Homepage loads | Navigate to `/d/correlation-home` in Grafana | Loads in < 5s | [ ] |
+| 5.3.4 | Card 1: Top Talkers populated | Check Top Talkers table | At least one row with src\_ip and bytes (not empty) | [ ] |
+| 5.3.5 | Card 2: Destinations populated | Select a src\_ip from Top Talkers, check Destinations card | Destination rows appear with dst\_ip, port, country | [ ] |
+| 5.3.6 | Card 3: WiFi clients populated | Check WiFi client bandwidth card | At least one client visible with RX/TX values | [ ] |
+| 5.3.7 | Freshness bar — healthy state | All exporters running — check freshness bar | All indicators green | [ ] |
+| 5.3.8 | Freshness bar — degraded state | Stop one exporter, wait 2 scrape cycles, check bar | Degraded indicator appears for affected source | [ ] |
+| 5.3.9 | Restart exporter, freshness recovers | Restart the stopped exporter | Green indicator returns within 2 scrape cycles | [ ] |
+| 5.3.10 | Specialist Views dropdown | Click Specialist Views in homepage nav | K8s Flow Context and Entity Investigation appear in list | [ ] |
+| 5.3.11 | Investigation Playbooks dropdown | Click Investigation Playbooks in homepage nav | Playbooks dashboard or list appears | [ ] |
+
+---
+
+### Phase 4 — Entity Investigation
+
+| # | Check | Action | Expected | Pass |
+|---|---|---|---|---|
+| 5.4.1 | Click IP in Top Talkers | Click a src\_ip row in Top Talkers card | Opens Entity Investigation with IP variable pre-filled | [ ] |
+| 5.4.2 | Enter pod IP manually | Enter a known pod IP (10.244.x.x) in IP variable | Entity Investigation loads | [ ] |
+| 5.4.3 | K8s context for pod IP | Check K8s fields section | Namespace, workload, pod, node populated from Wave 3b enrichment | [ ] |
+| 5.4.4 | Outbound flow table | Check outbound flows section | Shows dst\_ip, dst\_port, protocol, bytes for the entity | [ ] |
+| 5.4.5 | Inbound flow table | Check inbound flows section | Shows src\_ip rows for traffic hitting the entity | [ ] |
+| 5.4.6 | Flow volume time series | Check volume chart | Shows bytes/packets over time for the entity | [ ] |
+| 5.4.7 | Link to Destination Analysis | Click "View in Flow — Destinations" link | Opens Flow — Destination Analysis with src\_ip pre-filled | [ ] |
+| 5.4.8 | Hubble link present but inactive | Check Hubble link (if present in dashboard) | Link is visible; correctly indicates Hubble not available or port-forward needed | [ ] |
+| 5.4.9 | External IP handling | Enter an external IP (e.g., 8.8.8.8) | Entity Investigation loads; K8s fields empty (expected); flows present if seen | [ ] |
+
+---
+
+### Phase 5 — Platform Health Dashboard
+
+| # | Check | Action | Expected | Pass |
+|---|---|---|---|---|
+| 5.5.1 | Platform Health loads | Navigate to `/d/correlation-platform-health` | Loads in < 5s | [ ] |
+| 5.5.2 | All scrape targets shown | Check targets table | SNMP, UnPoller, Proxmox all listed with UP status | [ ] |
+| 5.5.3 | Flow collector shown | Check flow collector target | flow-collector (Vector) shown as UP | [ ] |
+| 5.5.4 | OpenSearch shown | Check OpenSearch target | OpenSearch listed as reachable | [ ] |
+| 5.5.5 | Wave 3b CronJob shown | Check CronJob last-success indicator | Last successful run within expected cadence | [ ] |
+| 5.5.6 | Degraded state test | Stop an exporter | Platform Health shows that target as DOWN | [ ] |
+| 5.5.7 | Recovery | Restart the exporter | Status returns to UP within 2 scrape cycles | [ ] |
+
+**Gate 5b:** Phases 3–5 complete → homepage, navigation, entity investigation, and
+health dashboard all operational.
+
+---
+
+### Phase 6 — Investigation Playbooks
+
+| # | Check | Action | Expected | Pass |
+|---|---|---|---|---|
+| 5.6.1 | Playbooks dashboard loads | Navigate to Investigation Playbooks dashboard | Loads in < 5s | [ ] |
+| 5.6.2 | All 6 playbooks listed | Check playbook list | "Investigate slow internet", "Identify top talker", "Trace a destination", "K8s workload traffic", "Unusual port/protocol", "Platform health check" — all 6 present | [ ] |
+| 5.6.3 | "Investigate slow internet" executable | Follow playbook steps | All steps navigable; links resolve to correct dashboards | [ ] |
+| 5.6.4 | "K8s workload traffic" executable | Follow playbook steps | Steps include K8s Flow Context dashboard and Entity Investigation with pod IP | [ ] |
+| 5.6.5 | Operator end-to-end walkthrough | Operator executes one playbook start-to-finish | Operator confirms playbook is complete and actionable | [ ] |
+
+---
+
+### Phase 7 — Soak and Closeout
+
+| # | Check | Command / Action | Expected | Pass |
+|---|---|---|---|---|
+| 5.7.1 | 7-day soak: homepage | Daily spot-check: `/d/correlation-home` loads | No load failures across 7 days | [ ] |
+| 5.7.2 | 7-day soak: data sources | Daily spot-check: both datasources healthy | No persistent datasource errors | [ ] |
+| 5.7.3 | 7-day soak: Wave 3b regression | `kubectl get jobs -n network-observability --sort-by=.metadata.creationTimestamp \| tail -5` | All recent CronJob runs successful | [ ] |
+| 5.7.4 | 7-day soak: doc count | `curl localhost:9200/flows-*/_count` | Count higher than Phase 1 baseline | [ ] |
+| 5.7.5 | ArgoCD clean at closeout | `argocd app get network-observability` | Synced, Healthy | [ ] |
+| 5.7.6 | All prior wave checks pass | Spot-check items from Waves 1, 2, 3, 3b | No regressions | [ ] |
+| 5.7.7 | wave-5-closeout.md written | Review doc | Executive summary, evidence, caveats, acceptance statement present | [ ] |
+
+**Gate 5c:** All soak items pass, closeout doc written → Gate 5 met. Platform go-live.
+
+**Rollback trigger:** Homepage consistently fails to load. Both datasources erroring.
+Wave 3b enrichment fields dropping out during soak.
+
+**Rollback:** Comment out `../../base/correlation-ux` in overlay, commit, push.
+ArgoCD prunes all UX ConfigMaps. Grafana reverts to plain Prometheus + OpenSearch
+datasources. All data planes (Wave 1–3b) unaffected.
