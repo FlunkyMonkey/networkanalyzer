@@ -155,27 +155,79 @@ is unaffected — the new K8s fields will simply be absent on existing documents
 
 ## Gate 4 — K8s Visibility Connected
 
-**Hard prerequisite:** Cilium CNI with Hubble + Relay must be installed and running before this gate. If Cilium migration has not been completed, Gate 4 can be deferred — Waves 1–3 and Wave 5 are independent.
+**Hard prerequisite:** Cilium CNI with Hubble + Relay must be installed and running in `kube-system` (managed in `k8s-lab.git`) before Phases 3–5 of Wave 4 can proceed. If Cilium migration has not been completed, Gate 4 can be deferred — Waves 1–3 and Wave 5 are independent.
+
+Wave 4 is itself phased. Phases 1–2 are planning and migration work (no manifests from this repo). Phases 3–5 are implementation and soak work.
+
+### Gate 4a — Phase 1: Discovery Complete
 
 **Required evidence:**
 
-- [ ] Cilium is running: `kubectl -n kube-system exec ds/cilium -- cilium status`
-- [ ] Hubble Relay is running: `kubectl -n kube-system get deploy hubble-relay`
-- [ ] All Wave 4 checklist items pass
-- [ ] Hubble UI shows pod flows
-- [ ] Namespace filtering works
-- [ ] Waves 1–3 regression checks still pass (R4.1–R4.4)
-- [ ] Test procedure T7 passes
+- [ ] Current CNI identified and documented (Flannel, Calico, or other)
+- [ ] Pod CIDR and service CIDR confirmed from authoritative source — values match Wave 3b VRL (`10.244.0.0/16`, `10.96.0.0/12`)
+- [ ] NetworkPolicy audit complete — count, types, any Calico-specific resources documented
+- [ ] hostNetwork pod inventory taken
+- [ ] Maintenance window agreed
+- [ ] Migration risk level assessed and documented
+- [ ] Go/no-go decision recorded: proceed to Phase 2 (migrate) or defer Wave 4
 
-**Minimum pass criteria:** Cilium healthy. Hubble UI connected to Relay. At least L3/L4 pod flows visible.
+**Minimum pass criteria:** All preflight questions in wave-4-plan.md answered. CIDR continuity confirmed. Migration decision recorded.
 
 **Blockers:**
 
-- Cilium not installed (migration not yet completed)
-- Hubble UI cannot connect to Relay (cross-namespace networking issue)
-- Cilium/Hubble not functioning at cluster level
+- CIDR values differ from Wave 3b assumptions — must resolve before proceeding
+- Calico-specific NetworkPolicies requiring migration effort with no resolution plan
 
-**Rollback criteria:** If Hubble UI cannot connect after investigation, scale to 0 and proceed — K8s visibility is non-blocking for the rest of the platform.
+**If deferred:** Document the deferral decision and proceed to Wave 5. Wave 4 can be completed after Wave 5 independently.
+
+### Gate 4b — Phase 2: Cilium Migration Complete
+
+**This gate is managed in `k8s-lab.git`, not this repo. Evidence is confirmed here before Phase 3 begins.**
+
+**Required evidence:**
+
+- [ ] Cilium DaemonSet healthy: `kubectl -n kube-system get ds cilium` shows DESIRED = READY
+- [ ] Cilium operator healthy: `kubectl -n kube-system get deploy cilium-operator` shows 1/1 Ready
+- [ ] Hubble Relay healthy: `kubectl -n kube-system get deploy hubble-relay` shows 1/1 Ready
+- [ ] Hubble enabled in Cilium config: `kubectl -n kube-system get cm cilium-config -o jsonpath='{.data.enable-hubble}'` returns `"true"`
+- [ ] Hubble Relay accessible cross-namespace: `kubectl run test --rm -i --image=busybox -- nc -zv hubble-relay.kube-system.svc.cluster.local 80` succeeds
+- [ ] All cluster pods Running post-migration restart cycle
+- [ ] Wave 3b health confirmed post-migration: CronJob ran successfully, enriched fields present in new flow documents
+- [ ] Pod CIDR and service CIDR unchanged from pre-migration values
+
+**Minimum pass criteria:** Cilium and Hubble Relay healthy. Cross-namespace Relay connectivity confirmed. Wave 3b unaffected.
+
+**Blockers:**
+
+- Any cluster node NotReady post-migration
+- Hubble Relay not reachable from `network-observability` namespace
+- Wave 3b CronJob failing post-migration
+- CIDR values changed during migration
+
+### Gate 4c — Phase 3–5: K8s Visibility Operational
+
+**Required evidence:**
+
+- [ ] Hubble UI pod Running in `network-observability`
+- [ ] Hubble UI accessible via port-forward: `kubectl port-forward svc/hubble-ui 12000:80 -n network-observability`
+- [ ] L3/L4 pod flows visible in Hubble UI for at least two namespaces
+- [ ] DNS flows visible
+- [ ] Network policy verdict (allowed/denied) visible for at least one flow
+- [ ] Grafana Hubble metrics dashboard loads with live data
+- [ ] Wave 3b regression: enriched K8s fields still present in new flow documents
+- [ ] Wave 3b regression: CronJob running without errors across soak period
+- [ ] Wave 3b regression: OpenSearch document count growing
+- [ ] Minimum 7-day soak with no Hubble UI CrashLoopBackOff or Relay reconnect loops
+- [ ] Waves 1–3 regression checks still pass
+
+**Minimum pass criteria:** Hubble UI connected to Relay. L3/L4 pod flows visible. Wave 3b unaffected. 7-day soak clean.
+
+**Blockers:**
+
+- Hubble UI cannot connect to Relay (persistent — not transient startup)
+- Wave 3b regression (enrichment fields absent or CronJob failing)
+
+**Rollback criteria:** If Hubble UI cannot connect after investigation, scale to 0 and proceed to Wave 5 — K8s visibility is non-blocking for the rest of the platform. Wave 3b rollback is separate and not triggered by Hubble UI issues.
 
 ---
 

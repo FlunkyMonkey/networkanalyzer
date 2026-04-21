@@ -33,6 +33,7 @@ This directory contains design documentation for the GitOps-managed network obse
 | [wave-2-closeout.md](wave-2-closeout.md) | Wave 2 formal closeout: acceptance state, residual conditions, sign-off |
 | [wave-3-plan.md](wave-3-plan.md) | Wave 3 plan: Kubernetes flow correlation, enrichment strategy, phased implementation |
 | [wave-3b-closeout.md](wave-3b-closeout.md) | Wave 3b formal closeout: K8s IP correlation accepted, hotfixes, caveats, runbook |
+| [wave-4-plan.md](wave-4-plan.md) | Wave 4 plan: Cilium/Hubble K8s visibility — gated on CNI migration, Phase 1 (discovery) active |
 | [backlog.md](backlog.md) | Hardening items and future-wave work not blocking active rollout |
 | [operations-notes.md](operations-notes.md) | Runtime ops decisions and context (softflowd service pattern, legacy cleanup) |
 

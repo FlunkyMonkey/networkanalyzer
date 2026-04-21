@@ -182,24 +182,118 @@ will simply be absent on older documents.
 
 ## Wave 4 — K8s Visibility
 
-**Prerequisite:** Cilium CNI with Hubble must be installed before this wave. If not yet migrated, skip Wave 4 and proceed to Wave 5.
+**Prerequisite:** Cilium CNI with Hubble must be installed and healthy before
+Phases 3–5. If not yet migrated, complete Phases 1–2 first. Wave 4 may be deferred
+entirely — skip to Wave 5 if the maintenance window is not available.
+
+Wave 4 is phased. Phases 1–2 are discovery and migration (no manifests from this
+repo). Phases 3–5 are implementation and soak.
+
+### Phase 1 — Discovery
+
+**No cluster changes. Queries only. Results must be documented before Phase 2 begins.**
+
+| # | Check | Command | Expected | Pass |
+|---|---|---|---|---|
+| 4.1.1 | Identify current CNI | `kubectl get pods -n kube-system -o wide \| grep -E 'calico\|cilium\|flannel\|canal'` and `kubectl get ds -n kube-system` | CNI identified and documented | [ ] |
+| 4.1.2 | Confirm pod CIDR | `kubectl get node -o jsonpath='{.items[0].spec.podCIDR}'` | `10.244.0.0/16` (must match Wave 3b VRL) | [ ] |
+| 4.1.3 | Confirm service CIDR | `kubectl describe cm kubeadm-config -n kube-system \| grep serviceSubnet` | `10.96.0.0/12` (must match Wave 3b VRL) | [ ] |
+| 4.1.4 | Audit NetworkPolicies | `kubectl get networkpolicies --all-namespaces` | Count documented; any Calico-specific types noted | [ ] |
+| 4.1.5 | Check Calico-specific resources | `kubectl get globalnetworkpolicies 2>/dev/null; kubectl get networksets 2>/dev/null` | None (or documented if present) | [ ] |
+| 4.1.6 | Inventory hostNetwork pods | `kubectl get pods --all-namespaces -o json \| jq '.items[] \| select(.spec.hostNetwork==true) \| .metadata.namespace + "/" + .metadata.name'` | Count documented | [ ] |
+| 4.1.7 | Confirm cluster health | `kubectl get nodes` and `kubectl get pods --all-namespaces --field-selector=status.phase!=Running,status.phase!=Succeeded` | All nodes Ready; no stuck non-system pods | [ ] |
+| 4.1.8 | Record Wave 3b baseline | `kubectl get jobs -n network-observability --sort-by=.metadata.creationTimestamp \| tail -3` | At least 1 recent successful CronJob run documented | [ ] |
+| 4.1.9 | Document maintenance window | (Ops decision) | Agreed window recorded | [ ] |
+| 4.1.10 | Record migration go/no-go | (Ops decision) | Proceed to Phase 2 or defer; decision documented | [ ] |
+
+**Gate 4a:** All items pass and CIDRs match Wave 3b assumptions → proceed to Phase 2.
+**If deferred:** Document decision and proceed to Wave 5.
+
+---
+
+### Phase 2 — Cilium Migration
+
+**This phase is executed in `k8s-lab.git`, not this repo. These checks confirm
+readiness before Phase 3 manifests are created.**
+
+**Pre-migration backup (run before any migration work):**
+
+```bash
+kubectl get nodes -o wide > /tmp/nodes-before-migration.txt
+kubectl get pods --all-namespaces -o wide > /tmp/pods-before-migration.txt
+kubectl get networkpolicies --all-namespaces -o yaml > /tmp/netpol-backup.yaml
+```
+
+| # | Check | Command | Expected | Pass |
+|---|---|---|---|---|
+| 4.2.1 | Backup saved | See commands above | Three backup files written | [ ] |
+| 4.2.2 | Cilium DaemonSet healthy | `kubectl -n kube-system get ds cilium` | DESIRED = READY (all nodes) | [ ] |
+| 4.2.3 | Cilium operator healthy | `kubectl -n kube-system get deploy cilium-operator` | 1/1 Ready | [ ] |
+| 4.2.4 | Hubble Relay healthy | `kubectl -n kube-system get deploy hubble-relay` | 1/1 Ready | [ ] |
+| 4.2.5 | Hubble enabled in config | `kubectl -n kube-system get cm cilium-config -o jsonpath='{.data.enable-hubble}'` | `"true"` | [ ] |
+| 4.2.6 | All cluster pods running | `kubectl get pods --all-namespaces --field-selector=status.phase!=Running,status.phase!=Succeeded` | Only Completed (Job) pods | [ ] |
+| 4.2.7 | Cross-namespace Relay reachable | `kubectl run relay-test --rm -i --image=busybox -n network-observability -- nc -zv hubble-relay.kube-system.svc.cluster.local 80` | Connection succeeded | [ ] |
+| 4.2.8 | Pod CIDR unchanged | `kubectl get node -o jsonpath='{.items[0].spec.podCIDR}'` | `10.244.0.0/16` (same as pre-migration) | [ ] |
+| 4.2.9 | Service CIDR unchanged | `kubectl describe cm kubeadm-config -n kube-system \| grep serviceSubnet` | `10.96.0.0/12` (same as pre-migration) | [ ] |
+| 4.2.10 | Wave 3b CronJob still healthy | `kubectl get jobs -n network-observability --sort-by=.metadata.creationTimestamp \| tail -3` | At least 1 successful job post-migration | [ ] |
+| 4.2.11 | Enriched flows present post-migration | `curl localhost:9200/flows-*/_search?q=src_k8s_type:pod&size=1&pretty \| grep src_k8s` | src_k8s fields present in recent flow documents | [ ] |
+
+**Gate 4b:** All items pass → proceed to Phase 3 (Hubble UI deployment).
+
+---
+
+### Phase 3 — Hubble UI Deployment
 
 **Enable:** Uncomment `../../base/k8s-visibility` in `platform/overlays/lab/kustomization.yaml`, commit, push. Wait for ArgoCD sync.
 
 | # | Check | Command | Expected | Pass |
 |---|---|---|---|---|
-| 4.0a | Cilium running | `kubectl -n kube-system get ds cilium` | DESIRED = READY | [ ] |
-| 4.0b | Hubble Relay running | `kubectl -n kube-system get deploy hubble-relay` | 1/1 Ready | [ ] |
-| 4.1 | Hubble UI Running | `kubectl get pods -n network-observability -l app.kubernetes.io/name=hubble-ui` | Running | [ ] |
-| 4.2 | Port-forward Hubble UI | `kubectl port-forward svc/hubble-ui 12000:80 -n network-observability` | Accessible | [ ] |
-| 4.3 | Service map visible | Open <http://localhost:12000> | Shows service map | [ ] |
-| 4.4 | Pod flows visible | Filter by any namespace | Pod-to-pod flows shown | [ ] |
-| 4.5 | DNS visible | Check for DNS flows in Hubble | DNS queries shown (if enabled) | [ ] |
-| 4.6 | Waves 1–3 still healthy | Re-run checks 1.3–1.7, 2.1–2.4, 3.8 | All passing | [ ] |
+| 4.3.1 | Plane enabled in overlay | Verify k8s-visibility line is uncommented in lab kustomization.yaml | Uncommented | [ ] |
+| 4.3.2 | ArgoCD sync status | `argocd app get network-observability` | Synced, Healthy | [ ] |
+| 4.3.3 | Hubble UI Running | `kubectl get pods -n network-observability -l app.kubernetes.io/name=hubble-ui` | 1/1 Running | [ ] |
+| 4.3.4 | Port-forward Hubble UI | `kubectl port-forward svc/hubble-ui 12000:80 -n network-observability` | Accessible, no error | [ ] |
+| 4.3.5 | Hubble UI loads | Open `http://localhost:12000` | UI renders, no "Relay unavailable" error | [ ] |
+| 4.3.6 | Pod flows visible | Select any active namespace in Hubble UI | Pod-to-pod flows shown | [ ] |
+| 4.3.7 | DNS flows visible | Select `kube-system` or any DNS-active namespace | DNS query flows shown | [ ] |
+| 4.3.8 | Two namespaces visible | Check namespace dropdown | At least two namespaces with flows | [ ] |
+| 4.3.9 | Verdict visible | Examine any flow | Verdict field shows "forwarded" or "dropped" | [ ] |
+| 4.3.10 | Wave 3b regression | `curl localhost:9200/flows-*/_search?q=src_k8s_type:pod&size=1&pretty` | Enriched K8s fields still present | [ ] |
 
-**Gate:** All items pass → proceed to Wave 5.
+---
 
-**Rollback trigger:** Hubble UI shows "Relay unavailable" persistently.
+### Phase 4 — Dashboard and UX Integration
+
+| # | Check | Action | Expected | Pass |
+|---|---|---|---|---|
+| 4.4.1 | Hubble Prometheus metrics present | `kubectl port-forward svc/kube-prometheus-stack-prometheus 9090:9090 -n monitoring` then query `hubble_` metrics | hubble_drop_total, hubble_flows_processed_total, hubble_dns_* present | [ ] |
+| 4.4.2 | Hubble dashboard provisioned | Navigate to Grafana → Dashboards | Hubble metrics dashboard visible | [ ] |
+| 4.4.3 | Drop rate panel populated | Check drop rate panel | Renders without error; shows 0 or actual drops | [ ] |
+| 4.4.4 | Namespace flow volume populated | Check namespace flow breakdown panel | Shows at least two namespaces with flow counts | [ ] |
+| 4.4.5 | Platform Health shows Hubble Relay | Navigate to Platform Health dashboard | Hubble Relay shown as monitored target | [ ] |
+| 4.4.6 | Operations notes updated | Read ops-notes entry for Wave 4 | Port-forward pattern documented | [ ] |
+
+---
+
+### Phase 5 — Soak
+
+| # | Check | Command | Expected | Pass |
+|---|---|---|---|---|
+| 4.5.1 | 7-day soak clean | `kubectl get pods -n network-observability` (check restarts) | Hubble UI restart count stable | [ ] |
+| 4.5.2 | No Relay reconnect loops | `kubectl logs -n network-observability deploy/hubble-ui \| grep -i 'error\|warn\|reconnect'` | No reconnect loops or persistent errors | [ ] |
+| 4.5.3 | Wave 3b still healthy | `kubectl get jobs -n network-observability --sort-by=.metadata.creationTimestamp \| tail -5` | All recent CronJob runs successful | [ ] |
+| 4.5.4 | OpenSearch doc count growing | `curl localhost:9200/flows-*/_count` | Count higher than at Phase 3 baseline | [ ] |
+| 4.5.5 | ArgoCD sync clean | `argocd app get network-observability` | Synced, Healthy | [ ] |
+
+**Gate 4c:** All Phase 3–5 items pass, 7-day soak clean → Gate 4 met. Proceed to Wave 5.
+
+**Rollback trigger:** Hubble UI shows persistent "Relay unavailable" after investigation.
+Wave 3b regression (enriched fields absent, CronJob failing).
+
+**Hubble UI rollback:** Comment out `../../base/k8s-visibility` in overlay, commit, push.
+ArgoCD auto-prune removes Hubble UI. Wave 3b unaffected.
+
+**Cilium rollback:** Managed in `k8s-lab.git`. See cni-migration-and-rollout.md rollback
+section. Wave 3b resumes automatically after pod restart cycle.
 
 ---
 
