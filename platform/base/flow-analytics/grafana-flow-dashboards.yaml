@@ -64,9 +64,9 @@ data:
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "src_ip": "Source IP", "Sum bytes": "Total Bytes" } } }
+            { "id": "organize", "options": { "renameByName": { "src_ip": "Source IP", "Sum bytes": "Total Volume" } } }
           ],
-          "options": { "sortBy": [{ "displayName": "Total Bytes", "desc": true }] }
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
         {
           "title": "Top Destination IPs by Bytes",
@@ -101,9 +101,9 @@ data:
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "dst_ip": "Destination IP", "Sum bytes": "Total Bytes" } } }
+            { "id": "organize", "options": { "renameByName": { "dst_ip": "Destination IP", "Sum bytes": "Total Volume" } } }
           ],
-          "options": { "sortBy": [{ "displayName": "Total Bytes", "desc": true }] }
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
         {
           "title": "Total Flow Volume Over Time",
@@ -186,15 +186,15 @@ data:
       "links": [],
       "panels": [
         {
-          "title": "Top Destinations for $src_ip",
-          "description": "Set $src_ip variable to filter by source IP. Leave as * to see all destinations.",
+          "title": "Top Destination IPs by Volume",
+          "description": "All outbound traffic — top destination IPs by byte volume. Set Source IP above to filter for a specific host (full per-IP drill-down available in Entity Investigation).",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
           "targets": [
             {
               "refId": "A",
-              "query": "src_ip:$src_ip",
+              "query": "",
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
@@ -224,14 +224,14 @@ data:
           ]
         },
         {
-          "title": "Top Destination Ports for $src_ip",
+          "title": "Top Destination Ports",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 10, "w": 12, "x": 0, "y": 12 },
           "targets": [
             {
               "refId": "A",
-              "query": "src_ip:$src_ip",
+              "query": "",
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
@@ -260,14 +260,15 @@ data:
           ]
         },
         {
-          "title": "Destination Countries for $src_ip",
+          "title": "Destination Countries",
+          "description": "Requires GeoIP enrichment (MaxMind key). Empty if GeoIP is not configured.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 10, "w": 12, "x": 12, "y": 12 },
           "targets": [
             {
               "refId": "A",
-              "query": "src_ip:$src_ip AND _exists_:dst_country",
+              "query": "_exists_:dst_country",
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
@@ -296,15 +297,15 @@ data:
           ]
         },
         {
-          "title": "Who is connecting to $dst_ip?",
-          "description": "Set $dst_ip variable to see inbound sources.",
+          "title": "Top Source IPs by Volume (Inbound View)",
+          "description": "All inbound traffic — top source IPs by byte volume. Set Destination IP above to filter for a specific host.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 10, "w": 24, "x": 0, "y": 22 },
           "targets": [
             {
               "refId": "A",
-              "query": "dst_ip:$dst_ip",
+              "query": "",
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
@@ -341,17 +342,17 @@ data:
           {
             "name": "src_ip",
             "type": "textbox",
-            "label": "Source IP",
-            "current": { "value": "*" },
-            "query": "*",
+            "label": "Source IP (optional filter)",
+            "current": { "value": "" },
+            "query": "",
             "hide": 0
           },
           {
             "name": "dst_ip",
             "type": "textbox",
-            "label": "Destination IP",
-            "current": { "value": "*" },
-            "query": "*",
+            "label": "Destination IP (optional filter)",
+            "current": { "value": "" },
+            "query": "",
             "hide": 0
           }
         ]
@@ -371,7 +372,8 @@ data:
       "links": [],
       "panels": [
         {
-          "title": "Traffic by Application (port-based)",
+          "title": "Traffic by App Label (port-based)",
+          "description": "Port-labeled traffic only. Flows on unlabeled ports are excluded. Common homelab ports (HTTP, HTTPS, DNS, SSH, Kubernetes, Proxmox, OpenSearch, etc.) are labeled by Vector enrichment.",
           "type": "piechart",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 10, "w": 8, "x": 0, "y": 0 },
@@ -424,6 +426,7 @@ data:
         },
         {
           "title": "Traffic by Destination Country",
+          "description": "Requires GeoIP enrichment (MaxMind license key). Empty when GeoIP is not configured.",
           "type": "piechart",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 10, "w": 8, "x": 16, "y": 0 },
@@ -487,6 +490,7 @@ data:
         },
         {
           "title": "Top ASNs (destination)",
+          "description": "Requires GeoIP enrichment (MaxMind license key). Empty when GeoIP is not configured.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 10, "w": 12, "x": 12, "y": 10 },

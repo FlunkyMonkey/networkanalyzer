@@ -129,14 +129,18 @@ data:
           # end, so else on the next line becomes a syntax error.)
           port = to_int(.dst_port) ?? 0
           port_apps = {
-            "80": "HTTP",   "443": "HTTPS",  "53": "DNS",    "22": "SSH",
-            "25": "SMTP",   "465": "SMTP",   "587": "SMTP",
-            "143": "IMAP",  "993": "IMAP",
-            "110": "POP3",  "995": "POP3",
-            "3306": "MySQL", "5432": "PostgreSQL", "6379": "Redis",
-            "8080": "HTTP-Alt", "8443": "HTTP-Alt",
-            "1194": "OpenVPN", "51820": "WireGuard",
-            "123": "NTP",   "161": "SNMP",   "162": "SNMP"
+            "22": "SSH",      "25": "SMTP",     "53": "DNS",
+            "80": "HTTP",     "110": "POP3",    "123": "NTP",
+            "143": "IMAP",    "161": "SNMP",    "162": "SNMP",
+            "443": "HTTPS",   "445": "SMB",     "465": "SMTP",
+            "587": "SMTP",    "853": "DNS-TLS", "993": "IMAP",
+            "995": "POP3",    "1194": "OpenVPN","1883": "MQTT",
+            "2049": "NFS",    "3000": "Grafana","3306": "MySQL",
+            "5432": "Postgres","6379": "Redis", "6443": "Kubernetes",
+            "8006": "Proxmox","8080": "HTTP-Alt","8443": "HTTPS-Alt",
+            "9000": "MinIO",  "9090": "Prometheus","9093": "Alertmanager",
+            "9100": "NodeExporter","9200": "OpenSearch","9300": "OpenSearch-Transport",
+            "51820": "WireGuard"
           }
           .app = get(port_apps, [to_string(port)]) ?? null
 

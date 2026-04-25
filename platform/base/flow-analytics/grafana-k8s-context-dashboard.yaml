@@ -294,8 +294,8 @@ data:
           ]
         },
         {
-          "title": "internal-unknown Rate Over Time",
-          "description": "Count of flows with src_k8s_type=internal-unknown vs pod. A rising internal-unknown count relative to pod count indicates stale lookup tables or pod churn exceeding the CronJob 30-min refresh cadence.",
+          "title": "Internal-Unknown Flow Count Over Time",
+          "description": "Count of flows (not a rate) where src_k8s_type=internal-unknown: the source IP is inside K8s pod/service CIDRs but did not match any row in the current lookup tables. Causes: new pods that started after the last CronJob run, short-lived pods, or stale lookup tables. Compare against the pod-type count — a rising ratio of internal-unknown/pod indicates CronJob lag or high pod churn.",
           "type": "timeseries",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 8, "w": 24, "x": 0, "y": 32 },
@@ -394,7 +394,7 @@ data:
       "schemaVersion": 39,
       "tags": ["network", "flows", "k8s", "kubernetes", "flow-analytics"],
       "templating": { "list": [] },
-      "time": { "from": "now-6h", "to": "now" },
+      "time": { "from": "now-24h", "to": "now" },
       "title": "Flow — K8s Context",
       "uid": "flow-k8s-context"
     }
