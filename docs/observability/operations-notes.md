@@ -9,16 +9,16 @@ The `network-observability` Grafana is exposed via MetalLB at a dedicated static
 **Access:**
 
 - URL: `http://netgrafana.vgriz.com`
-- IP: `172.18.1.210` (MetalLB, static)
+- IP: `172.18.1.212` (MetalLB, static)
 - Port: `80`
 
-**DNS:** `netgrafana.vgriz.com` resolves to `172.18.1.210`. This is separate from
+**DNS:** `netgrafana.vgriz.com` resolves to `172.18.1.212`. This is separate from
 `grafana.vgriz.com` (`172.18.1.201`), which is the `monitoring` namespace Grafana
 from `kube-prometheus-stack`. Both remain independent — do not point them at the
 same IP.
 
 **How it is configured:** `service.type: LoadBalancer` and
-`service.loadBalancerIP: "172.18.1.210"` in
+`service.loadBalancerIP: "172.18.1.212"` in
 `platform/base/infra-telemetry/grafana-values.yaml`. The
 `metallb.universe.tf/loadBalancerIPs` annotation is also set for compatibility with
 newer MetalLB versions that require annotation-based IP assignment.

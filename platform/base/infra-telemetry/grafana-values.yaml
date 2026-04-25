@@ -43,7 +43,7 @@ datasources:
 
 service:
   type: LoadBalancer
-  loadBalancerIP: "172.18.1.210"
+  loadBalancerIP: "172.18.1.212"
 
 resources:
   requests:
