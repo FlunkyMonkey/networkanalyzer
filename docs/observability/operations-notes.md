@@ -2,6 +2,31 @@
 
 Runtime decisions and operational context that affect how the platform is understood but are not architecture changes.
 
+## 2026-04-25 — Wave 5: Network Observability Grafana Access
+
+The `network-observability` Grafana is exposed via MetalLB at a dedicated static IP.
+
+**Access:**
+
+- URL: `http://netgrafana.vgriz.com`
+- IP: `172.18.1.210` (MetalLB, static)
+- Port: `80`
+
+**DNS:** `netgrafana.vgriz.com` resolves to `172.18.1.210`. This is separate from
+`grafana.vgriz.com` (`172.18.1.201`), which is the `monitoring` namespace Grafana
+from `kube-prometheus-stack`. Both remain independent — do not point them at the
+same IP.
+
+**How it is configured:** `service.type: LoadBalancer` and
+`service.loadBalancerIP: "172.18.1.210"` in
+`platform/base/infra-telemetry/grafana-values.yaml`. The
+`metallb.universe.tf/loadBalancerIPs` annotation is also set for compatibility with
+newer MetalLB versions that require annotation-based IP assignment.
+
+**Decision owner:** Mike Beil (operator), Wave 5 rollout.
+
+---
+
 ## 2026-04-20 — Wave 3b: VRL Hotfix History and Operational Decisions
 
 ### VRL function name: `ip_cidr_contains` not `cidr_contains`

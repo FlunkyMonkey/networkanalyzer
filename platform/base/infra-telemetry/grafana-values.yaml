@@ -41,6 +41,12 @@ datasources:
         jsonData:
           timeInterval: "30s"
 
+service:
+  type: LoadBalancer
+  loadBalancerIP: "172.18.1.210"
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: "172.18.1.210"
+
 resources:
   requests:
     cpu: 100m
