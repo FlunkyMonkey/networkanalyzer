@@ -23,6 +23,8 @@ resources:
   - opensearch-index-template.yaml
   - grafana-flow-datasource.yaml
   - grafana-flow-dashboards.yaml
+  # Wave 5 — K8s Flow Context dashboard (Phase 2)
+  - grafana-k8s-context-dashboard.yaml
   # Wave 3b — K8s IP correlation (Gate 3 prerequisite; Gate 3b for activation)
   - k8s-lookup-tables.yaml
   - k8s-ip-exporter-rbac.yaml

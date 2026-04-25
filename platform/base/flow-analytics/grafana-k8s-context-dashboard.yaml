@@ -1,0 +1,400 @@
+# Grafana K8s Flow Context dashboard for flow analytics.
+# Picked up automatically by the Grafana sidecar (label: grafana_dashboard: "1").
+# Uses the opensearch-flows datasource provisioned by grafana-flow-datasource.yaml.
+#
+# Requires Wave 3b enrichment fields:
+#   src_k8s_type / dst_k8s_type  (pod | node | service | internal-unknown | external)
+#   src_k8s_namespace / dst_k8s_namespace
+#   src_k8s_pod / dst_k8s_pod
+#   src_k8s_node / dst_k8s_node
+#   src_k8s_service / dst_k8s_service
+#
+# Service-type panel (bottom) is included but expected empty until service-IP
+# traffic accumulates. All other panels are validated against live pod/node data.
+#
+# Dashboard uid: flow-k8s-context
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-k8s-context-dashboard
+  namespace: network-observability
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/component: flow-analytics
+data:
+  flow-k8s-context.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "Top Source Namespaces by Bytes",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "_exists_:src_k8s_namespace",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "terms",
+                  "field": "src_k8s_namespace",
+                  "settings": { "size": "20", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Sum bytes" },
+                "properties": [{ "id": "unit", "value": "bytes" }]
+              }
+            ]
+          },
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "src_k8s_namespace": "Namespace",
+                  "Sum bytes": "Total Bytes"
+                }
+              }
+            }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Bytes", "desc": true }] }
+        },
+        {
+          "title": "Top Destination Namespaces by Bytes",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 0 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "_exists_:dst_k8s_namespace",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "terms",
+                  "field": "dst_k8s_namespace",
+                  "settings": { "size": "20", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Sum bytes" },
+                "properties": [{ "id": "unit", "value": "bytes" }]
+              }
+            ]
+          },
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "dst_k8s_namespace": "Namespace",
+                  "Sum bytes": "Total Bytes"
+                }
+              }
+            }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Bytes", "desc": true }] }
+        },
+        {
+          "title": "Flow Type Distribution (by Source)",
+          "description": "src_k8s_type classification: pod=pod IP, node=node IP, service=ClusterIP, internal-unknown=K8s CIDR IP with no lookup match, external=outside K8s CIDRs.",
+          "type": "piechart",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 8, "x": 0, "y": 10 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "terms",
+                  "field": "src_k8s_type",
+                  "settings": { "size": "10", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "options": {
+            "pieType": "pie",
+            "displayLabels": ["name", "percent"]
+          }
+        },
+        {
+          "title": "Top Source Nodes by Bytes",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 8, "x": 8, "y": 10 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "_exists_:src_k8s_node",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "terms",
+                  "field": "src_k8s_node",
+                  "settings": { "size": "10", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Sum bytes" },
+                "properties": [{ "id": "unit", "value": "bytes" }]
+              }
+            ]
+          },
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "src_k8s_node": "Node",
+                  "Sum bytes": "Total Bytes"
+                }
+              }
+            }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Bytes", "desc": true }] }
+        },
+        {
+          "title": "Top Destination Nodes by Bytes",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 8, "x": 16, "y": 10 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "_exists_:dst_k8s_node",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "terms",
+                  "field": "dst_k8s_node",
+                  "settings": { "size": "10", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Sum bytes" },
+                "properties": [{ "id": "unit", "value": "bytes" }]
+              }
+            ]
+          },
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "dst_k8s_node": "Node",
+                  "Sum bytes": "Total Bytes"
+                }
+              }
+            }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Bytes", "desc": true }] }
+        },
+        {
+          "title": "Top Pod-to-Pod Flows",
+          "description": "Flows where both src and dst are pod-type. Nested aggregation: top 15 source pods, top 5 destination pods per source.",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 20 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "src_k8s_type:pod AND dst_k8s_type:pod",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "terms",
+                  "field": "src_k8s_pod",
+                  "settings": { "size": "15", "order": "desc", "orderBy": "1" }
+                },
+                {
+                  "id": "3",
+                  "type": "terms",
+                  "field": "dst_k8s_pod",
+                  "settings": { "size": "5", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Sum bytes" },
+                "properties": [{ "id": "unit", "value": "bytes" }]
+              }
+            ]
+          },
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "src_k8s_pod": "Source Pod",
+                  "dst_k8s_pod": "Destination Pod",
+                  "Sum bytes": "Total Bytes"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "title": "internal-unknown Rate Over Time",
+          "description": "Count of flows with src_k8s_type=internal-unknown vs pod. A rising internal-unknown count relative to pod count indicates stale lookup tables or pod churn exceeding the CronJob 30-min refresh cadence.",
+          "type": "timeseries",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 32 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "src_k8s_type:internal-unknown",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "count" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "date_histogram",
+                  "field": "@timestamp",
+                  "settings": { "interval": "auto", "min_doc_count": "0" }
+                }
+              ]
+            },
+            {
+              "refId": "B",
+              "query": "src_k8s_type:pod",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "count" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "date_histogram",
+                  "field": "@timestamp",
+                  "settings": { "interval": "auto", "min_doc_count": "0" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": { "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "title": "Service-Type Flows",
+          "description": "Flows where src_k8s_type=service (ClusterIP CIDR 10.96.0.0/12). Expected empty if internal traffic does not traverse service IPs in the selected window. Will populate when service-IP flows are observed. Not a required-success panel for Wave 5 Gate 5a.",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 40 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "src_k8s_type:service",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "3",
+                  "type": "terms",
+                  "field": "src_k8s_service",
+                  "settings": { "size": "20", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Sum bytes" },
+                "properties": [{ "id": "unit", "value": "bytes" }]
+              }
+            ]
+          },
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "renameByName": {
+                  "src_k8s_service": "Source Service",
+                  "Sum bytes": "Total Bytes",
+                  "Count": "Flow Count"
+                }
+              }
+            }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Bytes", "desc": true }] }
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["network", "flows", "k8s", "kubernetes", "flow-analytics"],
+      "templating": { "list": [] },
+      "time": { "from": "now-6h", "to": "now" },
+      "title": "Flow — K8s Context",
+      "uid": "flow-k8s-context"
+    }
