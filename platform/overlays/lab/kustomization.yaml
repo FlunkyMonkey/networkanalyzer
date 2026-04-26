@@ -33,3 +33,18 @@ resources:
   # Wave 5 — Correlation / UX (homepage, investigation, playbooks, health)
   # Uncomment when all data planes are verified and Gate 4 passes.
   # - ../../base/correlation-ux
+
+patches:
+  # JSON 6902 patch: replace the entire strategy object so rollingUpdate is
+  # explicitly null in the rendered manifest. This is required because SSA
+  # (ServerSideApply=true) will not clear rollingUpdate from the live object
+  # unless it appears explicitly in the applied manifest; omitting the field
+  # leaves any prior owner's value in place, causing a Kubernetes validation
+  # error when type:Recreate and rollingUpdate coexist.
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: grafana
+      namespace: network-observability
+    path: patches/grafana-strategy-recreate.yaml

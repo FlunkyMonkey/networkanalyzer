@@ -1,0 +1,5 @@
+- op: replace
+  path: /spec/strategy
+  value:
+    type: Recreate
+    rollingUpdate: null
