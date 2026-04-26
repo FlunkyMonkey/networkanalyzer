@@ -71,7 +71,7 @@ data:
           "gridPos": { "h": 8, "w": 24, "x": 0, "y": 11 },
           "targets": [
             {
-              "expr": "(rate(ifHCInOctets[5m]) * 8 / ifSpeed) * 100",
+              "expr": "(rate(ifHCInOctets[5m]) * 8 / clamp_min(ifSpeed, 1)) * 100",
               "legendFormat": "{{ifDescr}}"
             }
           ],
@@ -159,7 +159,7 @@ data:
           "gridPos": { "h": 4, "w": 8, "x": 0, "y": 11 },
           "targets": [
             {
-              "expr": "count(unpoller_client_receive_bytes_total{radio!=\"\"})",
+              "expr": "count(unpoller_client_receive_bytes_total)",
               "legendFormat": "WiFi Clients"
             }
           ]
@@ -212,8 +212,8 @@ data:
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 3 },
           "targets": [
             {
-              "expr": "rate(pve_network_receive_bytes{type=~\"qemu|lxc\"}[5m]) * 8",
-              "legendFormat": "{{name}} ({{id}}) [{{node}}]"
+              "expr": "rate(pve_network_receive_bytes[5m]) * 8",
+              "legendFormat": "{{id}}"
             }
           ],
           "fieldConfig": {
@@ -230,8 +230,8 @@ data:
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 3 },
           "targets": [
             {
-              "expr": "rate(pve_network_transmit_bytes{type=~\"qemu|lxc\"}[5m]) * 8",
-              "legendFormat": "{{name}} ({{id}}) [{{node}}]"
+              "expr": "rate(pve_network_transmit_bytes[5m]) * 8",
+              "legendFormat": "{{id}}"
             }
           ],
           "fieldConfig": {
