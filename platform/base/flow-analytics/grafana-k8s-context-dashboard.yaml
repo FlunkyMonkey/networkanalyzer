@@ -66,7 +66,7 @@ data:
           "fieldConfig": {
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Total Volume" },
+                "matcher": { "id": "byName", "options": "Sum" },
                 "properties": [{ "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 }]
               },
               {
@@ -76,7 +76,7 @@ data:
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "src_k8s_type": "Source Type", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
+            { "id": "organize", "options": { "renameByName": { "src_k8s_type": "Source Type", "Sum": "Total Volume", "Count": "Flow Count" } } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
@@ -109,7 +109,7 @@ data:
           "fieldConfig": {
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Total Volume" },
+                "matcher": { "id": "byName", "options": "Sum" },
                 "properties": [{ "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 }]
               },
               {
@@ -119,7 +119,7 @@ data:
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "dst_k8s_type": "Destination Type", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
+            { "id": "organize", "options": { "renameByName": { "dst_k8s_type": "Destination Type", "Sum": "Total Volume", "Count": "Flow Count" } } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
@@ -138,7 +138,7 @@ data:
               "metrics": [
                 { "id": "1", "type": "count" }
               ],
-              "bucketAggs": []
+              "bucketAggs": [{"id": "2", "type": "date_histogram", "field": "@timestamp", "settings": {"interval": "1d", "min_doc_count": "0"}}]
             }
           ],
           "fieldConfig": {
@@ -172,7 +172,7 @@ data:
               "metrics": [
                 { "id": "1", "type": "sum", "field": "bytes" }
               ],
-              "bucketAggs": []
+              "bucketAggs": [{"id": "2", "type": "date_histogram", "field": "@timestamp", "settings": {"interval": "1d", "min_doc_count": "0"}}]
             }
           ],
           "fieldConfig": {
@@ -204,7 +204,7 @@ data:
               "metrics": [
                 { "id": "1", "type": "count" }
               ],
-              "bucketAggs": []
+              "bucketAggs": [{"id": "2", "type": "date_histogram", "field": "@timestamp", "settings": {"interval": "1d", "min_doc_count": "0"}}]
             }
           ],
           "fieldConfig": {
@@ -244,7 +244,7 @@ data:
           "fieldConfig": {
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Total Volume" },
+                "matcher": { "id": "byName", "options": "Sum" },
                 "properties": [{ "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 }]
               },
               {
@@ -254,7 +254,7 @@ data:
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "src_k8s_namespace": "Namespace", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
+            { "id": "organize", "options": { "renameByName": { "src_k8s_namespace": "Namespace", "Sum": "Total Volume", "Count": "Flow Count" } } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
@@ -287,7 +287,7 @@ data:
           "fieldConfig": {
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Total Volume" },
+                "matcher": { "id": "byName", "options": "Sum" },
                 "properties": [{ "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 }]
               },
               {
@@ -297,7 +297,7 @@ data:
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "dst_k8s_namespace": "Namespace", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
+            { "id": "organize", "options": { "renameByName": { "dst_k8s_namespace": "Namespace", "Sum": "Total Volume", "Count": "Flow Count" } } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
@@ -336,7 +336,7 @@ data:
           "fieldConfig": {
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Total Volume" },
+                "matcher": { "id": "byName", "options": "Sum" },
                 "properties": [{ "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 }]
               },
               {
@@ -347,7 +347,7 @@ data:
           },
           "transformations": [
             { "id": "organize", "options": {
-              "renameByName": { "src_k8s_workload": "Workload", "src_k8s_namespace": "Namespace", "Sum bytes": "Total Volume", "Count": "Flow Count" },
+              "renameByName": { "src_k8s_workload": "Workload", "src_k8s_namespace": "Namespace", "Sum": "Total Volume", "Count": "Flow Count" },
               "indexByName": { "Workload": 0, "Namespace": 1, "Total Volume": 2, "Flow Count": 3 }
             } }
           ],
@@ -388,7 +388,7 @@ data:
           "fieldConfig": {
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Total Volume" },
+                "matcher": { "id": "byName", "options": "Sum" },
                 "properties": [{ "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 }]
               },
               {
@@ -399,7 +399,7 @@ data:
           },
           "transformations": [
             { "id": "organize", "options": {
-              "renameByName": { "dst_k8s_workload": "Workload", "dst_k8s_namespace": "Namespace", "Sum bytes": "Total Volume", "Count": "Flow Count" },
+              "renameByName": { "dst_k8s_workload": "Workload", "dst_k8s_namespace": "Namespace", "Sum": "Total Volume", "Count": "Flow Count" },
               "indexByName": { "Workload": 0, "Namespace": 1, "Total Volume": 2, "Flow Count": 3 }
             } }
           ],
@@ -433,7 +433,7 @@ data:
           "fieldConfig": {
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Total Volume" },
+                "matcher": { "id": "byName", "options": "Sum" },
                 "properties": [{ "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 }]
               },
               {
@@ -443,7 +443,7 @@ data:
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "src_k8s_node": "Node", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
+            { "id": "organize", "options": { "renameByName": { "src_k8s_node": "Node", "Sum": "Total Volume", "Count": "Flow Count" } } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
@@ -475,7 +475,7 @@ data:
           "fieldConfig": {
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Total Volume" },
+                "matcher": { "id": "byName", "options": "Sum" },
                 "properties": [{ "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 }]
               },
               {
@@ -485,7 +485,7 @@ data:
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "dst_k8s_node": "Node", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
+            { "id": "organize", "options": { "renameByName": { "dst_k8s_node": "Node", "Sum": "Total Volume", "Count": "Flow Count" } } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
