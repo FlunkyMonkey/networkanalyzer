@@ -19,11 +19,66 @@ same IP.
 
 **How it is configured:** `service.type: LoadBalancer` and
 `service.loadBalancerIP: "172.18.1.212"` in
-`platform/base/infra-telemetry/grafana-values.yaml`. The
-`metallb.universe.tf/loadBalancerIPs` annotation is also set for compatibility with
-newer MetalLB versions that require annotation-based IP assignment.
+`platform/base/infra-telemetry/grafana-values.yaml`. The MetalLB annotation
+(`metallb.universe.tf/loadBalancerIPs`) is intentionally absent — MetalLB rejects
+services that set both `spec.loadBalancerIP` and the annotation simultaneously.
 
 **Decision owner:** Mike Beil (operator), Wave 5 rollout.
+
+---
+
+## 2026-04-25 — Grafana: Datasource Provisioning Requires Pod Restart
+
+The Prometheus datasource is provisioned from a ConfigMap on Grafana startup. If the
+pod was running before the `uid: prometheus` field was added to
+`grafana-values.yaml`, it will not pick up the UID until restarted. Symptom:
+"Datasource not found" errors on the Proxmox, Switch, and UniFi dashboards.
+
+After an ArgoCD sync that changes datasource configuration:
+
+```bash
+kubectl rollout restart deploy/grafana -n network-observability
+```
+
+---
+
+## 2026-04-25 — K8s Enrichment: Post-Sync Operational Steps
+
+After an ArgoCD sync of the network-observability app, Wave 3b K8s enrichment
+requires two steps to be fully active:
+
+1. **Refresh lookup tables** — trigger the k8s-ip-exporter CronJob manually or wait
+   for its next scheduled run:
+
+   ```bash
+   kubectl create job --from=cronjob/k8s-ip-exporter manual-refresh -n network-observability
+   ```
+
+2. **Restart flow-collector** — Vector does not live-reload enrichment tables:
+
+   ```bash
+   kubectl rollout restart deploy/flow-collector -n network-observability
+   ```
+
+### Validation commands
+
+```bash
+# 1. Confirm lookup tables are populated (expect > 1 line — header + data rows)
+kubectl get configmap k8s-lookup-tables -n network-observability \
+  -o jsonpath='{.data.pods\.csv}' | wc -l
+
+# 2. Confirm flow-collector is healthy
+kubectl rollout status deploy/flow-collector -n network-observability
+
+# 3. Verify recent flows have K8s namespace enrichment (via OpenSearch)
+#    Port-forward first: kubectl port-forward -n network-observability svc/opensearch-cluster-master 9200:9200
+curl -s 'localhost:9200/flows-*/_count?q=_exists_:src_k8s_namespace'
+curl -s 'localhost:9200/flows-*/_count?q=_exists_:src_k8s_node'
+```
+
+K8s Context dashboard panels are reliable only after the lookup tables are populated
+and flow-collector has been restarted. Until then, most flows will appear as
+`internal-unknown` or `external`.
 
 ---
 

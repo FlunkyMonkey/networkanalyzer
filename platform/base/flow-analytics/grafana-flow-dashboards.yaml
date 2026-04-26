@@ -32,10 +32,19 @@ data:
       "links": [],
       "panels": [
         {
+          "title": "",
+          "type": "text",
+          "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+          "options": {
+            "mode": "markdown",
+            "content": "Top source and destination IPs ranked by total byte volume. Use to identify bandwidth hogs and east-west vs. WAN traffic patterns. Volume-over-time and flow-count panels show trends across the selected window."
+          }
+        },
+        {
           "title": "Top Source IPs by Bytes",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 12, "w": 12, "x": 0, "y": 0 },
+          "gridPos": { "h": 12, "w": 12, "x": 0, "y": 3 },
           "targets": [
             {
               "refId": "A",
@@ -72,7 +81,7 @@ data:
           "title": "Top Destination IPs by Bytes",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 12, "w": 12, "x": 12, "y": 0 },
+          "gridPos": { "h": 12, "w": 12, "x": 12, "y": 3 },
           "targets": [
             {
               "refId": "A",
@@ -109,7 +118,7 @@ data:
           "title": "Total Flow Volume Over Time",
           "type": "timeseries",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 15 },
           "targets": [
             {
               "refId": "A",
@@ -140,7 +149,7 @@ data:
           "title": "Flow Count Over Time",
           "type": "timeseries",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 23 },
           "targets": [
             {
               "refId": "A",
@@ -186,11 +195,20 @@ data:
       "links": [],
       "panels": [
         {
+          "title": "",
+          "type": "text",
+          "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+          "options": {
+            "mode": "markdown",
+            "content": "What destinations are hosts connecting to? Top destination IPs, ports, and countries by byte volume. Use the Source IP / Destination IP variables to filter for a specific host. Country panel requires GeoIP enrichment."
+          }
+        },
+        {
           "title": "Top Destination IPs by Volume",
           "description": "All outbound traffic — top destination IPs by byte volume. Set Source IP above to filter for a specific host (full per-IP drill-down available in Entity Investigation).",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 3 },
           "targets": [
             {
               "refId": "A",
@@ -227,7 +245,7 @@ data:
           "title": "Top Destination Ports",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 12 },
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 15 },
           "targets": [
             {
               "refId": "A",
@@ -264,7 +282,7 @@ data:
           "description": "Requires GeoIP enrichment (MaxMind key). Empty if GeoIP is not configured.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 12 },
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 15 },
           "targets": [
             {
               "refId": "A",
@@ -301,7 +319,7 @@ data:
           "description": "All inbound traffic — top source IPs by byte volume. Set Destination IP above to filter for a specific host.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 22 },
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 25 },
           "targets": [
             {
               "refId": "A",
@@ -372,11 +390,20 @@ data:
       "links": [],
       "panels": [
         {
+          "title": "",
+          "type": "text",
+          "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+          "options": {
+            "mode": "markdown",
+            "content": "Protocol, application, and geographic distribution of all flows. App labels are port-based (Vector enrichment — common homelab ports labeled). Country and ASN panels require MaxMind GeoIP and will be empty until a license key is configured."
+          }
+        },
+        {
           "title": "Traffic by App Label (port-based)",
           "description": "Port-labeled traffic only. Flows on unlabeled ports are excluded. Common homelab ports (HTTP, HTTPS, DNS, SSH, Kubernetes, Proxmox, OpenSearch, etc.) are labeled by Vector enrichment.",
           "type": "piechart",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 8, "x": 0, "y": 0 },
+          "gridPos": { "h": 10, "w": 8, "x": 0, "y": 3 },
           "targets": [
             {
               "refId": "A",
@@ -402,7 +429,7 @@ data:
           "title": "Traffic by Protocol",
           "type": "piechart",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 8, "x": 8, "y": 0 },
+          "gridPos": { "h": 10, "w": 8, "x": 8, "y": 3 },
           "targets": [
             {
               "refId": "A",
@@ -429,7 +456,7 @@ data:
           "description": "Requires GeoIP enrichment (MaxMind license key). Empty when GeoIP is not configured.",
           "type": "piechart",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 8, "x": 16, "y": 0 },
+          "gridPos": { "h": 10, "w": 8, "x": 16, "y": 3 },
           "targets": [
             {
               "refId": "A",
@@ -455,7 +482,7 @@ data:
           "title": "Top Destination Ports",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 10 },
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 13 },
           "targets": [
             {
               "refId": "A",
@@ -493,7 +520,7 @@ data:
           "description": "Requires GeoIP enrichment (MaxMind license key). Empty when GeoIP is not configured.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 10 },
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 13 },
           "targets": [
             {
               "refId": "A",

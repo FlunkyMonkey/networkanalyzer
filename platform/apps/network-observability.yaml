@@ -22,6 +22,7 @@ spec:
     syncOptions:
       - CreateNamespace=false
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
   # Ignore the restartedAt annotation written by k8s-ip-exporter CronJob.
   # Without this, ArgoCD selfHeal would revert the annotation within seconds
   # of each CronJob run, leaving flow-collector with stale enrichment tables.

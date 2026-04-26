@@ -32,10 +32,19 @@ data:
       "links": [],
       "panels": [
         {
+          "title": "",
+          "type": "text",
+          "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+          "options": {
+            "mode": "markdown",
+            "content": "Kubernetes-enriched view of network flows. Source and destination IPs are classified as pod / node / service / internal-unknown / external. **internal-unknown** = IP inside K8s CIDR with no lookup match — a rising count signals stale enrichment tables or high pod churn."
+          }
+        },
+        {
           "title": "Top Source Namespaces by Bytes",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 0 },
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 3 },
           "targets": [
             {
               "refId": "A",
@@ -80,7 +89,7 @@ data:
           "title": "Top Destination Namespaces by Bytes",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 0 },
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 3 },
           "targets": [
             {
               "refId": "A",
@@ -126,7 +135,7 @@ data:
           "description": "src_k8s_type classification: pod=pod IP, node=node IP, service=ClusterIP, internal-unknown=K8s CIDR IP with no lookup match, external=outside K8s CIDRs.",
           "type": "piechart",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 8, "x": 0, "y": 10 },
+          "gridPos": { "h": 10, "w": 8, "x": 0, "y": 13 },
           "targets": [
             {
               "refId": "A",
@@ -155,7 +164,7 @@ data:
           "title": "Top Source Nodes by Bytes",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 8, "x": 8, "y": 10 },
+          "gridPos": { "h": 10, "w": 8, "x": 8, "y": 13 },
           "targets": [
             {
               "refId": "A",
@@ -200,7 +209,7 @@ data:
           "title": "Top Destination Nodes by Bytes",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 8, "x": 16, "y": 10 },
+          "gridPos": { "h": 10, "w": 8, "x": 16, "y": 13 },
           "targets": [
             {
               "refId": "A",
@@ -246,7 +255,7 @@ data:
           "description": "Flows where both src and dst are pod-type. Nested aggregation: top 15 source pods, top 5 destination pods per source.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 20 },
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 23 },
           "targets": [
             {
               "refId": "A",
@@ -298,7 +307,7 @@ data:
           "description": "Count of flows (not a rate) where src_k8s_type=internal-unknown: the source IP is inside K8s pod/service CIDRs but did not match any row in the current lookup tables. Causes: new pods that started after the last CronJob run, short-lived pods, or stale lookup tables. Compare against the pod-type count — a rising ratio of internal-unknown/pod indicates CronJob lag or high pod churn.",
           "type": "timeseries",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 32 },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 35 },
           "targets": [
             {
               "refId": "A",
@@ -347,7 +356,7 @@ data:
           "description": "Flows where src_k8s_type=service (ClusterIP CIDR 10.96.0.0/12). Expected empty if internal traffic does not traverse service IPs in the selected window. Will populate when service-IP flows are observed. Not a required-success panel for Wave 5 Gate 5a.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 40 },
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 43 },
           "targets": [
             {
               "refId": "A",
