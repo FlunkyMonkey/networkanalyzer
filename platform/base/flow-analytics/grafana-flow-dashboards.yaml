@@ -37,11 +37,11 @@ data:
           "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
           "options": {
             "mode": "markdown",
-            "content": "Top source and destination IPs ranked by total byte volume. Use to identify bandwidth hogs and east-west vs. WAN traffic patterns. Volume-over-time and flow-count panels show trends across the selected window."
+            "content": "## 📊 Top Talkers\nTop source and destination IPs ranked by **total byte volume**. Use to identify bandwidth hogs and east-west vs. WAN traffic patterns. Volume-over-time and flow-count panels show trends across the selected window."
           }
         },
         {
-          "title": "Top Source IPs by Bytes",
+          "title": "Top Source IPs by Volume",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 12, "w": 12, "x": 0, "y": 3 },
@@ -52,11 +52,12 @@ data:
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
-                { "id": "1", "type": "sum", "field": "bytes" }
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
               ],
               "bucketAggs": [
                 {
-                  "id": "2",
+                  "id": "3",
                   "type": "terms",
                   "field": "src_ip",
                   "settings": { "size": "20", "order": "desc", "orderBy": "1" }
@@ -67,18 +68,34 @@ data:
           "fieldConfig": {
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Sum bytes" },
-                "properties": [{ "id": "unit", "value": "bytes" }]
+                "matcher": { "id": "byName", "options": "Total Volume" },
+                "properties": [
+                  { "id": "unit", "value": "decbytes" },
+                  { "id": "custom.width", "value": 140 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Flow Count" },
+                "properties": [
+                  { "id": "unit", "value": "short" },
+                  { "id": "custom.width", "value": 120 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Source IP" },
+                "properties": [
+                  { "id": "links", "value": [{ "title": "Drill down to destination analysis", "url": "/d/flow-destinations/flow-destination-analysis?var-src_ip=${__value.text}" }] }
+                ]
               }
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "src_ip": "Source IP", "Sum bytes": "Total Volume" } } }
+            { "id": "organize", "options": { "renameByName": { "src_ip": "Source IP", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
         {
-          "title": "Top Destination IPs by Bytes",
+          "title": "Top Destination IPs by Volume",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 12, "w": 12, "x": 12, "y": 3 },
@@ -89,11 +106,12 @@ data:
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
-                { "id": "1", "type": "sum", "field": "bytes" }
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
               ],
               "bucketAggs": [
                 {
-                  "id": "2",
+                  "id": "3",
                   "type": "terms",
                   "field": "dst_ip",
                   "settings": { "size": "20", "order": "desc", "orderBy": "1" }
@@ -104,13 +122,29 @@ data:
           "fieldConfig": {
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Sum bytes" },
-                "properties": [{ "id": "unit", "value": "bytes" }]
+                "matcher": { "id": "byName", "options": "Total Volume" },
+                "properties": [
+                  { "id": "unit", "value": "decbytes" },
+                  { "id": "custom.width", "value": 140 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Flow Count" },
+                "properties": [
+                  { "id": "unit", "value": "short" },
+                  { "id": "custom.width", "value": 120 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Destination IP" },
+                "properties": [
+                  { "id": "links", "value": [{ "title": "Drill down to destination analysis", "url": "/d/flow-destinations/flow-destination-analysis?var-dst_ip=${__value.text}" }] }
+                ]
               }
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "dst_ip": "Destination IP", "Sum bytes": "Total Volume" } } }
+            { "id": "organize", "options": { "renameByName": { "dst_ip": "Destination IP", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
@@ -140,7 +174,8 @@ data:
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "bytes",
+              "unit": "decbytes",
+              "displayName": "Total Volume",
               "custom": { "fillOpacity": 10 }
             }
           }
@@ -172,6 +207,7 @@ data:
           "fieldConfig": {
             "defaults": {
               "unit": "short",
+              "displayName": "Flow Count",
               "custom": { "fillOpacity": 10 }
             }
           }
@@ -200,19 +236,19 @@ data:
           "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
           "options": {
             "mode": "markdown",
-            "content": "What destinations are hosts connecting to? Top destination IPs, ports, and countries by byte volume. Use the Source IP / Destination IP variables to filter for a specific host. Country panel requires GeoIP enrichment."
+            "content": "## 🔍 Destination Analysis\nWhat destinations are hosts connecting to? Top destination IPs, ports, and countries by byte volume. Use the **Source IP** / **Destination IP** variables above to filter for a specific host. Country panel requires GeoIP enrichment (MaxMind key)."
           }
         },
         {
           "title": "Top Destination IPs by Volume",
-          "description": "All outbound traffic — top destination IPs by byte volume. Set Source IP above to filter for a specific host (full per-IP drill-down available in Entity Investigation).",
+          "description": "All outbound traffic — top destination IPs by byte volume. Set Source IP above to filter for a specific host.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 12, "w": 24, "x": 0, "y": 3 },
           "targets": [
             {
               "refId": "A",
-              "query": "",
+              "query": "${src_ip:lucene}",
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
@@ -232,35 +268,54 @@ data:
           "fieldConfig": {
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Sum bytes" },
-                "properties": [{ "id": "unit", "value": "bytes" }]
+                "matcher": { "id": "byName", "options": "Total Volume" },
+                "properties": [
+                  { "id": "unit", "value": "decbytes" },
+                  { "id": "custom.width", "value": 140 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Flow Count" },
+                "properties": [
+                  { "id": "unit", "value": "short" },
+                  { "id": "custom.width", "value": 120 }
+                ]
               }
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "dst_ip": "Destination IP", "Sum bytes": "Total Bytes", "Count": "Flow Count" } } }
-          ]
+            { "id": "organize", "options": { "renameByName": { "dst_ip": "Destination IP", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
         {
-          "title": "Top Destination Ports",
+          "title": "Top Destination Ports (with App Label)",
+          "description": "Top destination ports by volume. The App column shows the Vector-enriched app label where available. Ports without enrichment show as 'unlabeled'.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 10, "w": 12, "x": 0, "y": 15 },
           "targets": [
             {
               "refId": "A",
-              "query": "",
+              "query": "${src_ip:lucene}",
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
-                { "id": "1", "type": "sum", "field": "bytes" }
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
               ],
               "bucketAggs": [
                 {
-                  "id": "2",
+                  "id": "3",
                   "type": "terms",
                   "field": "dst_port",
-                  "settings": { "size": "20", "order": "desc", "orderBy": "1" }
+                  "settings": { "size": "25", "order": "desc", "orderBy": "1" }
+                },
+                {
+                  "id": "4",
+                  "type": "terms",
+                  "field": "app",
+                  "settings": { "size": "1", "order": "desc", "orderBy": "1", "missing": "unlabeled" }
                 }
               ]
             }
@@ -268,18 +323,29 @@ data:
           "fieldConfig": {
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Sum bytes" },
-                "properties": [{ "id": "unit", "value": "bytes" }]
+                "matcher": { "id": "byName", "options": "Total Volume" },
+                "properties": [
+                  { "id": "unit", "value": "decbytes" },
+                  { "id": "custom.width", "value": 140 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Flow Count" },
+                "properties": [
+                  { "id": "unit", "value": "short" },
+                  { "id": "custom.width", "value": 120 }
+                ]
               }
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "dst_port": "Port", "Sum bytes": "Total Bytes" } } }
-          ]
+            { "id": "organize", "options": { "renameByName": { "dst_port": "Port", "app": "App Label", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
         {
           "title": "Destination Countries",
-          "description": "Requires GeoIP enrichment (MaxMind key). Empty if GeoIP is not configured.",
+          "description": "Requires GeoIP enrichment (MaxMind license key). This panel will remain empty until a MaxMind key is configured in Vector and GeoIP fields (dst_country) are populated in flow documents.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 10, "w": 12, "x": 12, "y": 15 },
@@ -305,13 +371,13 @@ data:
           "fieldConfig": {
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Sum bytes" },
-                "properties": [{ "id": "unit", "value": "bytes" }]
+                "matcher": { "id": "byName", "options": "Total Volume" },
+                "properties": [{ "id": "unit", "value": "decbytes" }]
               }
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "dst_country": "Country", "Sum bytes": "Total Bytes" } } }
+            { "id": "organize", "options": { "renameByName": { "dst_country": "Country", "Sum bytes": "Total Volume" } } }
           ]
         },
         {
@@ -323,7 +389,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "query": "",
+              "query": "${dst_ip:lucene}",
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
@@ -343,14 +409,31 @@ data:
           "fieldConfig": {
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Sum bytes" },
-                "properties": [{ "id": "unit", "value": "bytes" }]
+                "matcher": { "id": "byName", "options": "Total Volume" },
+                "properties": [
+                  { "id": "unit", "value": "decbytes" },
+                  { "id": "custom.width", "value": 140 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Flow Count" },
+                "properties": [
+                  { "id": "unit", "value": "short" },
+                  { "id": "custom.width", "value": 120 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Source IP" },
+                "properties": [
+                  { "id": "links", "value": [{ "title": "Drill down to top talkers", "url": "/d/flow-top-talkers/flow-top-talkers?var-src_ip=${__value.text}" }] }
+                ]
               }
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "src_ip": "Source IP", "Sum bytes": "Total Bytes", "Count": "Flow Count" } } }
-          ]
+            { "id": "organize", "options": { "renameByName": { "src_ip": "Source IP", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         }
       ],
       "schemaVersion": 39,
@@ -395,15 +478,15 @@ data:
           "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
           "options": {
             "mode": "markdown",
-            "content": "Protocol, application, and geographic distribution of all flows. App labels are port-based (Vector enrichment — common homelab ports labeled). Country and ASN panels require MaxMind GeoIP and will be empty until a license key is configured."
+            "content": "## 🔀 Traffic Mix\nProtocol, application, and port distribution of all flows. App labels are port-based (Vector enrichment — common homelab ports like HTTP, HTTPS, DNS, SSH, Kubernetes, Proxmox, OpenSearch, etc.). Country and ASN panels require MaxMind GeoIP and will be empty until a license key is configured."
           }
         },
         {
-          "title": "Traffic by App Label (port-based)",
-          "description": "Port-labeled traffic only. Flows on unlabeled ports are excluded. Common homelab ports (HTTP, HTTPS, DNS, SSH, Kubernetes, Proxmox, OpenSearch, etc.) are labeled by Vector enrichment.",
-          "type": "piechart",
+          "title": "Traffic by App Label",
+          "description": "Port-labeled traffic only (Vector enrichment). Shows total volume and flow count per application label. Unlabeled port traffic is excluded from this panel — see the Destination Ports table below for all ports.",
+          "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 8, "x": 0, "y": 3 },
+          "gridPos": { "h": 12, "w": 12, "x": 0, "y": 3 },
           "targets": [
             {
               "refId": "A",
@@ -411,25 +494,48 @@ data:
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
-                { "id": "1", "type": "sum", "field": "bytes" }
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
               ],
               "bucketAggs": [
                 {
-                  "id": "2",
+                  "id": "3",
                   "type": "terms",
                   "field": "app",
-                  "settings": { "size": "15", "order": "desc", "orderBy": "1" }
+                  "settings": { "size": "20", "order": "desc", "orderBy": "1" }
                 }
               ]
             }
           ],
-          "options": { "pieType": "pie", "displayLabels": ["name", "percent"] }
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Total Volume" },
+                "properties": [
+                  { "id": "unit", "value": "decbytes" },
+                  { "id": "custom.width", "value": 140 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Flow Count" },
+                "properties": [
+                  { "id": "unit", "value": "short" },
+                  { "id": "custom.width", "value": 120 }
+                ]
+              }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "app": "Application", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
         {
           "title": "Traffic by Protocol",
-          "type": "piechart",
+          "description": "Layer 4 protocol distribution by total byte volume.",
+          "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 8, "x": 8, "y": 3 },
+          "gridPos": { "h": 12, "w": 12, "x": 12, "y": 3 },
           "targets": [
             {
               "refId": "A",
@@ -437,11 +543,12 @@ data:
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
-                { "id": "1", "type": "sum", "field": "bytes" }
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
               ],
               "bucketAggs": [
                 {
-                  "id": "2",
+                  "id": "3",
                   "type": "terms",
                   "field": "protocol_name",
                   "settings": { "size": "10", "order": "desc", "orderBy": "1" }
@@ -449,40 +556,35 @@ data:
               ]
             }
           ],
-          "options": { "pieType": "pie", "displayLabels": ["name", "percent"] }
-        },
-        {
-          "title": "Traffic by Destination Country",
-          "description": "Requires GeoIP enrichment (MaxMind license key). Empty when GeoIP is not configured.",
-          "type": "piechart",
-          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 8, "x": 16, "y": 3 },
-          "targets": [
-            {
-              "refId": "A",
-              "query": "_exists_:dst_country",
-              "queryType": "lucene",
-              "timeField": "@timestamp",
-              "metrics": [
-                { "id": "1", "type": "sum", "field": "bytes" }
-              ],
-              "bucketAggs": [
-                {
-                  "id": "2",
-                  "type": "terms",
-                  "field": "dst_country",
-                  "settings": { "size": "15", "order": "desc", "orderBy": "1" }
-                }
-              ]
-            }
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Total Volume" },
+                "properties": [
+                  { "id": "unit", "value": "decbytes" },
+                  { "id": "custom.width", "value": 140 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Flow Count" },
+                "properties": [
+                  { "id": "unit", "value": "short" },
+                  { "id": "custom.width", "value": 120 }
+                ]
+              }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "protocol_name": "Protocol", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
           ],
-          "options": { "pieType": "pie", "displayLabels": ["name", "percent"] }
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
         {
           "title": "Top Destination Ports",
+          "description": "Top destination ports by total volume with app label where available. Ports without a Vector-enriched app label show as 'unlabeled' — these are candidates for adding to the Vector port map.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 13 },
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 15 },
           "targets": [
             {
               "refId": "A",
@@ -499,6 +601,12 @@ data:
                   "type": "terms",
                   "field": "dst_port",
                   "settings": { "size": "25", "order": "desc", "orderBy": "1" }
+                },
+                {
+                  "id": "4",
+                  "type": "terms",
+                  "field": "app",
+                  "settings": { "size": "1", "order": "desc", "orderBy": "1", "missing": "unlabeled" }
                 }
               ]
             }
@@ -506,21 +614,41 @@ data:
           "fieldConfig": {
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Sum bytes" },
-                "properties": [{ "id": "unit", "value": "bytes" }]
+                "matcher": { "id": "byName", "options": "Total Volume" },
+                "properties": [
+                  { "id": "unit", "value": "decbytes" },
+                  { "id": "custom.width", "value": 140 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Flow Count" },
+                "properties": [
+                  { "id": "unit", "value": "short" },
+                  { "id": "custom.width", "value": 120 }
+                ]
               }
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "dst_port": "Port", "Sum bytes": "Total Bytes", "Count": "Flow Count" } } }
-          ]
+            { "id": "organize", "options": { "renameByName": { "dst_port": "Port", "app": "App Label", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
+        },
+        {
+          "title": "⚠️ GeoIP Enrichment Not Configured",
+          "type": "text",
+          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 27 },
+          "options": {
+            "mode": "markdown",
+            "content": "**Country and ASN panels below require MaxMind GeoIP enrichment**, which is not currently configured. To enable:\n1. Obtain a MaxMind license key\n2. Configure GeoIP lookup in Vector\n3. Fields `dst_country` and `dst_as_org` will populate automatically\n\nUntil then, these panels will show \"No data\" — this is expected behavior, not an error."
+          }
         },
         {
           "title": "Top ASNs (destination)",
-          "description": "Requires GeoIP enrichment (MaxMind license key). Empty when GeoIP is not configured.",
+          "description": "Requires GeoIP enrichment (MaxMind license key). Empty when GeoIP is not configured — see notice above.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 13 },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 },
           "targets": [
             {
               "refId": "A",
@@ -543,13 +671,50 @@ data:
           "fieldConfig": {
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "Sum bytes" },
-                "properties": [{ "id": "unit", "value": "bytes" }]
+                "matcher": { "id": "byName", "options": "Total Volume" },
+                "properties": [{ "id": "unit", "value": "decbytes" }]
               }
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "dst_as_org": "AS Organization", "Sum bytes": "Total Bytes" } } }
+            { "id": "organize", "options": { "renameByName": { "dst_as_org": "AS Organization", "Sum bytes": "Total Volume" } } }
+          ]
+        },
+        {
+          "title": "Traffic by Destination Country",
+          "description": "Requires GeoIP enrichment (MaxMind license key). Empty when GeoIP is not configured — see notice above.",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "_exists_:dst_country",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "terms",
+                  "field": "dst_country",
+                  "settings": { "size": "15", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Total Volume" },
+                "properties": [{ "id": "unit", "value": "decbytes" }]
+              }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "dst_country": "Country", "Sum bytes": "Total Volume" } } }
           ]
         }
       ],
