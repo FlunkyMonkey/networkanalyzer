@@ -2,6 +2,9 @@
 # Uses the existing cluster Prometheus in the monitoring namespace as its datasource.
 # Does NOT deploy Prometheus, Prometheus Operator, or any monitoring control plane.
 
+deploymentStrategy:
+  type: Recreate
+
 persistence:
   enabled: true
   storageClassName: rook-ceph-block
