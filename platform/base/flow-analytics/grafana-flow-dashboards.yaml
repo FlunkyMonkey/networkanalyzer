@@ -233,7 +233,7 @@ data:
           "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
           "options": {
             "mode": "markdown",
-            "content": "## 🔍 Destination Analysis\nWhat destinations are hosts connecting to? Use the **Source IP** / **Destination IP** filters above to narrow down to a specific host. Leave as `*` for all traffic."
+            "content": "## 🔍 Destination Analysis\nWhat destinations are hosts connecting to? Top destination IPs, ports, and inbound sources by byte volume. Click any IP in Top Talkers to drill down here."
           }
         },
         {
@@ -244,7 +244,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "query": "src_ip:$src_ip",
+              "query": "",
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
@@ -293,7 +293,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "query": "src_ip:$src_ip",
+              "query": "",
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
@@ -351,14 +351,14 @@ data:
         },
         {
           "title": "Top Source IPs by Volume (Inbound View)",
-          "description": "Set Destination IP above to see who is sending traffic to a specific host.",
+          "description": "Top source IPs sending traffic to this network, ranked by volume.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 10, "w": 24, "x": 0, "y": 25 },
           "targets": [
             {
               "refId": "A",
-              "query": "dst_ip:$dst_ip",
+              "query": "",
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
@@ -407,26 +407,7 @@ data:
       ],
       "schemaVersion": 39,
       "tags": ["network", "flows", "destinations", "investigation", "flow-analytics"],
-      "templating": {
-        "list": [
-          {
-            "name": "src_ip",
-            "type": "textbox",
-            "label": "Source IP",
-            "current": { "value": "*", "text": "*" },
-            "query": "*",
-            "hide": 0
-          },
-          {
-            "name": "dst_ip",
-            "type": "textbox",
-            "label": "Destination IP",
-            "current": { "value": "*", "text": "*" },
-            "query": "*",
-            "hide": 0
-          }
-        ]
-      },
+      "templating": { "list": [] },
       "time": { "from": "now-24h", "to": "now" },
       "title": "Flow — Destination Analysis",
       "uid": "flow-destinations"
