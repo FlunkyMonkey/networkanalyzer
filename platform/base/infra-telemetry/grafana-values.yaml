@@ -33,12 +33,12 @@ datasources:
   datasources.yaml:
     apiVersion: 1
     datasources:
-      - name: Prometheus
+      - name: Prometheus GitOps
         type: prometheus
         uid: prometheus
         access: proxy
         url: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
-        isDefault: true
+        isDefault: false
         jsonData:
           timeInterval: "30s"
 
