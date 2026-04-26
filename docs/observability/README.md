@@ -37,6 +37,7 @@ This directory contains design documentation for the GitOps-managed network obse
 | [wave-5-plan.md](wave-5-plan.md) | Wave 5 plan: Unified operator UX — **ACTIVE WAVE** (no Cilium required) |
 | [backlog.md](backlog.md) | Hardening items and future-wave work not blocking active rollout (includes deferred Wave 4) |
 | [operations-notes.md](operations-notes.md) | Runtime ops decisions and context (softflowd service pattern, legacy cleanup) |
+| [../evidence/wave5-pass3/](../evidence/wave5-pass3/) | Gate 5a evidence screenshots — seven-dashboard baseline, accepted 2026-04-26 |
 
 ## Platform Structure
 

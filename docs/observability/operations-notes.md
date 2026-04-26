@@ -27,6 +27,70 @@ services that set both `spec.loadBalancerIP` and the annotation simultaneously.
 
 ---
 
+## 2026-04-26 — Gate 5a Operational Fixes
+
+The following issues were discovered and fixed during Gate 5a validation.
+They are documented here as stable operational facts.
+
+### Grafana Deployment Must Use Recreate Strategy (RWO PVC)
+
+Grafana uses a `rook-ceph-block` ReadWriteOnce PVC. The Helm chart default
+rolling update strategy attempts to schedule a new pod before the old one
+terminates. If the two pods land on different nodes, the new pod cannot mount
+the PVC (Multi-Attach error) and the rollout stalls indefinitely.
+
+**Fix:** `deploymentStrategy: type: Recreate` in
+`platform/base/infra-telemetry/grafana-values.yaml`. A Kustomize JSON 6902
+patch (`platform/overlays/lab/patches/grafana-strategy-recreate.yaml`) also
+sets `rollingUpdate: null` explicitly so that ArgoCD server-side apply clears
+the field from the live object rather than leaving a conflicting value.
+
+**Rule:** Any stateful Grafana deployment backed by a RWO PVC must use
+`Recreate`. Do not revert to `RollingUpdate` without replacing the PVC with
+a ReadWriteMany storage class.
+
+### Prometheus Service URL Uses Port 80
+
+The Prometheus service in the `monitoring` namespace exposes port 80, not 9090.
+Port 9090 is the Prometheus container port but is not the Kubernetes service port.
+Grafana datasource URLs pointing to port 9090 silently fail or return connection
+refused.
+
+**Correct URL:**
+`http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090`
+is **wrong**. The service port is **80**:
+
+```text
+http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:80
+```
+
+The value is configured as the `url` in the `Prometheus GitOps` datasource
+entry in `platform/base/infra-telemetry/grafana-values.yaml`.
+
+### k8s-ip-exporter Lookup Tables Must Remain Populated at Runtime
+
+The `k8s-ip-exporter` CronJob writes live pod/service/node lookup CSV files
+into the `k8s-lookup-tables` ConfigMap. These are mounted into `flow-collector`
+(Vector). If the CronJob has not run, or if the ConfigMap has been reverted
+by ArgoCD to its placeholder headers (see `ignoreDifferences` in
+`platform/apps/network-observability.yaml`), all internal flows will classify
+as `internal-unknown`.
+
+**Post-sync required steps** after any ArgoCD sync that restarts `flow-collector`:
+
+```bash
+# 1. Trigger a CronJob run to repopulate lookup tables
+kubectl create job --from=cronjob/k8s-ip-exporter manual-refresh -n network-observability
+
+# 2. Restart flow-collector after tables are populated (Vector does not live-reload)
+kubectl rollout restart deploy/flow-collector -n network-observability
+```
+
+Do not treat a rising `internal-unknown` rate as a bug without first confirming
+the CronJob has run successfully since the last `flow-collector` restart.
+
+---
+
 ## 2026-04-25 — Grafana: Persisted Datasource UID Conflict
 
 The lab Grafana instance had an existing persisted datasource named **Prometheus**

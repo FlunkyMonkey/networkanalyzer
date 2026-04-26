@@ -319,13 +319,13 @@ if Wave 4 is completed later.
 
 | # | Check | Command / Action | Expected | Pass |
 |---|---|---|---|---|
-| 5.1.1 | Prometheus datasource healthy | Grafana → Data Sources → Prometheus → Test | Connection successful | [ ] |
-| 5.1.2 | OpenSearch datasource healthy | Grafana → Data Sources → OpenSearch Flows → Test | Connection successful | [ ] |
-| 5.1.3 | Infra dashboards load with data | Open Switch Interface Util, UniFi AP, Proxmox dashboards | All three load with live data, no broken panels | [ ] |
-| 5.1.4 | Flow dashboards load with data | Open Top Talkers, Destination Analysis, Traffic Mix | All three load with data, OpenSearch queries returning rows | [ ] |
-| 5.1.5 | Wave 3b CronJob healthy | `kubectl get jobs -n network-observability --sort-by=.metadata.creationTimestamp \| tail -3` | Recent successful runs | [ ] |
-| 5.1.6 | K8s fields present in flows | `curl localhost:9200/flows-*/_search?q=src_k8s_type:pod&size=1&pretty \| grep src_k8s` | src_k8s fields populated | [ ] |
-| 5.1.7 | Document baseline flow count | `curl localhost:9200/flows-*/_count` | Record count for regression comparison | [ ] |
+| 5.1.1 | Prometheus datasource healthy | Grafana → Data Sources → Prometheus → Test | Connection successful | [x] |
+| 5.1.2 | OpenSearch datasource healthy | Grafana → Data Sources → OpenSearch Flows → Test | Connection successful | [x] |
+| 5.1.3 | Infra dashboards load with data | Open Switch Interface Util, UniFi AP, Proxmox dashboards | All three load with live data, no broken panels | [x] |
+| 5.1.4 | Flow dashboards load with data | Open Top Talkers, Destination Analysis, Traffic Mix | All three load with data, OpenSearch queries returning rows | [x] |
+| 5.1.5 | Wave 3b CronJob healthy | `kubectl get jobs -n network-observability --sort-by=.metadata.creationTimestamp \| tail -3` | Recent successful runs | [x] |
+| 5.1.6 | K8s fields present in flows | `curl localhost:9200/flows-*/_search?q=src_k8s_type:pod&size=1&pretty \| grep src_k8s` | src_k8s fields populated | [x] |
+| 5.1.7 | Document baseline flow count | `curl localhost:9200/flows-*/_count` | Record count for regression comparison | [x] |
 
 **Gate 5a pre-work:** All items pass → proceed to Phase 2.
 
@@ -339,17 +339,20 @@ kustomization.yaml. ArgoCD deploys it automatically.
 
 | # | Check | Action | Expected | Pass |
 |---|---|---|---|---|
-| 5.2.1 | Dashboard ConfigMap created | Review new Grafana dashboard ConfigMap in flow-analytics plane | ConfigMap has correct labels for Grafana sidecar provisioning | [ ] |
-| 5.2.2 | ArgoCD sync picks up new dashboard | `argocd app get network-observability` | Synced, Healthy | [ ] |
-| 5.2.3 | Dashboard appears in Grafana | Grafana → Dashboards → Browse | "K8s Flow Context" dashboard listed | [ ] |
-| 5.2.4 | Namespace breakdown panel | Open dashboard, check namespace panel | Shows at least two K8s namespaces with flow bytes | [ ] |
-| 5.2.5 | Pod-to-pod flow panel | Check top pod flows panel | Shows src\_k8s\_pod/dst\_k8s\_pod pairs with bytes | [ ] |
-| 5.2.6 | internal-unknown rate panel | Check classification breakdown | `internal-unknown` visible as distinct bucket, not merged into external | [ ] |
-| 5.2.7 | Service-type flow panel | Check service flow panel | service-type flows visible with namespace and service name | [ ] |
-| 5.2.8 | External flows panel | Check external panel | External IPs shown with no broken panels (K8s fields empty — expected) | [ ] |
-| 5.2.9 | Wave 3b regression | Re-run 5.1.5 and 5.1.6 | CronJob still healthy, enriched fields still present | [ ] |
+| 5.2.1 | Dashboard ConfigMap created | Review new Grafana dashboard ConfigMap in flow-analytics plane | ConfigMap has correct labels for Grafana sidecar provisioning | [x] |
+| 5.2.2 | ArgoCD sync picks up new dashboard | `argocd app get network-observability` | Synced, Healthy | [x] |
+| 5.2.3 | Dashboard appears in Grafana | Grafana → Dashboards → Browse | "K8s Flow Context" dashboard listed | [x] |
+| 5.2.4 | Namespace breakdown panel | Open dashboard, check namespace panel | Shows at least two K8s namespaces with flow bytes | [x] |
+| 5.2.5 | Pod-to-pod flow panel | Check top pod flows panel | Shows src\_k8s\_pod/dst\_k8s\_pod pairs with bytes | [x] |
+| 5.2.6 | internal-unknown rate panel | Check classification breakdown | `internal-unknown` visible as distinct bucket, not merged into external | [x] |
+| 5.2.7 | Service-type flow panel | Check service flow panel | service-type flows visible with namespace and service name | [x] |
+| 5.2.8 | External flows panel | Check external panel | External IPs shown with no broken panels (K8s fields empty — expected) | [x] |
+| 5.2.9 | Wave 3b regression | Re-run 5.1.5 and 5.1.6 | CronJob still healthy, enriched fields still present | [x] |
 
 **Gate 5a:** Phases 1–2 complete → K8s Flow Context dashboard operational.
+
+> **Gate 5a: ACCEPTED WITH MINOR FOLLOW-UP — 2026-04-26.**
+> Seven-dashboard baseline accepted. See go-no-go-gates.md for verdict and conditions.
 
 ---
 

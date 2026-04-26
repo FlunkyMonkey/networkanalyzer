@@ -250,16 +250,45 @@ Wave 5 is phased. Three sub-gates track progress through implementation.
 
 ### Gate 5a — Phase 1–2: K8s Context Dashboard and Baseline Validated
 
+**Verdict: ACCEPTED WITH MINOR FOLLOW-UP — 2026-04-26**
+
+Codex review: PROCEED WITH CONDITIONS. OpenClaw visual validation: ACCEPT.
+Evidence screenshots: `docs/evidence/wave5-pass3/`
+
+Relevant commits: `79047e8` (table-first redesign), `b1c5229` (datasource URL fix),
+`44e0db3` (OpenSearch field name fix), `bdb2572` (destination analysis fix),
+`82a8dbc` (infra dashboard query fix), `7e4ffc4` (evidence screenshots).
+
+**Seven-dashboard baseline:**
+
+| Dashboard | Result |
+|---|---|
+| Flow — Traffic Mix | PASS |
+| Flow — K8s Context | PASS |
+| Flow — Top Talkers | PASS |
+| Flow — Destination Analysis | PASS |
+| Proxmox Node & VM Network | PASS |
+| Switch Interface Utilization | MINOR FOLLOW-UP (bandwidth panels pass; % gauge shows No Data — `ifSpeed` is 0 for many interfaces; primary value remains) |
+| UniFi AP & WLAN Clients | PASS |
+
+**Conditions (non-blocking; tracked in backlog.md):**
+
+1. Switch Interface % gauge: `ifSpeed` is 0 on many interfaces; bandwidth panels work and are the primary operator value.
+2. Duplicate legacy Prometheus datasource (`Prometheus / PBFA97CFB590B2093`) remains live alongside canonical `Prometheus GitOps / uid: prometheus`.
+3. GeoIP/ASN enrichment not configured.
+4. High-volume unlabeled ports should be reviewed for future app-label enrichment.
+5. `internal-unknown` rate should continue to be monitored and reduced over time.
+
 **Required evidence:**
 
-- [ ] Audit of all existing Grafana dashboards complete — every dashboard loads with
+- [x] Audit of all existing Grafana dashboards complete — every dashboard loads with
   live data, no broken panels
-- [ ] Both Grafana datasources confirmed healthy: Prometheus and OpenSearch
-- [ ] K8s Flow Context dashboard deployed: namespace traffic breakdown, pod-to-pod
+- [x] Both Grafana datasources confirmed healthy: Prometheus and OpenSearch
+- [x] K8s Flow Context dashboard deployed: namespace traffic breakdown, pod-to-pod
   flow volume, service-type flow volume, `internal-unknown` rate visible
-- [ ] `internal-unknown` classification rate panel shows real data (not empty)
-- [ ] At least one pod-type flow document visible in the K8s Flow Context dashboard
-- [ ] Wave 3b regression: CronJob healthy, enriched fields present, doc count growing
+- [x] `internal-unknown` classification rate panel shows real data (not empty)
+- [x] At least one pod-type flow document visible in the K8s Flow Context dashboard
+- [x] Wave 3b regression: CronJob healthy, enriched fields present, doc count growing
 
 **Minimum pass criteria:** All existing dashboards healthy. K8s Flow Context
 dashboard functional with real data from Wave 3b.

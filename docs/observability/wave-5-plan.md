@@ -260,6 +260,10 @@ added and kustomization.yaml updated. All six panels validated with real data.
 
 **Gate 5a criteria met after Phase 2.**
 
+> **Gate 5a status: ACCEPTED WITH MINOR FOLLOW-UP — 2026-04-26.**
+> Seven-dashboard baseline accepted. Conditions tracked in backlog.md.
+> See [go-no-go-gates.md](go-no-go-gates.md) for full verdict and evidence.
+
 ### Phase 3 — Homepage and Navigation
 
 Finalize the homepage ConfigMap (`homepage-dashboard.yaml`) with:
