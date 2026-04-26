@@ -166,8 +166,8 @@ data:
           "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
         },
         {
-          "title": "Internal-Unknown % of Total Flows",
-          "description": "Percentage of all flows tagged as internal-unknown (source or destination). Lower is better.",
+          "title": "Internal-Unknown Volume",
+          "description": "Total byte volume of flows classified as internal-unknown (source or destination). Compare against total volume to gauge enrichment coverage.",
           "type": "stat",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 5, "w": 8, "x": 8, "y": 12 },
@@ -178,45 +178,24 @@ data:
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
-                { "id": "1", "type": "count" }
-              ],
-              "bucketAggs": []
-            },
-            {
-              "refId": "B",
-              "query": "",
-              "queryType": "lucene",
-              "timeField": "@timestamp",
-              "metrics": [
-                { "id": "1", "type": "count" }
+                { "id": "1", "type": "sum", "field": "bytes" }
               ],
               "bucketAggs": []
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "percentunit",
-              "displayName": "Internal-Unknown %",
+              "unit": "decbytes",
+              "displayName": "Internal-Unknown Volume",
               "thresholds": {
                 "steps": [
                   { "color": "green", "value": null },
-                  { "color": "yellow", "value": 0.05 },
-                  { "color": "red", "value": 0.15 }
+                  { "color": "yellow", "value": 1073741824 },
+                  { "color": "red", "value": 10737418240 }
                 ]
-              },
-              "decimals": 2
+              }
             }
           },
-          "transformations": [
-            {
-              "id": "calculateField",
-              "options": { "mode": "binary", "binary": { "left": "A Count", "operator": "/", "right": "B Count" }, "alias": "Internal-Unknown %" }
-            },
-            {
-              "id": "filterFieldsByName",
-              "options": { "include": { "names": ["Internal-Unknown %"] } }
-            }
-          ],
           "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
         },
         {

@@ -248,7 +248,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "query": "${src_ip:lucene}",
+              "query": "src_ip:$src_ip",
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
@@ -297,7 +297,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "query": "${src_ip:lucene}",
+              "query": "src_ip:$src_ip",
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
@@ -389,7 +389,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "query": "${dst_ip:lucene}",
+              "query": "dst_ip:$dst_ip",
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
@@ -444,16 +444,16 @@ data:
             "name": "src_ip",
             "type": "textbox",
             "label": "Source IP (optional filter)",
-            "current": { "value": "" },
-            "query": "",
+            "current": { "value": "*", "text": "*" },
+            "query": "*",
             "hide": 0
           },
           {
             "name": "dst_ip",
             "type": "textbox",
             "label": "Destination IP (optional filter)",
-            "current": { "value": "" },
-            "query": "",
+            "current": { "value": "*", "text": "*" },
+            "query": "*",
             "hide": 0
           }
         ]
