@@ -2,14 +2,12 @@
 # Picked up automatically by the Grafana sidecar (label: grafana_dashboard: "1").
 # Uses the opensearch-flows datasource provisioned by grafana-flow-datasource.yaml.
 #
-# Available K8s enrichment fields in live flow data:
-#   src_k8s_type / dst_k8s_type  (pod | node | service | internal-unknown | external)
-#   src_k8s_node / dst_k8s_node
-#
-# NOT currently populated (panels removed until enrichment adds them):
-#   src_k8s_namespace / dst_k8s_namespace
-#   src_k8s_pod / dst_k8s_pod
-#   src_k8s_service / dst_k8s_service
+# Live enrichment fields (verified 2026-04-26):
+#   src_k8s_type / dst_k8s_type           — 100% of flows
+#   src_k8s_node / dst_k8s_node           — ~24% of flows (pod/node types)
+#   src_k8s_namespace / dst_k8s_namespace  — ~5.5% of flows (pod type only)
+#   src_k8s_workload / dst_k8s_workload    — ~5.5% of flows (pod type only)
+#   src_k8s_pod / dst_k8s_pod              — ~5.5% of flows (pod type only)
 #
 # Dashboard uid: flow-k8s-context
 apiVersion: v1
@@ -36,13 +34,13 @@ data:
           "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
           "options": {
             "mode": "markdown",
-            "content": "## ☸️ Kubernetes Flow Context\nSource and destination IPs are classified as **pod / node / service / internal-unknown / external** by the K8s IP enrichment CronJob.\n\n- **internal-unknown** = IP inside K8s CIDR with no lookup match — a rising count signals stale enrichment tables or high pod churn\n- **Namespace and pod-level** panels are not yet available — the enrichment pipeline currently populates type and node only"
+            "content": "## ☸️ Kubernetes Flow Context\nEvery flow's source and destination IP is classified into one of these categories:\n\n| Type | Meaning |\n|---|---|\n| **pod** | Matched a known pod IP — namespace, workload, and node are available |\n| **node** | Matched a K8s node IP — node name is available |\n| **external** | IP is outside all K8s CIDRs (internet or non-K8s LAN hosts) |\n| **internal-unknown** | IP is inside K8s CIDR but didn't match any known pod/node/service — usually means the enrichment CronJob hasn't caught up with new pods |"
           }
         },
         {
-          "title": "Source Type — Total Volume",
-          "description": "Traffic volume by source K8s type classification. pod=pod IP, node=node IP, service=ClusterIP, internal-unknown=unresolved K8s CIDR IP, external=outside K8s CIDRs.",
-          "type": "bargauge",
+          "title": "Source Type — by Total Volume",
+          "description": "How much traffic originates from each K8s entity type.",
+          "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
           "targets": [
@@ -52,11 +50,12 @@ data:
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
-                { "id": "1", "type": "sum", "field": "bytes" }
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
               ],
               "bucketAggs": [
                 {
-                  "id": "2",
+                  "id": "3",
                   "type": "terms",
                   "field": "src_k8s_type",
                   "settings": { "size": "10", "order": "desc", "orderBy": "1" }
@@ -65,27 +64,26 @@ data:
             }
           ],
           "fieldConfig": {
-            "defaults": {
-              "unit": "decbytes",
-              "thresholds": {
-                "steps": [
-                  { "color": "green", "value": null }
-                ]
-              }
-            },
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "internal-unknown" },
-                "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }]
+                "matcher": { "id": "byName", "options": "Total Volume" },
+                "properties": [{ "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Flow Count" },
+                "properties": [{ "id": "unit", "value": "short" }, { "id": "custom.width", "value": 120 }]
               }
             ]
           },
-          "options": { "orientation": "horizontal", "displayMode": "gradient", "showUnfilled": true }
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "src_k8s_type": "Source Type", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
         {
-          "title": "Destination Type — Total Volume",
-          "description": "Traffic volume by destination K8s type classification.",
-          "type": "bargauge",
+          "title": "Destination Type — by Total Volume",
+          "description": "How much traffic is destined for each K8s entity type.",
+          "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
           "targets": [
@@ -95,11 +93,12 @@ data:
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
-                { "id": "1", "type": "sum", "field": "bytes" }
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
               ],
               "bucketAggs": [
                 {
-                  "id": "2",
+                  "id": "3",
                   "type": "terms",
                   "field": "dst_k8s_type",
                   "settings": { "size": "10", "order": "desc", "orderBy": "1" }
@@ -108,26 +107,25 @@ data:
             }
           ],
           "fieldConfig": {
-            "defaults": {
-              "unit": "decbytes",
-              "thresholds": {
-                "steps": [
-                  { "color": "green", "value": null }
-                ]
-              }
-            },
             "overrides": [
               {
-                "matcher": { "id": "byName", "options": "internal-unknown" },
-                "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }]
+                "matcher": { "id": "byName", "options": "Total Volume" },
+                "properties": [{ "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Flow Count" },
+                "properties": [{ "id": "unit", "value": "short" }, { "id": "custom.width", "value": 120 }]
               }
             ]
           },
-          "options": { "orientation": "horizontal", "displayMode": "gradient", "showUnfilled": true }
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "dst_k8s_type": "Destination Type", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
         {
-          "title": "Internal-Unknown — Health Signal",
-          "description": "Current count and percentage of flows classified as internal-unknown. A high or rising value means the K8s IP enrichment CronJob may be lagging behind pod churn.",
+          "title": "⚠️ Internal-Unknown Flows",
+          "description": "Flows where the IP is inside K8s CIDR but didn't match any known pod/node/service.",
           "type": "stat",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 5, "w": 8, "x": 0, "y": 12 },
@@ -140,14 +138,7 @@ data:
               "metrics": [
                 { "id": "1", "type": "count" }
               ],
-              "bucketAggs": [
-                {
-                  "id": "2",
-                  "type": "date_histogram",
-                  "field": "@timestamp",
-                  "settings": { "interval": "1d", "min_doc_count": "0" }
-                }
-              ]
+              "bucketAggs": []
             }
           ],
           "fieldConfig": {
@@ -157,8 +148,9 @@ data:
               "thresholds": {
                 "steps": [
                   { "color": "green", "value": null },
-                  { "color": "yellow", "value": 1000 },
-                  { "color": "red", "value": 10000 }
+                  { "color": "yellow", "value": 10000 },
+                  { "color": "orange", "value": 100000 },
+                  { "color": "red", "value": 500000 }
                 ]
               }
             }
@@ -167,7 +159,7 @@ data:
         },
         {
           "title": "Internal-Unknown Volume",
-          "description": "Total byte volume of flows classified as internal-unknown (source or destination). Compare against total volume to gauge enrichment coverage.",
+          "description": "Total bytes for flows classified as internal-unknown. Compare with total flow volume to gauge enrichment gaps.",
           "type": "stat",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 5, "w": 8, "x": 8, "y": 12 },
@@ -199,7 +191,7 @@ data:
           "options": { "colorMode": "background", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
         },
         {
-          "title": "Total Flows (selected period)",
+          "title": "Total Flows",
           "type": "stat",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 5, "w": 8, "x": 16, "y": 12 },
@@ -224,10 +216,200 @@ data:
           "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
         },
         {
-          "title": "Top Source Nodes by Volume",
+          "title": "Top Source Namespaces by Volume",
+          "description": "K8s namespaces generating the most outbound traffic. Only pod-type flows have namespace enrichment.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 10, "w": 12, "x": 0, "y": 17 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "_exists_:src_k8s_namespace",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "3",
+                  "type": "terms",
+                  "field": "src_k8s_namespace",
+                  "settings": { "size": "20", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Total Volume" },
+                "properties": [{ "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Flow Count" },
+                "properties": [{ "id": "unit", "value": "short" }, { "id": "custom.width", "value": 120 }]
+              }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "src_k8s_namespace": "Namespace", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
+        },
+        {
+          "title": "Top Destination Namespaces by Volume",
+          "description": "K8s namespaces receiving the most inbound traffic. Only pod-type flows have namespace enrichment.",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 17 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "_exists_:dst_k8s_namespace",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "3",
+                  "type": "terms",
+                  "field": "dst_k8s_namespace",
+                  "settings": { "size": "20", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Total Volume" },
+                "properties": [{ "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Flow Count" },
+                "properties": [{ "id": "unit", "value": "short" }, { "id": "custom.width", "value": 120 }]
+              }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "dst_k8s_namespace": "Namespace", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
+        },
+        {
+          "title": "Top Source Workloads by Volume",
+          "description": "K8s workloads (deployment/statefulset names) generating the most traffic. Workload names are shorter and more stable than full pod names.",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 27 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "_exists_:src_k8s_workload",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "3",
+                  "type": "terms",
+                  "field": "src_k8s_workload",
+                  "settings": { "size": "15", "order": "desc", "orderBy": "1" }
+                },
+                {
+                  "id": "4",
+                  "type": "terms",
+                  "field": "src_k8s_namespace",
+                  "settings": { "size": "1", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Total Volume" },
+                "properties": [{ "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Flow Count" },
+                "properties": [{ "id": "unit", "value": "short" }, { "id": "custom.width", "value": 120 }]
+              }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": {
+              "renameByName": { "src_k8s_workload": "Workload", "src_k8s_namespace": "Namespace", "Sum bytes": "Total Volume", "Count": "Flow Count" },
+              "indexByName": { "Workload": 0, "Namespace": 1, "Total Volume": 2, "Flow Count": 3 }
+            } }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
+        },
+        {
+          "title": "Top Destination Workloads by Volume",
+          "description": "K8s workloads receiving the most traffic.",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 27 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "_exists_:dst_k8s_workload",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "3",
+                  "type": "terms",
+                  "field": "dst_k8s_workload",
+                  "settings": { "size": "15", "order": "desc", "orderBy": "1" }
+                },
+                {
+                  "id": "4",
+                  "type": "terms",
+                  "field": "dst_k8s_namespace",
+                  "settings": { "size": "1", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Total Volume" },
+                "properties": [{ "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Flow Count" },
+                "properties": [{ "id": "unit", "value": "short" }, { "id": "custom.width", "value": 120 }]
+              }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": {
+              "renameByName": { "dst_k8s_workload": "Workload", "dst_k8s_namespace": "Namespace", "Sum bytes": "Total Volume", "Count": "Flow Count" },
+              "indexByName": { "Workload": 0, "Namespace": 1, "Total Volume": 2, "Flow Count": 3 }
+            } }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
+        },
+        {
+          "title": "Top Source Nodes by Volume",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 37 },
           "targets": [
             {
               "refId": "A",
@@ -252,31 +434,16 @@ data:
             "overrides": [
               {
                 "matcher": { "id": "byName", "options": "Total Volume" },
-                "properties": [
-                  { "id": "unit", "value": "decbytes" },
-                  { "id": "custom.width", "value": 140 }
-                ]
+                "properties": [{ "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 }]
               },
               {
                 "matcher": { "id": "byName", "options": "Flow Count" },
-                "properties": [
-                  { "id": "unit", "value": "short" },
-                  { "id": "custom.width", "value": 120 }
-                ]
+                "properties": [{ "id": "unit", "value": "short" }, { "id": "custom.width", "value": 120 }]
               }
             ]
           },
           "transformations": [
-            {
-              "id": "organize",
-              "options": {
-                "renameByName": {
-                  "src_k8s_node": "Node",
-                  "Sum bytes": "Total Volume",
-                  "Count": "Flow Count"
-                }
-              }
-            }
+            { "id": "organize", "options": { "renameByName": { "src_k8s_node": "Node", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
@@ -284,7 +451,7 @@ data:
           "title": "Top Destination Nodes by Volume",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 17 },
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 37 },
           "targets": [
             {
               "refId": "A",
@@ -309,40 +476,25 @@ data:
             "overrides": [
               {
                 "matcher": { "id": "byName", "options": "Total Volume" },
-                "properties": [
-                  { "id": "unit", "value": "decbytes" },
-                  { "id": "custom.width", "value": 140 }
-                ]
+                "properties": [{ "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 }]
               },
               {
                 "matcher": { "id": "byName", "options": "Flow Count" },
-                "properties": [
-                  { "id": "unit", "value": "short" },
-                  { "id": "custom.width", "value": 120 }
-                ]
+                "properties": [{ "id": "unit", "value": "short" }, { "id": "custom.width", "value": 120 }]
               }
             ]
           },
           "transformations": [
-            {
-              "id": "organize",
-              "options": {
-                "renameByName": {
-                  "dst_k8s_node": "Node",
-                  "Sum bytes": "Total Volume",
-                  "Count": "Flow Count"
-                }
-              }
-            }
+            { "id": "organize", "options": { "renameByName": { "dst_k8s_node": "Node", "Sum bytes": "Total Volume", "Count": "Flow Count" } } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
         {
           "title": "Internal-Unknown Flow Count Over Time",
-          "description": "Trend of internal-unknown vs pod-type flow counts over time. A rising ratio of internal-unknown/pod indicates CronJob lag or high pod churn.",
+          "description": "Trend comparison: internal-unknown flows (orange) vs pod-type flows (green). A rising orange line means the enrichment CronJob is falling behind pod churn.",
           "type": "timeseries",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 27 },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 47 },
           "targets": [
             {
               "refId": "A",
@@ -389,26 +541,17 @@ data:
                 "matcher": { "id": "byRegexp", "options": ".*internal-unknown.*" },
                 "properties": [
                   { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } },
-                  { "id": "displayName", "value": "Internal-Unknown" }
+                  { "id": "displayName", "value": "internal-unknown" }
                 ]
               },
               {
                 "matcher": { "id": "byRegexp", "options": ".*pod.*" },
                 "properties": [
                   { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } },
-                  { "id": "displayName", "value": "Pod" }
+                  { "id": "displayName", "value": "pod" }
                 ]
               }
             ]
-          }
-        },
-        {
-          "title": "⚠️ Namespace & Pod Enrichment Not Yet Available",
-          "type": "text",
-          "gridPos": { "h": 3, "w": 24, "x": 0, "y": 35 },
-          "options": {
-            "mode": "markdown",
-            "content": "**Namespace, pod, and service-level panels** have been removed from this dashboard because the enrichment pipeline currently populates only `k8s_type` and `k8s_node`. Once `src_k8s_namespace`, `src_k8s_pod`, and `src_k8s_service` fields are populated in flow documents, namespace/pod/service panels will be re-added."
           }
         }
       ],
