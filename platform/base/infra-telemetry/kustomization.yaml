@@ -17,17 +17,23 @@ resources:
   - servicemonitors.yaml
   - grafana-dashboards-configmap.yaml
 
+# Charts are vendored locally in charts/ so Kustomize never pulls from remote.
+# This prevents ArgoCD repo-server cache failures caused by repeated helm pull
+# attempts on cached source paths where the chart tgz/directory already exists.
+# To upgrade: helm pull <chart> --version <new> --untar --untardir charts/tmp,
+# then replace charts/<name>/ with the new content, update version comment, commit.
+helmGlobals:
+  chartHome: charts
+
 helmCharts:
   - name: grafana
-    repo: https://grafana.github.io/helm-charts
-    version: "10.5.15"
+    version: "10.5.15"  # vendored at charts/grafana/
     releaseName: grafana
     namespace: network-observability
     valuesFile: grafana-values.yaml
 
   - name: prometheus-snmp-exporter
-    repo: https://prometheus-community.github.io/helm-charts
-    version: "9.13.1"
+    version: "9.13.1"  # vendored at charts/prometheus-snmp-exporter/
     releaseName: snmp-exporter
     namespace: network-observability
     valuesFile: snmp-exporter-values.yaml
