@@ -44,3 +44,27 @@ spec:
       namespace: network-observability
       jqPathExpressions:
         - '.data'
+    # Ignore Kubernetes-defaulted fields on the OpenSearch StatefulSet that are
+    # not emitted by the Helm chart but are added by the API server at creation
+    # time. These are all safe generated/defaulted values:
+    #   persistentVolumeClaimRetentionPolicy — K8s 1.27+ server default (Retain)
+    #   revisionHistoryLimit                 — K8s default (10)
+    #   volumeClaimTemplates[].apiVersion    — K8s adds "v1" at creation
+    #   volumeClaimTemplates[].kind          — K8s adds "PersistentVolumeClaim"
+    #   volumeClaimTemplates[].metadata.creationTimestamp — K8s generated (null)
+    #   volumeClaimTemplates[].spec.volumeMode            — K8s default "Filesystem"
+    #   volumeClaimTemplates[].status                     — K8s status subresource
+    # None of these affect image, resources, storage size, storageClassName,
+    # labels, configchecksum, env, or container args.
+    - group: apps
+      kind: StatefulSet
+      name: opensearch-cluster-master
+      namespace: network-observability
+      jqPathExpressions:
+        - '.spec.persistentVolumeClaimRetentionPolicy'
+        - '.spec.revisionHistoryLimit'
+        - '.spec.volumeClaimTemplates[].apiVersion'
+        - '.spec.volumeClaimTemplates[].kind'
+        - '.spec.volumeClaimTemplates[].metadata.creationTimestamp'
+        - '.spec.volumeClaimTemplates[].spec.volumeMode'
+        - '.spec.volumeClaimTemplates[].status'
