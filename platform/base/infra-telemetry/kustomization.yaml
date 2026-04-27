@@ -16,6 +16,7 @@ resources:
   - proxmox-exporter-deployment.yaml
   - servicemonitors.yaml
   - grafana-dashboards-configmap.yaml
+  - grafana-home-dashboard.yaml
 
 # Charts are vendored locally in charts/ so Kustomize never pulls from remote.
 # This prevents ArgoCD repo-server cache failures caused by repeated helm pull

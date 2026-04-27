@@ -1,0 +1,133 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-home-dashboard
+  namespace: network-observability
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/component: infra-telemetry
+data:
+  network-observability-home.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "",
+          "type": "text",
+          "gridPos": { "h": 5, "w": 24, "x": 0, "y": 0 },
+          "options": {
+            "mode": "markdown",
+            "content": "# 🌐 Network Observability\n\nSingle pane of glass for homelab network traffic, Kubernetes workloads, and infrastructure health.\n\nPick a question below to jump to the right dashboard."
+          }
+        },
+        {
+          "title": "📊 What is using bandwidth?",
+          "type": "text",
+          "gridPos": { "h": 6, "w": 8, "x": 0, "y": 5 },
+          "options": {
+            "mode": "markdown",
+            "content": "### [Top Talkers](/d/flow-top-talkers)\nTop source and destination IPs ranked by total volume. Find the bandwidth hogs.\n\n### [Destination Analysis](/d/flow-destinations)\nWhere is traffic going? Top destination IPs, ports, and inbound sources."
+          }
+        },
+        {
+          "title": "🔀 What apps and protocols are active?",
+          "type": "text",
+          "gridPos": { "h": 6, "w": 8, "x": 8, "y": 5 },
+          "options": {
+            "mode": "markdown",
+            "content": "### [Traffic Mix](/d/flow-traffic-mix)\nPort-by-port breakdown with app labels (NFS, SSH, DNS, Kubernetes, etc.), protocol distribution, and flow counts.\n\nUnlabeled high-volume ports are surfaced for investigation."
+          }
+        },
+        {
+          "title": "☸️ What K8s workloads are talking?",
+          "type": "text",
+          "gridPos": { "h": 6, "w": 8, "x": 16, "y": 5 },
+          "options": {
+            "mode": "markdown",
+            "content": "### [K8s Context](/d/flow-k8s-context)\nNamespace, workload, and node-level traffic. Internal-unknown health signal tracks enrichment coverage.\n\nFlows classified as pod / node / external / internal-unknown."
+          }
+        },
+        {
+          "title": "🖥️ Is infrastructure healthy?",
+          "type": "text",
+          "gridPos": { "h": 6, "w": 8, "x": 0, "y": 11 },
+          "options": {
+            "mode": "markdown",
+            "content": "### [Proxmox VMs](/d/infra-proxmox-net)\nPer-VM network bandwidth (receive/transmit) across all Proxmox nodes.\n\n9 VMs monitored via PVE exporter."
+          }
+        },
+        {
+          "title": "🔌 What switch/AP path is busy?",
+          "type": "text",
+          "gridPos": { "h": 6, "w": 8, "x": 8, "y": 11 },
+          "options": {
+            "mode": "markdown",
+            "content": "### [Switch Interfaces](/d/infra-iface-util)\nMikroTik core switch — per-interface inbound/outbound bandwidth via SNMP.\n\n### [UniFi Wireless](/d/infra-unifi-clients)\nPer-client WiFi bandwidth, connected client count, and AP status."
+          }
+        },
+        {
+          "title": "📈 Quick Health",
+          "description": "Lightweight checks — no heavy queries.",
+          "type": "stat",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 6, "w": 8, "x": 16, "y": 11 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "count" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "2",
+                  "type": "date_histogram",
+                  "field": "@timestamp",
+                  "settings": { "interval": "1h", "min_doc_count": "0" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "displayName": "Flows (last hour)",
+              "thresholds": {
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 1000 },
+                  { "color": "green", "value": 10000 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "background",
+            "graphMode": "area",
+            "reduceOptions": { "calcs": ["lastNotNull"] }
+          }
+        },
+        {
+          "title": "⚙️ Platform Status & Known Limitations",
+          "type": "text",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 17 },
+          "options": {
+            "mode": "markdown",
+            "content": "| Item | Status |\n|---|---|\n| Flow collection (NetFlow v9 → Vector → OpenSearch) | ✅ Running — ~4M flows/day |\n| K8s enrichment (pod/namespace/workload/node) | ✅ Running via CronJob |\n| Prometheus infra metrics (SNMP, PVE, UnPoller) | ✅ Connected |\n| **GeoIP / ASN enrichment** | ⏳ Not configured — requires MaxMind license key |\n| **Hubble / Cilium flow visibility** | ⏳ Deferred — CNI is Flannel, not Cilium |\n| **Switch utilization % gauge** | ⚠️ Minor — ifSpeed=0 on some interfaces, fix pending |\n| **Legacy Prometheus datasource** | 🧹 Cleanup pending — duplicate `PBFA97CFB590B2093` to remove |\n| **High-volume unlabeled ports** | 📋 Backlog — ports 6801, 6802, 786 etc. need Vector port-map entries |"
+          }
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["network", "home", "overview"],
+      "templating": { "list": [] },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "Network Observability — Home",
+      "uid": "net-obs-home"
+    }
