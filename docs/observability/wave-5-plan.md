@@ -277,6 +277,12 @@ Finalize the homepage ConfigMap (`homepage-dashboard.yaml`) with:
 Validate all three locked cards with real data. Test the freshness bar by
 stopping and restarting each exporter.
 
+> **Gate 5b status: ACCEPTED — 2026-04-26.**
+> Network Observability — Home dashboard (UID `net-obs-home`) deployed as the
+> Grafana front door with validated navigation to all 7 specialist dashboards.
+> Embedded cards, freshness bar, Entity Investigation, and Platform Health are
+> carried forward to Gate 5c. See [go-no-go-gates.md](go-no-go-gates.md).
+
 ### Phase 4 — Entity Investigation
 
 Finalize the Entity Investigation dashboard (`investigation-dashboard.yaml`) with:

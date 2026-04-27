@@ -27,6 +27,34 @@ services that set both `spec.loadBalancerIP` and the annotation simultaneously.
 
 ---
 
+## 2026-04-26 — Wave 5b: Home Dashboard as Grafana Front Door
+
+The `Network Observability — Home` dashboard is the primary entry point for the
+`network-observability` Grafana instance.
+
+**Dashboard:**
+
+- Title: `Network Observability — Home`
+- UID: `net-obs-home`
+- URL: `http://netgrafana.vgriz.com/d/net-obs-home`
+
+**Navigation links (all validated at Gate 5b):**
+
+- Flow — Traffic Mix
+- Flow — K8s Context
+- Flow — Top Talkers
+- Flow — Destination Analysis
+- Proxmox Node & VM Network
+- Switch Interface Utilization
+- UniFi AP & WLAN Clients
+
+**CNI:** Calico (not Cilium — corrected in hotfix `e63b082`).
+
+**K8s enrichment status displayed:** lookup tables populated; CronJob suspended;
+refreshes on demand.
+
+---
+
 ## 2026-04-26 — Gate 5a Operational Fixes
 
 The following issues were discovered and fixed during Gate 5a validation.

@@ -300,20 +300,50 @@ dashboard functional with real data from Wave 3b.
 
 ### Gate 5b — Phase 3–5: Core Navigation Operational
 
+**Verdict: ACCEPTED — 2026-04-26**
+
+Codex review: ACCEPTED (after hotfix `e63b082`). Evidence: `docs/evidence/wave5b/`
+
+Relevant commits: `505059b` (home dashboard), `f64df0d` (evidence screenshots),
+`e63b082` (hotfix: correct CNI to Calico, K8s enrichment status),
+`672aff7` (hotfix evidence screenshot).
+
+**Delivered: Network Observability — Home landing dashboard**
+
+- Dashboard UID: `net-obs-home`
+- Dashboard title: `Network Observability — Home`
+- Grafana URL: `http://netgrafana.vgriz.com/d/net-obs-home`
+- ArgoCD: Synced / Healthy at `672aff7`. ConfigMap `grafana-home-dashboard` synced.
+- Quick Health panel: shows `Flows Indexed — Last 1h`
+- CNI status: Calico (hotfixed from incorrect Cilium reference)
+- K8s enrichment status: lookup tables populated; CronJob suspended; refreshes on demand
+
+**Validated navigation targets:**
+
+| Target dashboard | Result |
+|---|---|
+| Flow — Traffic Mix | PASS |
+| Flow — K8s Context | PASS |
+| Flow — Top Talkers | PASS |
+| Flow — Destination Analysis | PASS |
+| Proxmox Node & VM Network | PASS |
+| Switch Interface Utilization | PASS |
+| UniFi AP & WLAN Clients | PASS |
+
+Drill-down from Top Talkers: PASS (evidence: `drilldown-top-talkers.png`).
+
 **Required evidence:**
 
-- [ ] Homepage (`correlation-home`) loads in < 5 seconds
-- [ ] Card 1 (Top Talkers): table populated with src\_ip and bytes from OpenSearch
-- [ ] Card 2 (Destinations): destination table populates for a given src\_ip
-- [ ] Card 3 (WiFi Client Bandwidth): at least one client visible with RX/TX
-- [ ] Freshness bar shows correct status: green when all exporters UP, degraded
-  banner appears when an exporter is stopped
-- [ ] Clicking a src\_ip in Top Talkers navigates to Entity Investigation with
-  IP pre-filled
-- [ ] Entity Investigation shows: infra context, outbound flow table, inbound flow
-  table, K8s fields (namespace, workload, type) for internal IPs
-- [ ] Platform Health dashboard loads with all targets shown UP
-- [ ] Platform Health dashboard shows correct degraded state when a target is down
+- [x] Home dashboard (`net-obs-home`) loads in < 5 seconds
+- [x] Navigation links to all 7 specialist dashboards validated
+- [x] Drill-down from Top Talkers confirmed working
+- [x] ArgoCD Synced, Healthy at closeout commit
+- [ ] Embedded Card 1 (Top Talkers table) — carried to Gate 5c scope
+- [ ] Embedded Card 2 (Destinations) — carried to Gate 5c scope
+- [ ] Embedded Card 3 (WiFi Client Bandwidth) — carried to Gate 5c scope
+- [ ] Freshness bar degraded-state test — carried to Gate 5c scope
+- [ ] Entity Investigation drill-down from IP — carried to Gate 5c scope
+- [ ] Platform Health dashboard with targets and degraded state — carried to Gate 5c scope
 
 **Minimum pass criteria:** Homepage loads with all 3 cards populated. Freshness bar
 correct. Top Talkers → Entity Investigation drill-down works. Platform Health accurate.

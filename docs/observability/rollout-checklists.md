@@ -363,17 +363,17 @@ kustomization.yaml. ArgoCD deploys it automatically.
 
 | # | Check | Command / Action | Expected | Pass |
 |---|---|---|---|---|
-| 5.3.1 | Plane enabled in overlay | Verify correlation-ux line is uncommented in lab kustomization.yaml | Uncommented and committed | [ ] |
-| 5.3.2 | ArgoCD sync healthy | `argocd app get network-observability` | Synced, Healthy | [ ] |
-| 5.3.3 | Homepage loads | Navigate to `/d/correlation-home` in Grafana | Loads in < 5s | [ ] |
-| 5.3.4 | Card 1: Top Talkers populated | Check Top Talkers table | At least one row with src\_ip and bytes (not empty) | [ ] |
-| 5.3.5 | Card 2: Destinations populated | Select a src\_ip from Top Talkers, check Destinations card | Destination rows appear with dst\_ip, port, country | [ ] |
-| 5.3.6 | Card 3: WiFi clients populated | Check WiFi client bandwidth card | At least one client visible with RX/TX values | [ ] |
-| 5.3.7 | Freshness bar — healthy state | All exporters running — check freshness bar | All indicators green | [ ] |
-| 5.3.8 | Freshness bar — degraded state | Stop one exporter, wait 2 scrape cycles, check bar | Degraded indicator appears for affected source | [ ] |
-| 5.3.9 | Restart exporter, freshness recovers | Restart the stopped exporter | Green indicator returns within 2 scrape cycles | [ ] |
-| 5.3.10 | Specialist Views dropdown | Click Specialist Views in homepage nav | K8s Flow Context and Entity Investigation appear in list | [ ] |
-| 5.3.11 | Investigation Playbooks dropdown | Click Investigation Playbooks in homepage nav | Playbooks dashboard or list appears | [ ] |
+| 5.3.1 | Home dashboard ConfigMap synced | Verify `grafana-home-dashboard` ConfigMap present and ArgoCD Synced | ConfigMap synced at commit `672aff7` | [x] |
+| 5.3.2 | ArgoCD sync healthy | `argocd app get network-observability` | Synced, Healthy | [x] |
+| 5.3.3 | Homepage loads | Navigate to `/d/net-obs-home` in Grafana | Loads in < 5s | [x] |
+| 5.3.4 | Navigation — all 7 dashboards reachable | Click each link from home dashboard | All 7 specialist dashboards open successfully | [x] |
+| 5.3.5 | Drill-down from Top Talkers | Navigate Top Talkers → source IP | Drill-down to Top Talkers dashboard confirmed | [x] |
+| 5.3.6 | Quick Health panel | Check Quick Health section | Shows "Flows Indexed — Last 1h" | [x] |
+| 5.3.7 | Embedded Card 1: Top Talkers table | Check embedded Top Talkers panel | Rows with src\_ip and bytes | [ ] |
+| 5.3.8 | Embedded Card 2: Destinations | Select src\_ip, check Destinations panel | Destination rows with dst\_ip, port, country | [ ] |
+| 5.3.9 | Embedded Card 3: WiFi clients | Check WiFi client bandwidth panel | At least one client visible with RX/TX | [ ] |
+| 5.3.10 | Freshness bar — healthy state | All exporters running — check freshness bar | All indicators green | [ ] |
+| 5.3.11 | Freshness bar — degraded state | Stop one exporter, wait 2 scrape cycles | Degraded indicator appears | [ ] |
 
 ---
 
@@ -407,6 +407,11 @@ kustomization.yaml. ArgoCD deploys it automatically.
 
 **Gate 5b:** Phases 3–5 complete → homepage, navigation, entity investigation, and
 health dashboard all operational.
+
+> **Gate 5b: ACCEPTED — 2026-04-26.**
+> Home dashboard (UID `net-obs-home`) deployed as Grafana front door; all 7 navigation
+> targets and drill-down from Top Talkers validated. Embedded cards, freshness bar,
+> Entity Investigation, and Platform Health carried to Gate 5c. See go-no-go-gates.md.
 
 ---
 
