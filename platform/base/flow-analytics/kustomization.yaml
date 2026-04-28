@@ -30,6 +30,7 @@ resources:
   - k8s-ip-exporter-rbac.yaml
   - k8s-ip-exporter-script.yaml
   - k8s-ip-exporter-cronjob.yaml
+  - k8s-ip-exporter-postsync.yaml
 
 # Chart vendored locally — no remote pull during kustomize build.
 helmGlobals:

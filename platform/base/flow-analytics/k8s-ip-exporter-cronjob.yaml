@@ -1,24 +1,9 @@
 # K8s IP Exporter CronJob (Wave 3b).
 #
-# STARTS SUSPENDED — spec.suspend: true by default.
-# The CronJob will not fire automatically after first apply.
-# This prevents unvalidated enrichment activity during initial soak.
-#
-# First-run procedure (after Gate 3 passes and scratch-index validation
-# completes per checklist item 3b.7):
-#
-#   # Trigger one manual run and watch it:
-#   kubectl create job --from=cronjob/k8s-ip-exporter k8s-ip-exporter-init-1 \
+# Runs every 30 minutes. Unsuspended at Wave 5c soak start (Gate 5b accepted).
+# For on-demand refresh:
+#   kubectl create job --from=cronjob/k8s-ip-exporter manual-refresh-$(date +%s) \
 #     -n network-observability
-#   kubectl logs -n network-observability job/k8s-ip-exporter-init-1 -f
-#
-#   # Verify enriched fields appear in flow documents (checklist 3b.11-3b.13),
-#   # then unsuspend for normal recurring operation:
-#   kubectl patch cronjob k8s-ip-exporter -n network-observability \
-#     -p '{"spec":{"suspend":false}}'
-#
-# Cadence: every 30 minutes — conservative for soak period.
-# After Gate 3b passes, reduce to */5 or */2 for a tighter staleness ceiling.
 #
 # Each run:
 #   1. Queries K8s API for pods (hostNetwork excluded), services, nodes
@@ -37,7 +22,7 @@ metadata:
     app.kubernetes.io/component: flow-analytics
 spec:
   schedule: "*/30 * * * *"
-  suspend: true
+  suspend: false
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3

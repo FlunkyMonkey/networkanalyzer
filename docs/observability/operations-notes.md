@@ -2,6 +2,103 @@
 
 Runtime decisions and operational context that affect how the platform is understood but are not architecture changes.
 
+## 2026-04-27 — Wave 5c Pre-Soak: K8s Enrichment Runbook
+
+k8s-ip-exporter CronJob is now running on a 30-minute schedule (`suspend: false` committed at Wave 5c soak start). ArgoCD is configured to leave runtime-written ConfigMap data intact — `ignoreDifferences` on `.data` plus `RespectIgnoreDifferences=true` prevents header-only placeholder data from being re-applied on sync. This was confirmed working: ConfigMap data survived the 2026-04-27 sync at 05:04:45Z.
+
+### How the ConfigMap data is protected from ArgoCD sync resets
+
+**Background:** ArgoCD v3.3.6 with `ServerSideApply=true` does not honour
+`RespectIgnoreDifferences=true` for ConfigMap `.data` — it applies the header-only
+placeholder from git on every sync, wiping runtime data.
+
+**Fix:** A PostSync hook Job (`k8s-ip-exporter-postsync`) runs immediately after
+every ArgoCD sync. It calls the same exporter script as the CronJob and
+repopulates the ConfigMap with live cluster data, then restarts `flow-collector`
+if the data changed. The whole cycle takes ~30 seconds.
+
+The `ignoreDifferences` entry for `.data` still works for **comparison** (ArgoCD sees
+the ConfigMap as Synced after the hook writes live data, so `selfHeal` does not
+trigger a second sync). The protection chain: sync resets data → PostSync hook
+repopulates → ArgoCD sees Synced → stable.
+
+```bash
+# Confirm the PostSync hook Job completed successfully after last sync
+kubectl get job k8s-ip-exporter-postsync -n network-observability
+kubectl logs -n network-observability job/k8s-ip-exporter-postsync --tail=5
+```
+
+### Check lookup table row counts
+
+```bash
+# pods.csv: expect > 1 line (header + data rows)
+kubectl get configmap k8s-lookup-tables -n network-observability \
+  -o jsonpath='{.data.pods\.csv}' | wc -l
+
+# services.csv
+kubectl get configmap k8s-lookup-tables -n network-observability \
+  -o jsonpath='{.data.services\.csv}' | wc -l
+
+# nodes.csv
+kubectl get configmap k8s-lookup-tables -n network-observability \
+  -o jsonpath='{.data.nodes\.csv}' | wc -l
+```
+
+Healthy baseline: ~80 pods, ~38 services, ~5 nodes in this homelab cluster.
+
+### Trigger an on-demand refresh
+
+```bash
+kubectl create job --from=cronjob/k8s-ip-exporter \
+  manual-refresh-$(date +%s) -n network-observability
+
+# Watch job logs (wait ~10s for pod to start)
+kubectl logs -n network-observability \
+  -l app.kubernetes.io/name=k8s-ip-exporter --since=2m -f
+```
+
+The job exits 0 with "Done." on success. If cluster state is unchanged it exits 0
+with "Done (no-op)." — no restart is triggered.
+
+### Verify fresh K8s enrichment fields in OpenSearch
+
+```bash
+# Port-forward (if not already running)
+kubectl port-forward -n network-observability \
+  svc/opensearch-cluster-master 9200:9200 &
+
+# Flows from last 1h with src_k8s_namespace enrichment
+curl -s 'localhost:9200/flows-*/_count?q=_exists_:src_k8s_namespace'
+
+# Flows with node and workload fields
+curl -s 'localhost:9200/flows-*/_count?q=_exists_:src_k8s_node'
+```
+
+A non-zero count on `src_k8s_namespace` confirms enriched flows are being indexed.
+If the count is zero, run an on-demand refresh and restart flow-collector.
+
+### Clean stale non-running flow-collector pods
+
+Completed/Error pods from rolling restarts accumulate over time. These are
+harmless but add noise to `kubectl get pods` output.
+
+```bash
+# List all flow-collector pods
+kubectl get pods -n network-observability -l app.kubernetes.io/name=flow-collector
+
+# Delete only non-Running pods
+kubectl get pods -n network-observability \
+  -l app.kubernetes.io/name=flow-collector \
+  --field-selector='status.phase!=Running' -o name \
+  | xargs --no-run-if-empty kubectl delete -n network-observability
+```
+
+**Do NOT delete the active 2/2 Running flow-collector pod** unless intentionally
+restarting it. Deleting the Running pod restarts it and causes a ~30-second gap
+in flow collection. Use `kubectl rollout restart` instead if a restart is needed.
+
+---
+
 ## 2026-04-25 — Wave 5: Network Observability Grafana Access
 
 The `network-observability` Grafana is exposed via MetalLB at a dedicated static IP.
