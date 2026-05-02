@@ -2,6 +2,33 @@
 
 Runtime decisions and operational context that affect how the platform is understood but are not architecture changes.
 
+## 2026-05-02 — Post-Wave 5 Phase 2: flow-enrichment-tables deployed
+
+New GitOps-owned `flow-enrichment-tables` ConfigMap adds app-port registry and
+hostname map enrichment to the flow pipeline. Unlike `k8s-lookup-tables` (which is
+runtime-patched by the CronJob), this ConfigMap is static / ArgoCD-managed.
+
+**New fields in flow documents:** `dst_app_label`, `dst_app_category`,
+`dst_app_source`, `src_hostname`, `dst_hostname`, `src_display_name`,
+`dst_display_name`.
+
+**Update procedure:**
+
+1. Edit `config/enrichment/app-port-registry.csv` or `config/enrichment/hostname-map.csv`.
+2. Copy the changed file content into the matching key in
+   `platform/base/flow-analytics/flow-enrichment-tables.yaml`.
+3. Commit + push → ArgoCD syncs the ConfigMap.
+4. Restart flow-collector to reload Vector's enrichment tables:
+
+```bash
+kubectl rollout restart deployment/flow-collector -n network-observability
+kubectl rollout status deployment/flow-collector -n network-observability
+```
+
+Vector does not live-reload enrichment tables (same limitation as `k8s-lookup-tables`).
+
+---
+
 ## 2026-05-02 — Wave 5 Closed: Platform Go-Live
 
 Wave 5 (Unified Operator UX) is accepted. The network observability platform is

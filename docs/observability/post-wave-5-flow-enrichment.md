@@ -1,8 +1,8 @@
 # Post-Wave 5 Flow Enrichment Plan
 
-## Status: Phase 1 — Design and Audit Complete
+## Status: Phase 2 — Registry and Lookup Table Plumbing Complete
 
-Phase 1 audit completed 2026-05-02. Design is ready for Phase 2 implementation.
+Phase 1 audit completed 2026-05-02. Phase 2 wiring deployed 2026-05-02.
 
 ---
 
@@ -196,30 +196,36 @@ over a lookup-table result for flows classified as `k8s_type: node`.
 
 ## Implementation Sequence
 
-### Phase 2 — Registry and Lookup Table Plumbing
+### Phase 2 — Registry and Lookup Table Plumbing — COMPLETE (2026-05-02)
 
-**Scope:** Wire both CSV files into Vector and add the `src_hostname` / `dst_hostname`
-enrichment fields. No dashboard changes yet.
+**Decision:** New `flow-enrichment-tables` ConfigMap (separate from `k8s-lookup-tables`).
+Reason: `k8s-lookup-tables` is runtime-patched by the CronJob/PostSync. Enrichment tables
+are GitOps-owned operator-curated data with a different lifecycle.
 
-1. Promote `app-port-registry.csv.sample` → `app-port-registry.csv` (finalize
-   port entries).
-2. Promote `hostname-map.csv.sample` → `hostname-map.csv` (finalize host entries).
-3. Add both files to the `k8s-lookup-tables` ConfigMap (or a new
-   `flow-enrichment-tables` ConfigMap) so Vector can mount them.
-4. Add two new `enrichment_tables` entries to `vector-config.yaml`.
-5. Extend `enrich_meta` VRL transform to:
-   - Look up `dst_port` in `app_ports` table and set `.app` (replaces the
-     current hardcoded `port_apps` object in VRL).
-   - Look up `src_ip` and `dst_ip` in `hostname_map` table and set
-     `src_hostname` / `dst_hostname`.
-   - Apply `unknown-{ip}` fallback for RFC1918 addresses with no match.
-6. Validate: deploy to cluster, confirm new fields appear in flow documents.
+**What was implemented:**
 
-**Decision required before Phase 2:** Should the port registry and hostname map be
-in the same `k8s-lookup-tables` ConfigMap (one ConfigMap, multiple CSV keys) or a
-new separate `flow-enrichment-tables` ConfigMap? Recommendation: separate ConfigMap
-so it has independent `ignoreDifferences` control and doesn't couple with the
-CronJob-managed k8s tables.
+1. Promoted `app-port-registry.csv.sample` → `config/enrichment/app-port-registry.csv`
+   (53 entries; duplicate 2049/TCP entry removed; comment lines stripped).
+2. Promoted `hostname-map.csv.sample` → `config/enrichment/hostname-map.csv`
+   (36 entries; comment lines stripped).
+3. Created `platform/base/flow-analytics/flow-enrichment-tables.yaml` — new GitOps-owned
+   ConfigMap embedding both CSV files.
+4. Added `app_ports` and `hostname_map` enrichment table definitions to `vector-config.yaml`.
+5. Added new `enrich_flow` VRL transform (after `enrich_k8s`) that sets:
+   - `dst_app_label` / `dst_app_category` / `dst_app_source` from port registry
+   - `src_hostname` / `dst_hostname` from hostname map
+   - `src_display_name` / `dst_display_name` (formatted or RFC1918 fallback)
+6. Added `enrichment-tables` volume and `/etc/vector/flow-enrichment` mount to
+   flow-collector Deployment.
+7. Updated sink input from `enrich_k8s` → `enrich_flow`.
+
+**Field source priority for `dst_app_label`:**
+
+- `existing` — set from hardcoded VRL `port_apps` map (pre-existing ports)
+- `registry` — set from `app_ports` enrichment table (new ports: Ceph, NFS-mountd, etcd)
+- `unlabeled` — no match in either
+
+**Validated:** `kustomize build --enable-helm platform/overlays/lab` passes twice (52 resources).
 
 ### Phase 3 — Vector Enrichment Fields
 

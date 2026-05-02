@@ -56,6 +56,36 @@ data:
           node: string
           _timestamp: integer
 
+      # Post-Wave 5 enrichment tables (flow-enrichment-tables ConfigMap).
+      # GitOps-owned / operator-curated. Pod restart required to reload.
+      app_ports:
+        type: file
+        file:
+          path: /etc/vector/flow-enrichment/app-port-registry.csv
+          encoding:
+            type: csv
+        schema:
+          port: integer
+          protocol: string
+          app: string
+          category: string
+          direction: string
+          scope: string
+          notes: string
+
+      hostname_map:
+        type: file
+        file:
+          path: /etc/vector/flow-enrichment/hostname-map.csv
+          encoding:
+            type: csv
+        schema:
+          ip: string
+          hostname: string
+          short_name: string
+          device_type: string
+          notes: string
+
     sources:
       goflow2_file:
         type: file
@@ -236,11 +266,81 @@ data:
             }
           }
 
+      enrich_flow:
+        type: remap
+        inputs:
+          - enrich_k8s
+        source: |
+          # --- App label enrichment from port registry ---
+          # Priority: existing .app (hardcoded map) > registry match > unlabeled.
+          # dst_app_label / dst_app_category / dst_app_source are always set.
+          port_int = to_int(.dst_port) ?? 0
+          proto    = to_string(.protocol_name) ?? ""
+          r, e = get_enrichment_table_record("app_ports", {"port": port_int, "protocol": proto})
+          if .app != null {
+            .dst_app_label  = .app
+            .dst_app_source = "existing"
+            if e == null { .dst_app_category = r.category }
+          } else if e == null {
+            .dst_app_label    = r.app
+            .dst_app_category = r.category
+            .dst_app_source   = "registry"
+          } else {
+            .dst_app_source = "unlabeled"
+          }
+
+          # --- Hostname / display-name enrichment ---
+          # Known host: "short_name (ip)"
+          # Unknown RFC1918:  "unknown-<ip>"
+          # Public IP: raw IP (GeoIP in Wave 7)
+
+          src_str = to_string(.src_ip) ?? ""
+          if src_str != "" {
+            r, e = get_enrichment_table_record("hostname_map", {"ip": src_str})
+            if e == null {
+              .src_hostname     = r.hostname
+              .src_display_name = r.short_name + " (" + src_str + ")"
+            } else {
+              src_c1, err = ip_cidr_contains("10.0.0.0/8", src_str)
+              if err != null { src_c1 = false }
+              src_c2, err = ip_cidr_contains("172.16.0.0/12", src_str)
+              if err != null { src_c2 = false }
+              src_c3, err = ip_cidr_contains("192.168.0.0/16", src_str)
+              if err != null { src_c3 = false }
+              if src_c1 || src_c2 || src_c3 {
+                .src_display_name = "unknown-" + src_str
+              } else {
+                .src_display_name = src_str
+              }
+            }
+          }
+
+          dst_str = to_string(.dst_ip) ?? ""
+          if dst_str != "" {
+            r, e = get_enrichment_table_record("hostname_map", {"ip": dst_str})
+            if e == null {
+              .dst_hostname     = r.hostname
+              .dst_display_name = r.short_name + " (" + dst_str + ")"
+            } else {
+              dst_c1, err = ip_cidr_contains("10.0.0.0/8", dst_str)
+              if err != null { dst_c1 = false }
+              dst_c2, err = ip_cidr_contains("172.16.0.0/12", dst_str)
+              if err != null { dst_c2 = false }
+              dst_c3, err = ip_cidr_contains("192.168.0.0/16", dst_str)
+              if err != null { dst_c3 = false }
+              if dst_c1 || dst_c2 || dst_c3 {
+                .dst_display_name = "unknown-" + dst_str
+              } else {
+                .dst_display_name = dst_str
+              }
+            }
+          }
+
     sinks:
       opensearch:
         type: elasticsearch
         inputs:
-          - enrich_k8s
+          - enrich_flow
         endpoints:
           - "http://opensearch-cluster-master:9200"
         # api_version v8 suppresses the _type field that OpenSearch 2+ rejects.

@@ -32,6 +32,9 @@ spec:
         - name: k8s-tables
           configMap:
             name: k8s-lookup-tables
+        - name: enrichment-tables
+          configMap:
+            name: flow-enrichment-tables
       initContainers:
         # Download GeoIP databases if a MaxMind license key is provided.
         # If no key is set, Vector skips GeoIP enrichment gracefully.
@@ -112,6 +115,9 @@ spec:
               readOnly: true
             - name: k8s-tables
               mountPath: /etc/vector/k8s-tables
+              readOnly: true
+            - name: enrichment-tables
+              mountPath: /etc/vector/flow-enrichment
               readOnly: true
           ports:
             - name: vector-api

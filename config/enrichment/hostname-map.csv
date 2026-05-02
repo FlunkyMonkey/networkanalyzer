@@ -1,0 +1,37 @@
+ip,hostname,short_name,device_type,notes
+172.18.1.1,firewalla.vgriz.com,firewalla,gateway,Firewalla Gold SE edge gateway
+172.18.1.3,sunwap.vgriz.com,sunwap,ap,UniFi U6-Lite (Sunroom)
+172.18.1.4,denwap.vgriz.com,denwap,ap,UniFi U6-Mesh-Pro (Den)
+172.18.1.5,basementwap.vgriz.com,basementwap,ap,UniFi U7-Lite (Basement)
+172.18.1.6,rancherwap.vgriz.com,rancherwap,ap,UniFi U6-Lite (Rancher)
+172.18.1.7,unifi-switch.vgriz.com,unifi-sw,switch,Unifi US24P250 switch
+172.18.1.10,prox1.vgriz.com,prox1,proxmox,Proxmox node 1 (Supermicro)
+172.18.1.13,mikrotik.vgriz.com,mikrotik,switch,MikroTik CRS328-24P-4S+ core switch
+172.18.1.15,unifi.vgriz.com,unifi,vm,UniFi Controller VM (runs on prox3)
+172.18.1.20,prox2.vgriz.com,prox2,proxmox,Proxmox node 2 (Lenovo TS140)
+172.18.1.30,prox3.vgriz.com,prox3,proxmox,Proxmox node 3 (Lenovo TS140)
+172.18.1.40,prox4.vgriz.com,prox4,proxmox,Proxmox node 4 (Supermicro)
+172.18.1.50,prox5.vgriz.com,prox5,proxmox,Proxmox node 5 (HP MicroServer)
+172.18.1.60,kube-vip.vgriz.com,kube-vip,k8s-vip,Kubernetes API VIP
+172.18.1.61,kube1.vgriz.com,kube1,kube-node,Kubernetes node 1
+172.18.1.62,kube2.vgriz.com,kube2,kube-node,Kubernetes node 2
+172.18.1.63,kube3.vgriz.com,kube3,kube-node,Kubernetes node 3
+172.18.1.64,kube4.vgriz.com,kube4,kube-node,Kubernetes node 4
+172.18.1.96,truenas01.vgriz.com,truenas01,truenas,TrueNAS01 (SSD pool)
+172.18.1.97,truenas02.vgriz.com,truenas02,truenas,TrueNAS02 (HDD pool)
+172.18.1.200,flow-collector.vgriz.com,flow-collector,k8s-service,GoFlow2 + Vector NetFlow collector
+172.18.1.201,grafana.vgriz.com,grafana,k8s-service,Grafana dashboards (monitoring namespace)
+172.18.1.202,alertmanager.vgriz.com,alertmanager,k8s-service,Prometheus Alertmanager
+172.18.1.203,argocd.vgriz.com,argocd,k8s-service,ArgoCD GitOps
+172.18.1.204,prometheus.vgriz.com,prometheus,k8s-service,Prometheus metrics
+172.18.1.205,minio.vgriz.com,minio,k8s-service,MinIO S3-compatible object storage
+172.18.1.206,uptime.vgriz.com,uptime,k8s-service,Uptime Kuma
+172.18.1.208,homepage.vgriz.com,homepage,k8s-service,Homepage dashboard
+172.18.1.210,postgres.vgriz.com,postgres,k8s-service,PostgreSQL
+172.18.1.211,redis.vgriz.com,redis,k8s-service,Redis
+172.18.1.212,netgrafana.vgriz.com,netgrafana,k8s-service,Network Observability Grafana
+172.18.1.228,minecraft.vgriz.com,minecraft,k8s-service,Minecraft Bedrock
+172.18.1.230,homeassistant.vgriz.com,homeassistant,k8s-service,Home Assistant
+172.18.5.10,dns2.vgriz.com,dns2,dns,Secondary BIND DNS server (VLAN 185)
+172.18.232.10,dns1.vgriz.com,dns1,dns,Primary BIND DNS server (VLAN 5)
+172.18.232.240,minecraft-legacy.vgriz.com,mc-legacy,vm,Legacy Minecraft Bedrock VM (Proxmox VMID 115)

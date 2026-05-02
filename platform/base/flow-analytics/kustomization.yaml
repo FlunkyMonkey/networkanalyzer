@@ -25,6 +25,8 @@ resources:
   - grafana-flow-dashboards.yaml
   # Wave 5 — K8s Flow Context dashboard (Phase 2)
   - grafana-k8s-context-dashboard.yaml
+  # Post-Wave 5 — static operator-curated enrichment tables (app-port registry + hostname map)
+  - flow-enrichment-tables.yaml
   # Wave 3b — K8s IP correlation (Gate 3 prerequisite; Gate 3b for activation)
   - k8s-lookup-tables.yaml
   - k8s-ip-exporter-rbac.yaml
