@@ -1,0 +1,728 @@
+=== Wave 5c final validation: Sat May  2 10:30:12 PDT 2026 ===
+
+=== Git ===
+Already up to date.
+ca235dd (HEAD -> main, origin/main, origin/HEAD) Backlog: add Wave 6/7 and Post-Wave 5 scope, mark completions
+3a79385 Wave 5c pre-soak: unsuspend CronJob, add PostSync hook for lookup table durability
+937ccc1 Close Gate 5b: Network Observability Home dashboard accepted as Grafana front door
+672aff7 Wave 5b hotfix evidence screenshot
+e63b082 Wave 5b hotfix: correct CNI (Calico not Flannel), K8s enrichment status
+f64df0d Wave 5b evidence: home dashboard screenshots with drill-down test
+505059b Wave 5b: Add Network Observability Home landing dashboard
+2fd7039 Fix OpenSearch StatefulSet OutOfSync: ignore K8s-defaulted fields
+?? docs/evidence/wave5c/
+
+=== Soak evidence files ===
+total 8
+-rw-r--r--  1 claude  staff   780B May  2 10:30 final-validation-20260502-1030.txt
+
+=== Soak evidence count ===
+       0
+
+=== ArgoCD ===
+
+=== Workloads ===
+NAME                                     READY   UP-TO-DATE   AVAILABLE   AGE
+flow-collector                           1/1     1            1           20d
+grafana                                  1/1     1            1           21d
+proxmox-exporter                         1/1     1            1           22d
+snmp-exporter-prometheus-snmp-exporter   1/1     1            1           22d
+unpoller                                 1/1     1            1           22d
+NAME                        READY   AGE
+opensearch-cluster-master   1/1     20d
+NAME                                                      READY   STATUS      RESTARTS        AGE     IP              NODE    NOMINATED NODE   READINESS GATES
+flow-collector-7cc47b99bf-pwc77                           1/2     Running     0               9s      10.244.2.111    kube2   <none>           <none>
+flow-collector-869fb66795-jkbzq                           2/2     Running     0               30m     10.244.2.115    kube2   <none>           <none>
+grafana-58c9458878-kjvhp                                  3/3     Running     1 (3d20h ago)   5d12h   10.244.18.37    kube1   <none>           <none>
+k8s-ip-exporter-29628990-dtrtg                            0/1     Completed   0               60m     10.244.18.9     kube1   <none>           <none>
+k8s-ip-exporter-29629020-v8bkv                            0/1     Completed   0               30m     10.244.18.29    kube1   <none>           <none>
+k8s-ip-exporter-29629050-n48gj                            0/1     Completed   0               13s     10.244.18.15    kube1   <none>           <none>
+opensearch-cluster-master-0                               1/1     Running     0               20d     10.244.181.76   kube4   <none>           <none>
+proxmox-exporter-5ff5dc758b-vgzjx                         1/1     Running     0               21d     10.244.18.16    kube1   <none>           <none>
+snmp-exporter-prometheus-snmp-exporter-5fbdc9f67c-gc9ns   1/1     Running     0               21d     10.244.18.23    kube1   <none>           <none>
+unpoller-5fc7c6cffb-db2bn                                 1/1     Running     0               21d     10.244.18.50    kube1   <none>           <none>
+
+=== Grafana health ===
+HTTP/1.1 302 Found
+Cache-Control: no-store
+Content-Type: text/html; charset=utf-8
+Location: /login
+X-Content-Type-Options: nosniff
+X-Frame-Options: deny
+X-Xss-Protection: 1; mode=block
+Date: Sat, 02 May 2026 17:30:13 GMT
+
+
+=== k8s-ip-exporter state ===
+schedule=*/30 * * * * suspend=false lastSchedule=2026-05-02T17:30:00Z lastSuccess=2026-05-02T17:30:06Z
+
+=== lookup table rows ===
+pods.csv lines:       81
+services.csv lines:       39
+nodes.csv lines:        5
+
+=== Recent exporter jobs ===
+k8s-ip-exporter-29628990   Complete   1/1           6s         60m
+k8s-ip-exporter-29629020   Complete   1/1           9s         30m
+k8s-ip-exporter-29629050   Complete   1/1           6s         14s
+
+=== Flow collector logs: Vector sink issues, 24h ===
+
+=== GoFlow2 warnings/errors, 24h ===
+time=2026-05-02T17:03:01.219Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:03:01.321Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:03:01.326Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:03:01.429Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:03:42.348Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:04:01.087Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:04:01.227Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:04:01.599Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:05:01.188Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:05:01.189Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:05:01.344Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:05:01.345Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:05:01.386Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:05:01.434Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:06:01.045Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:06:01.045Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:06:01.045Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:06:01.045Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:06:01.123Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:06:01.125Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:06:01.336Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:06:01.336Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:06:01.658Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:07:01.212Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:07:01.212Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:07:01.326Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:07:01.328Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:07:01.422Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:07:01.615Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:08:01.013Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:08:01.117Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:08:01.231Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:08:01.379Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:08:01.380Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:09:01.206Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:09:01.206Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:09:01.265Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:09:01.422Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:10:01.029Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:10:01.046Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:10:01.127Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:10:01.309Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:11:01.091Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:11:01.092Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:11:01.124Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:11:01.318Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:11:01.319Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:11:01.472Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:12:01.286Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:12:01.286Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:12:01.286Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:12:01.346Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:12:01.363Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:12:01.708Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:13:01.057Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:13:01.213Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:13:01.312Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:13:01.484Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:13:01.484Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:14:01.206Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:14:01.341Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:14:01.432Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:14:01.524Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:15:01.020Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:15:01.020Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:15:01.114Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:15:01.222Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:15:01.678Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:16:01.028Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:16:01.029Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:16:01.116Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:16:01.416Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:16:01.852Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:17:01.026Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:17:01.062Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:17:01.118Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:17:01.119Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:17:01.225Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:17:39.411Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:18:01.095Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:18:01.096Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:18:01.112Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:18:01.122Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:18:01.346Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:18:01.346Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:19:01.234Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:19:01.431Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:19:01.533Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:19:01.613Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:19:01.805Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:19:01.805Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:20:01.089Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:20:01.132Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:20:01.528Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:20:01.722Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:20:01.722Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:20:01.913Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:21:01.144Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:21:01.144Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:21:01.228Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:21:01.331Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:21:01.527Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:21:01.688Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:22:01.047Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:22:01.124Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:22:01.127Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:22:01.133Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:22:01.135Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:22:01.215Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:22:01.234Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:22:01.454Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:23:01.095Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:23:01.095Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:23:01.096Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:23:01.109Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:23:01.109Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:23:01.115Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:23:01.119Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:23:01.425Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:23:01.526Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:24:01.324Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:24:01.434Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:24:01.621Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:24:01.622Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:24:01.716Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:24:01.878Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:25:01.022Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:25:01.023Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:25:01.101Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:25:01.101Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:25:01.220Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:25:01.353Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:25:01.515Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:26:01.135Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:26:01.173Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:26:01.359Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:26:01.359Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:26:01.515Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:26:01.515Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:26:01.521Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:27:01.039Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:27:01.063Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:27:01.323Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:27:01.818Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:28:01.152Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:28:01.325Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:28:01.514Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:28:01.727Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:28:01.913Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:29:01.132Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:29:01.222Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:29:01.320Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:29:01.621Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:29:01.622Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:30:01.019Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:30:01.128Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:30:01.318Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:30:01.319Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:30:01.432Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+time=2026-05-02T17:30:01.838Z level=WARN msg="template error" scheme=netflow hostname="" port=2055 count=1 workers=2 blocking=false queue_size=1000000
+
+=== Prometheus scrape health for network-observability ===
+{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"up","container":"unpoller","endpoint":"metrics","instance":"10.244.18.50:9130","job":"unpoller","namespace":"network-observability","pod":"unpoller-5fc7c6cffb-db2bn","service":"unpoller"},"value":[1777743019.448,"1"]},{"metric":{"__name__":"up","container":"pve-exporter","endpoint":"metrics","instance":"10.244.18.16:9221","job":"proxmox-exporter","namespace":"network-observability","pod":"proxmox-exporter-5ff5dc758b-vgzjx","service":"proxmox-exporter"},"value":[1777743019.448,"1"]},{"metric":{"__name__":"up","container":"snmp-exporter","endpoint":"http","instance":"10.244.18.23:9116","job":"snmp-exporter-prometheus-snmp-exporter","namespace":"network-observability","pod":"snmp-exporter-prometheus-snmp-exporter-5fbdc9f67c-gc9ns","service":"snmp-exporter-prometheus-snmp-exporter"},"value":[1777743019.448,"1"]}]}}
+
+=== OpenSearch health, indices, ingest, enrichment ===
+--- cluster health ---
+{
+  "cluster_name" : "opensearch-cluster",
+  "status" : "yellow",
+  "timed_out" : false,
+  "number_of_nodes" : 1,
+  "number_of_data_nodes" : 1,
+  "discovered_master" : true,
+  "discovered_cluster_manager" : true,
+  "active_primary_shards" : 46,
+  "active_shards" : 46,
+  "relocating_shards" : 0,
+  "initializing_shards" : 0,
+  "unassigned_shards" : 21,
+  "delayed_unassigned_shards" : 0,
+  "number_of_pending_tasks" : 0,
+  "number_of_in_flight_fetch" : 0,
+  "task_max_waiting_in_queue_millis" : 0,
+  "active_shards_percent_as_number" : 68.65671641791045
+}
+
+--- flow indices ---
+flows-2026.04.19 green 4060871 633.6mb
+flows-2026.04.20 green 3636051   601mb
+flows-2026.04.21 green 3660294 636.8mb
+flows-2026.04.22 green 3702636 611.3mb
+flows-2026.04.23 green 3697602 610.8mb
+flows-2026.04.24 green 3660450 603.8mb
+flows-2026.04.25 green 3815097 629.2mb
+flows-2026.04.26 green 4073956 747.4mb
+flows-2026.04.27 green 3729810 625.3mb
+flows-2026.04.28 green 3629332 722.5mb
+flows-2026.04.29 green 3687176 739.1mb
+flows-2026.04.30 green 3724084 744.1mb
+flows-2026.05.01 green 3565055 713.1mb
+flows-2026.05.02 green 2611754 585.8mb
+
+--- recent ingest buckets last 2h ---
+{
+  "took" : 5,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 14,
+    "successful" : 14,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : {
+      "value" : 10000,
+      "relation" : "gte"
+    },
+    "max_score" : null,
+    "hits" : [ ]
+  },
+  "aggregations" : {
+    "ingest_5m" : {
+      "buckets" : [
+        {
+          "key_as_string" : "2026-05-02T15:30:00.000Z",
+          "key" : 1777735800000,
+          "doc_count" : 8513
+        },
+        {
+          "key_as_string" : "2026-05-02T15:35:00.000Z",
+          "key" : 1777736100000,
+          "doc_count" : 11594
+        },
+        {
+          "key_as_string" : "2026-05-02T15:40:00.000Z",
+          "key" : 1777736400000,
+          "doc_count" : 10368
+        },
+        {
+          "key_as_string" : "2026-05-02T15:45:00.000Z",
+          "key" : 1777736700000,
+          "doc_count" : 10297
+        },
+        {
+          "key_as_string" : "2026-05-02T15:50:00.000Z",
+          "key" : 1777737000000,
+          "doc_count" : 11363
+        },
+        {
+          "key_as_string" : "2026-05-02T15:55:00.000Z",
+          "key" : 1777737300000,
+          "doc_count" : 11337
+        },
+        {
+          "key_as_string" : "2026-05-02T16:00:00.000Z",
+          "key" : 1777737600000,
+          "doc_count" : 16350
+        },
+        {
+          "key_as_string" : "2026-05-02T16:05:00.000Z",
+          "key" : 1777737900000,
+          "doc_count" : 9716
+        },
+        {
+          "key_as_string" : "2026-05-02T16:10:00.000Z",
+          "key" : 1777738200000,
+          "doc_count" : 11567
+        },
+        {
+          "key_as_string" : "2026-05-02T16:15:00.000Z",
+          "key" : 1777738500000,
+          "doc_count" : 11706
+        },
+        {
+          "key_as_string" : "2026-05-02T16:20:00.000Z",
+          "key" : 1777738800000,
+          "doc_count" : 32631
+        },
+        {
+          "key_as_string" : "2026-05-02T16:25:00.000Z",
+          "key" : 1777739100000,
+          "doc_count" : 12876
+        },
+        {
+          "key_as_string" : "2026-05-02T16:30:00.000Z",
+          "key" : 1777739400000,
+          "doc_count" : 12297
+        },
+        {
+          "key_as_string" : "2026-05-02T16:35:00.000Z",
+          "key" : 1777739700000,
+          "doc_count" : 13097
+        },
+        {
+          "key_as_string" : "2026-05-02T16:40:00.000Z",
+          "key" : 1777740000000,
+          "doc_count" : 13477
+        },
+        {
+          "key_as_string" : "2026-05-02T16:45:00.000Z",
+          "key" : 1777740300000,
+          "doc_count" : 20367
+        },
+        {
+          "key_as_string" : "2026-05-02T16:50:00.000Z",
+          "key" : 1777740600000,
+          "doc_count" : 14545
+        },
+        {
+          "key_as_string" : "2026-05-02T16:55:00.000Z",
+          "key" : 1777740900000,
+          "doc_count" : 13237
+        },
+        {
+          "key_as_string" : "2026-05-02T17:00:00.000Z",
+          "key" : 1777741200000,
+          "doc_count" : 12718
+        },
+        {
+          "key_as_string" : "2026-05-02T17:05:00.000Z",
+          "key" : 1777741500000,
+          "doc_count" : 27140
+        },
+        {
+          "key_as_string" : "2026-05-02T17:10:00.000Z",
+          "key" : 1777741800000,
+          "doc_count" : 17054
+        },
+        {
+          "key_as_string" : "2026-05-02T17:15:00.000Z",
+          "key" : 1777742100000,
+          "doc_count" : 13409
+        },
+        {
+          "key_as_string" : "2026-05-02T17:20:00.000Z",
+          "key" : 1777742400000,
+          "doc_count" : 9990
+        },
+        {
+          "key_as_string" : "2026-05-02T17:25:00.000Z",
+          "key" : 1777742700000,
+          "doc_count" : 12137
+        },
+        {
+          "key_as_string" : "2026-05-02T17:30:00.000Z",
+          "key" : 1777743000000,
+          "doc_count" : 2239
+        }
+      ]
+    }
+  }
+}
+
+--- fresh K8s enrichment last 1h ---
+{
+  "took" : 63,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 14,
+    "successful" : 13,
+    "skipped" : 0,
+    "failed" : 1,
+    "failures" : [
+      {
+        "shard" : 0,
+        "index" : "flows-2026.04.19",
+        "node" : "XWZ3G96VSjebmJVNXCCGxA",
+        "reason" : {
+          "type" : "illegal_argument_exception",
+          "reason" : "Text fields are not optimised for operations that require per-document field data like aggregations and sorting, so these operations are disabled by default. Please use a keyword field instead. Alternatively, set fielddata=true on [src_k8s_type] in order to load field data by uninverting the inverted index. Note that this can use significant memory."
+        }
+      }
+    ]
+  },
+  "hits" : {
+    "total" : {
+      "value" : 10000,
+      "relation" : "gte"
+    },
+    "max_score" : null,
+    "hits" : [ ]
+  },
+  "aggregations" : {
+    "dst_ns" : {
+      "doc_count_error_upper_bound" : 0,
+      "sum_other_doc_count" : 0,
+      "buckets" : [
+        {
+          "key" : "rook-ceph",
+          "doc_count" : 12717
+        },
+        {
+          "key" : "kube-system",
+          "doc_count" : 6463
+        },
+        {
+          "key" : "argocd",
+          "doc_count" : 3756
+        },
+        {
+          "key" : "databases",
+          "doc_count" : 2062
+        },
+        {
+          "key" : "monitoring",
+          "doc_count" : 1756
+        },
+        {
+          "key" : "uptime-kuma",
+          "doc_count" : 610
+        },
+        {
+          "key" : "velero",
+          "doc_count" : 447
+        },
+        {
+          "key" : "network-observability",
+          "doc_count" : 296
+        },
+        {
+          "key" : "minio",
+          "doc_count" : 131
+        },
+        {
+          "key" : "netflow",
+          "doc_count" : 64
+        }
+      ]
+    },
+    "dst_type" : {
+      "doc_count_error_upper_bound" : 0,
+      "sum_other_doc_count" : 0,
+      "buckets" : [
+        {
+          "key" : "node",
+          "doc_count" : 97465
+        },
+        {
+          "key" : "external",
+          "doc_count" : 53120
+        },
+        {
+          "key" : "pod",
+          "doc_count" : 28302
+        },
+        {
+          "key" : "internal-unknown",
+          "doc_count" : 681
+        }
+      ]
+    },
+    "src_ns" : {
+      "doc_count_error_upper_bound" : 0,
+      "sum_other_doc_count" : 0,
+      "buckets" : [
+        {
+          "key" : "rook-ceph",
+          "doc_count" : 12711
+        },
+        {
+          "key" : "kube-system",
+          "doc_count" : 6458
+        },
+        {
+          "key" : "argocd",
+          "doc_count" : 3749
+        },
+        {
+          "key" : "databases",
+          "doc_count" : 2072
+        },
+        {
+          "key" : "monitoring",
+          "doc_count" : 1763
+        },
+        {
+          "key" : "uptime-kuma",
+          "doc_count" : 607
+        },
+        {
+          "key" : "velero",
+          "doc_count" : 449
+        },
+        {
+          "key" : "network-observability",
+          "doc_count" : 158
+        },
+        {
+          "key" : "minio",
+          "doc_count" : 130
+        },
+        {
+          "key" : "netflow",
+          "doc_count" : 64
+        }
+      ]
+    },
+    "src_node" : {
+      "doc_count_error_upper_bound" : 0,
+      "sum_other_doc_count" : 0,
+      "buckets" : [
+        {
+          "key" : "kube2",
+          "doc_count" : 38201
+        },
+        {
+          "key" : "kube3",
+          "doc_count" : 35122
+        },
+        {
+          "key" : "kube1",
+          "doc_count" : 28689
+        },
+        {
+          "key" : "kube4",
+          "doc_count" : 24501
+        }
+      ]
+    },
+    "dst_workload" : {
+      "doc_count_error_upper_bound" : 131,
+      "sum_other_doc_count" : 5848,
+      "buckets" : [
+        {
+          "key" : "coredns",
+          "doc_count" : 6463
+        },
+        {
+          "key" : "rook-ceph-mgr-b",
+          "doc_count" : 2456
+        },
+        {
+          "key" : "argocd-application-controller",
+          "doc_count" : 2441
+        },
+        {
+          "key" : "rook-ceph-mon-e",
+          "doc_count" : 2273
+        },
+        {
+          "key" : "rook-ceph-operator",
+          "doc_count" : 1989
+        },
+        {
+          "key" : "rook-ceph-mon-i",
+          "doc_count" : 1902
+        },
+        {
+          "key" : "rook-ceph-mgr-a",
+          "doc_count" : 1646
+        },
+        {
+          "key" : "argocd-repo-server",
+          "doc_count" : 1315
+        },
+        {
+          "key" : "rook-ceph-mon-h",
+          "doc_count" : 1001
+        },
+        {
+          "key" : "redis-exporter",
+          "doc_count" : 968
+        }
+      ]
+    },
+    "src_type" : {
+      "doc_count_error_upper_bound" : 0,
+      "sum_other_doc_count" : 0,
+      "buckets" : [
+        {
+          "key" : "node",
+          "doc_count" : 98352
+        },
+        {
+          "key" : "external",
+          "doc_count" : 53049
+        },
+        {
+          "key" : "pod",
+          "doc_count" : 28161
+        },
+        {
+          "key" : "internal-unknown",
+          "doc_count" : 6
+        }
+      ]
+    },
+    "src_workload" : {
+      "doc_count_error_upper_bound" : 111,
+      "sum_other_doc_count" : 5712,
+      "buckets" : [
+        {
+          "key" : "coredns",
+          "doc_count" : 6458
+        },
+        {
+          "key" : "rook-ceph-mgr-b",
+          "doc_count" : 2447
+        },
+        {
+          "key" : "argocd-application-controller",
+          "doc_count" : 2434
+        },
+        {
+          "key" : "rook-ceph-mon-e",
+          "doc_count" : 2276
+        },
+        {
+          "key" : "rook-ceph-operator",
+          "doc_count" : 1987
+        },
+        {
+          "key" : "rook-ceph-mon-i",
+          "doc_count" : 1904
+        },
+        {
+          "key" : "rook-ceph-mgr-a",
+          "doc_count" : 1653
+        },
+        {
+          "key" : "argocd-repo-server",
+          "doc_count" : 1315
+        },
+        {
+          "key" : "rook-ceph-mon-h",
+          "doc_count" : 1003
+        },
+        {
+          "key" : "redis-exporter",
+          "doc_count" : 972
+        }
+      ]
+    },
+    "dst_node" : {
+      "doc_count_error_upper_bound" : 0,
+      "sum_other_doc_count" : 0,
+      "buckets" : [
+        {
+          "key" : "kube2",
+          "doc_count" : 38386
+        },
+        {
+          "key" : "kube3",
+          "doc_count" : 35001
+        },
+        {
+          "key" : "kube1",
+          "doc_count" : 28699
+        },
+        {
+          "key" : "kube4",
+          "doc_count" : 23681
+        }
+      ]
+    }
+  }
+}
