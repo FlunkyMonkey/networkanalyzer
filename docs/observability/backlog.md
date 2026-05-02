@@ -79,6 +79,8 @@ in queries.
 
 ## Post-Wave 5 Flow Enrichment
 
+**Design doc:** [post-wave-5-flow-enrichment.md](post-wave-5-flow-enrichment.md) — Phase 1 audit complete (2026-05-02). Scaffold files in `config/enrichment/`. Phase 2 (wiring) is the next step, requires decision on ConfigMap placement.
+
 Items that improve flow data quality and dashboard readability without requiring
 new infrastructure. No new telemetry planes.
 

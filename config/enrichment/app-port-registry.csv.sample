@@ -1,0 +1,72 @@
+# App-to-Port Registry — sample/scaffold
+# Promote to app-port-registry.csv after review, then wire into Vector (Phase 2).
+#
+# Fields:
+#   port        - integer destination port (or source port if direction=src)
+#   protocol    - TCP, UDP, or * (both)
+#   app         - short label written to the 'app' field in flow documents
+#   category    - infrastructure, storage, database, monitoring, network, k8s, security
+#   direction   - dst (match dst_port), src (match src_port), both
+#   scope       - internal (RFC1918 only), external, or blank (any)
+#   notes       - free text, not used by Vector
+port,protocol,app,category,direction,scope,notes
+# --- Common well-known ports (already in Vector VRL hardcoded map) ---
+22,TCP,SSH,infrastructure,dst,,Secure Shell
+25,TCP,SMTP,infrastructure,dst,,SMTP relay
+53,UDP,DNS,network,dst,,DNS queries
+53,TCP,DNS,network,dst,,DNS over TCP (zone transfers / large responses)
+80,TCP,HTTP,web,dst,,HTTP
+110,TCP,POP3,infrastructure,dst,,POP3
+123,UDP,NTP,infrastructure,dst,,NTP time sync
+143,TCP,IMAP,infrastructure,dst,,IMAP
+161,UDP,SNMP,monitoring,dst,,SNMP polling
+162,UDP,SNMP,monitoring,dst,,SNMP traps
+443,TCP,HTTPS,web,dst,,HTTPS
+445,TCP,SMB,storage,dst,,SMB/CIFS file sharing
+465,TCP,SMTP,infrastructure,dst,,SMTP over TLS
+587,TCP,SMTP,infrastructure,dst,,SMTP submission
+853,TCP,DNS-TLS,network,dst,,DNS-over-TLS
+993,TCP,IMAP,infrastructure,dst,,IMAP over TLS
+995,TCP,POP3,infrastructure,dst,,POP3 over TLS
+1194,UDP,OpenVPN,security,dst,,OpenVPN
+1883,TCP,MQTT,iot,dst,,MQTT
+2049,TCP,NFS,storage,dst,,NFS data plane
+2049,UDP,NFS,storage,dst,,NFS data plane (UDP)
+3000,TCP,Grafana,monitoring,dst,,Grafana dashboard
+3306,TCP,MySQL,database,dst,,MySQL
+5432,TCP,Postgres,database,dst,,PostgreSQL
+6379,TCP,Redis,database,dst,,Redis
+6443,TCP,Kubernetes,k8s,dst,,Kubernetes API server
+8006,TCP,Proxmox,infrastructure,dst,,Proxmox VE web UI and API
+8080,TCP,HTTP-Alt,web,dst,,HTTP alternate port
+8443,TCP,HTTPS-Alt,web,dst,,HTTPS alternate port
+9000,TCP,MinIO,storage,dst,,MinIO S3-compatible object storage
+9090,TCP,Prometheus,monitoring,dst,,Prometheus metrics API
+9093,TCP,Alertmanager,monitoring,dst,,Prometheus Alertmanager
+9100,TCP,NodeExporter,monitoring,dst,,Prometheus node_exporter
+9200,TCP,OpenSearch,storage,dst,,OpenSearch REST API
+9300,TCP,OpenSearch-Transport,storage,dst,,OpenSearch inter-node transport
+51820,UDP,WireGuard,security,dst,,WireGuard VPN
+# --- Homelab-specific ports identified in Phase 1 audit ---
+786,TCP,NFS-Mountd,storage,dst,internal,NFS mountd negotiation port (Proxmox <-> TrueNAS NFS mounts)
+813,TCP,NFS-Aux,storage,dst,internal,NFS auxiliary (statd or lockd range seen in Proxmox/TrueNAS traffic)
+741,TCP,NFS-Aux,storage,dst,internal,NFS auxiliary port seen in Proxmox/TrueNAS traffic
+747,TCP,NFS-Aux,storage,dst,internal,NFS auxiliary port seen in Proxmox/TrueNAS traffic
+2049,TCP,NFS,storage,dst,internal,NFS data plane (already in Vector map - duplicate entry for registry completeness)
+2380,TCP,etcd-Peer,k8s,dst,internal,etcd peer replication between k8s control-plane nodes
+3300,TCP,Ceph-Monitor,storage,dst,internal,Ceph monitor messenger v2 (msgr2) — rook-ceph-mon pods
+6800,TCP,Ceph-OSD,storage,dst,internal,Ceph OSD messenger v2 base port
+6801,TCP,Ceph-OSD,storage,dst,internal,Ceph OSD messenger v2 (rook-ceph OSD port range)
+6802,TCP,Ceph-OSD,storage,dst,internal,Ceph OSD messenger v2 (rook-ceph OSD port range)
+6803,TCP,Ceph-OSD,storage,dst,internal,Ceph OSD messenger v2 (rook-ceph OSD port range)
+6804,TCP,Ceph-OSD,storage,dst,internal,Ceph OSD messenger v2 (rook-ceph OSD port range)
+6808,TCP,Ceph-Manager,storage,dst,internal,Ceph MGR messenger v2 (rook-ceph-mgr)
+# --- Note: Ceph OSD replication uses ephemeral dst_ports (30000-60000 range) ---
+# These flows are identified by dst_k8s_workload pattern in Phase 3 VRL extension,
+# not by port number. Do not attempt to list the ephemeral ports here.
+# --- Kubernetes infrastructure ---
+10250,TCP,Kubelet,k8s,dst,internal,Kubernetes kubelet API (node -> node)
+10255,TCP,Kubelet-RO,k8s,dst,internal,Kubernetes kubelet read-only port (deprecated)
+10257,TCP,K8s-Controller,k8s,dst,internal,kube-controller-manager metrics
+10259,TCP,K8s-Scheduler,k8s,dst,internal,kube-scheduler metrics
+2379,TCP,etcd-Client,k8s,dst,internal,etcd client port

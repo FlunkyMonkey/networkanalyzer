@@ -36,6 +36,7 @@ This directory contains design documentation for the GitOps-managed network obse
 | [wave-4-plan.md](wave-4-plan.md) | Wave 4 plan: Cilium/Hubble K8s visibility — **DEFERRED** (blocked on CNI migration, no scheduled window) |
 | [wave-5-plan.md](wave-5-plan.md) | Wave 5 plan: Unified operator UX — **COMPLETE** (2026-05-02; 4-day owner-approved soak) |
 | [backlog.md](backlog.md) | Hardening items and future-wave work not blocking active rollout (includes deferred Wave 4) |
+| [post-wave-5-flow-enrichment.md](post-wave-5-flow-enrichment.md) | Post-Wave 5 flow enrichment design: app-port registry, hostname map, workload-pattern VRL, Phase 2–5 plan |
 | [operations-notes.md](operations-notes.md) | Runtime ops decisions and context (softflowd service pattern, legacy cleanup) |
 | [../evidence/wave5-pass3/](../evidence/wave5-pass3/) | Gate 5a evidence screenshots — seven-dashboard baseline, accepted 2026-04-26 |
 | [../evidence/wave5b/](../evidence/wave5b/) | Gate 5b evidence screenshots — home dashboard, navigation, and drill-down test, accepted 2026-04-26 |
