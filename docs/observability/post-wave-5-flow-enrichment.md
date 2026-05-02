@@ -225,7 +225,24 @@ are GitOps-owned operator-curated data with a different lifecycle.
 - `registry` — set from `app_ports` enrichment table (new ports: Ceph, NFS-mountd, etcd)
 - `unlabeled` — no match in either
 
-**Validated:** `kustomize build --enable-helm platform/overlays/lab` passes twice (52 resources).
+**VRL caveat:** String concatenation with enrichment table record fields (e.g., `r.short_name + "..."`)
+requires `string!(r.short_name)` — VRL 0.45.0's type checker does not verify that
+`to_string(r.short_name)` returns `string` when `r` is from a `get_enrichment_table_record` call.
+`string!()` has a guaranteed static return type. Discovered during rollout, fixed before go-live.
+
+**Validated (2026-05-02):**
+
+- `kustomize build --enable-helm platform/overlays/lab` passes twice (52 resources)
+- ArgoCD: Synced/Healthy (commit 1ad7af1)
+- flow-collector: 2/2 Running, 0 restarts
+- Vector: clean startup, no errors
+- OpenSearch: 9896 new-style flows in 15 min confirmed with new fields
+- `dst_app_source` breakdown: existing=3005, registry=1420, unlabeled=5471
+- prox2 (172.18.1.20): `src_display_name = "prox2 (172.18.1.20)"`, `src_hostname = "prox2.vgriz.com"` ✓
+- NFS-Mountd port 786: `dst_app_label = "NFS-Mountd"`, `dst_app_source = "registry"` ✓
+- etcd-Peer port 2380: `dst_app_label = "etcd-Peer"`, `dst_app_source = "registry"` ✓
+- Pod IPs (10.244.x.x): `src_display_name = "unknown-10.244.x.x"` (RFC1918 fallback) ✓
+- Ceph OSD port 6802: no new flows observed in 15-minute post-restart window (labeling confirmed by port registry entry; will appear when Ceph replication traffic arrives)
 
 ### Phase 3 — Vector Enrichment Fields
 
