@@ -299,7 +299,7 @@ data:
             r, e = get_enrichment_table_record("hostname_map", {"ip": src_str})
             if e == null {
               .src_hostname     = r.hostname
-              .src_display_name = r.short_name + " (" + src_str + ")"
+              .src_display_name = to_string(r.short_name) + " (" + src_str + ")"
             } else {
               src_c1, err = ip_cidr_contains("10.0.0.0/8", src_str)
               if err != null { src_c1 = false }
@@ -320,7 +320,7 @@ data:
             r, e = get_enrichment_table_record("hostname_map", {"ip": dst_str})
             if e == null {
               .dst_hostname     = r.hostname
-              .dst_display_name = r.short_name + " (" + dst_str + ")"
+              .dst_display_name = to_string(r.short_name) + " (" + dst_str + ")"
             } else {
               dst_c1, err = ip_cidr_contains("10.0.0.0/8", dst_str)
               if err != null { dst_c1 = false }
