@@ -1,27 +1,13 @@
 # Backlog
 
-Future-wave items not in scope for the current rollout. These are tracked here so they aren't lost but do not block active waves.
+Future-wave items not in scope for the current rollout. These are tracked here so
+they aren't lost but do not block active waves.
+
+---
 
 ## Wave 5 — Gate 5a Follow-Up Items
 
 Conditions accepted at Gate 5a (2026-04-26). Non-blocking for Wave 5 Phases 3–7.
-
-### Fix Switch Interface Utilization % Gauge (ifSpeed = 0)
-
-The Switch Interface Utilization dashboard bandwidth panels (bits/s, octets) pass.
-The utilization % gauge shows No Data for many interfaces because `ifSpeed` is
-reported as 0 by the MikroTik SNMP exporter on those interfaces.
-
-**Root cause:** `ifSpeed` is 0 on 100G/SFP interfaces and some virtual/aggregate
-ports on the MikroTik CRS328. The gauge divides by `ifSpeed`; a 0 denominator
-produces no result.
-
-**Action:** Investigate whether the MikroTik SNMP module exposes `ifHighSpeed`
-(64-bit, IF-MIB) as an alternative. `ifHighSpeed` is in Mbps and avoids the 32-bit
-overflow issue on high-speed interfaces. If available, update the dashboard gauge
-to use `ifHighSpeed * 1e6` as the denominator. If `ifHighSpeed` is also 0, the
-gauge is unsupported for this hardware and should be replaced with a % of WAN link
-capacity panel for the ports that matter.
 
 ### Clean Up Duplicate Legacy Prometheus Datasource
 
@@ -40,29 +26,10 @@ confusion in Grafana's datasource picker.
 because Grafana owns the persisted PVC entry — deletion must be done once manually.
 After deletion, confirm all dashboards still reference UID `prometheus` correctly.
 
-### Configure GeoIP and ASN Enrichment
+### Switch Interface Utilization % Gauge (ifSpeed = 0)
 
-`dst_country` and `dst_asn` fields are absent from flow documents because the
-MaxMind GeoIP database has not been configured. The Vector pipeline has a
-placeholder for GeoIP enrichment that is disabled when the secret is absent.
-
-**Action:** Obtain a MaxMind GeoLite2 license key, create the `geoip-credentials`
-secret in `network-observability`, and enable the GeoIP enrichment block in the
-Vector config. After enablement, validate that `dst_country` appears in new flow
-documents and that the Destination Analysis dashboard country breakdown panel
-populates. Existing documents will not be backfilled.
-
-### Review High-Volume Unlabeled Ports
-
-Several high-traffic destination ports in the Traffic Mix and Destination Analysis
-dashboards appear without an application label (shown as the raw port number rather
-than a named service). This reduces the operator value of app/category breakdowns.
-
-**Action:** Identify the top 10 unlabeled ports by traffic volume. For each,
-determine whether it maps to a known internal service, a third-party app, or
-infrastructure traffic. Add appropriate app-label mappings to the Vector enrichment
-config or to the OpenSearch dashboard query display names. Prioritize ports that
-appear in the top 5 by bytes.
+Moved to [Wave 6 — Infrastructure & Storage Telemetry](#wave-6--infrastructure--storage-telemetry).
+The bandwidth panels work; only the utilization % gauge is broken due to `ifSpeed = 0`.
 
 ### Monitor and Reduce internal-unknown Rate
 
@@ -71,11 +38,306 @@ lookup entry) should decrease over time as the CronJob captures more pod IPs and
 the lookup tables stabilize. A persistently high `internal-unknown` rate indicates
 lookup table gaps, high pod churn, or a stale restart cycle.
 
+The k8s-ip-exporter CronJob is now unsuspended and PostSync-protected (3a79385).
+The 30-minute schedule is still in effect during soak.
+
 **Action:** Establish a baseline `internal-unknown` rate from the K8s Flow Context
-dashboard at Gate 5a. During Wave 5 soak (Phase 7), monitor for any sustained
-increase. If the rate exceeds baseline by more than 20%, investigate CronJob
-frequency (currently 30 min — may miss short-lived pods) and consider reducing
-to 5 min per the Wave 3b hardening backlog item.
+dashboard during Wave 5c soak. If the rate exceeds baseline by more than 20%,
+investigate CronJob frequency and consider reducing to 5 min (see Wave 3b hardening
+item: tune CronJob schedule).
+
+### Unlabeled Port Visibility
+
+Moved to [Post-Wave 5 Flow Enrichment](#post-wave-5-flow-enrichment).
+
+### Configure GeoIP and ASN Enrichment
+
+Moved to [Wave 7 — Edge / WAN / Internet Telemetry](#wave-7--edge--wan--internet-telemetry).
+
+---
+
+## Post-Wave 5 Flow Enrichment
+
+Items that improve flow data quality and dashboard readability without requiring
+new infrastructure. No new telemetry planes.
+
+### App-to-Port Relationship Registry
+
+Several high-traffic destination ports appear without an application label in the
+Traffic Mix and Destination Analysis dashboards. The current Vector enrichment uses
+a hardcoded port_apps map, which is not operator-maintainable without a config
+change and redeployment.
+
+**Goal:** a maintainable registry where operators can add or correct app-to-port
+mappings without touching VRL directly.
+
+**Options to evaluate:**
+
+- YAML or CSV file in the repo rendered into Vector config at build time
+- ConfigMap-backed lookup table (separate from k8s-lookup-tables)
+- Small internal admin UI (later, if scope grows)
+
+**Required fields:** port, protocol, app label, category, optional host/subnet
+scope, optional notes/owner.
+
+**Acceptance:** top unlabeled ports in Traffic Mix and Destination Analysis
+show readable names rather than raw port numbers after the registry is seeded.
+
+### High-Volume Unlabeled Port Cleanup
+
+After the App-to-Port Registry is in place (or as an immediate Vector config pass):
+
+1. Identify the top 10–20 destination ports by total byte volume that have no `app`
+   label in current flow documents.
+2. For each, determine the service: known internal app, infrastructure traffic,
+   third-party service, or genuinely unknown.
+3. Add mappings to the registry / Vector enrichment config.
+4. Validate that Traffic Mix "Traffic by App Label" and Destination Analysis
+   become more readable with fewer unlabeled entries.
+
+Prioritize ports appearing in the top 5 by bytes — these contribute the most
+to the "unknown" slice in the piechart.
+
+---
+
+## Wave 6 — Infrastructure & Storage Telemetry
+
+New telemetry planes for physical hardware and storage. None of these require
+flow plane changes. Candidate sources are Prometheus-native or easily scraped.
+
+### Server Hardware Monitoring
+
+Physical host telemetry for Proxmox nodes and any bare-metal storage hosts.
+
+**Why it matters:** Proxmox node failures from thermal, PSU, or disk issues are
+invisible to Kubernetes-level monitoring. Hardware telemetry provides early warning
+before a node goes down.
+
+**Candidate sources:**
+
+- `ipmi_exporter` — IPMI/BMC sensor polling (temperatures, fans, voltages, PSU)
+- `redfish_exporter` — modern BMC REST interface (vendor-dependent availability)
+- `node_exporter` textfile collectors — custom scripts writing `.prom` files
+- `smartctl_exporter` — disk SMART status and error counters
+- Vendor-specific exporters (Dell iDRAC, HP iLO, Supermicro IPMI) if applicable
+
+**Signals:**
+
+- CPU and board temperatures
+- Fan speeds and status
+- PSU voltage, wattage, and failure state
+- ECC memory error counts and alerts
+- Disk health (SMART pre-failure attributes, reallocated sectors)
+- Chassis intrusion alarms
+- Overall hardware health rollup per physical host
+
+**Dashboard goal:** physical host health rollup by server — one row per host,
+green/yellow/red by worst health signal.
+
+### TrueNAS Monitoring Dashboard
+
+Storage platform visibility for the TrueNAS host.
+
+**Why it matters:** Storage failures are silent until a pool goes degraded or a
+dataset runs out of space. Replication failures may not surface until a restore
+is needed.
+
+**Signals:**
+
+- Pool status (ONLINE / DEGRADED / FAULTED)
+- vdev health and spare state
+- Disk SMART status per vdev member
+- Scrub status, last completion time, and error counts
+- Pool capacity, usage, and fragmentation
+- Dataset capacity and growth rate
+- Replication / ZFS send health — last success time, lag, error state
+- Mirror / replication target sync lag
+- Active alerts from the TrueNAS alert system
+
+**Candidate data sources:**
+
+- TrueNAS REST API (v2) — rich system, pool, disk, and alert data
+- Prometheus exporter if available for the installed TrueNAS version
+- `node_exporter` on the TrueNAS host for host-level OS metrics (if SSH access
+  is available for textfile collector drops)
+- `smartctl_exporter` for disk-level SMART data
+
+**Dashboard goal:** a single "Is storage healthy, protected, and replicating?"
+dashboard that answers all four questions without requiring TrueNAS UI access.
+
+### Proxmox Node-Level Network Counters
+
+The current Proxmox dashboard shows per-VM network receive/transmit rates but
+cannot show per-node totals because `pve_node_info_netin` / `pve_node_info_netout`
+do not exist in the live Proxmox exporter scrape. The current dashboard has an
+explanatory text panel noting this limitation.
+
+**Goal:** replace the explanatory panel with an actual node-level network bandwidth
+panel, or confirm that a reasonable approximation is sufficient.
+
+**Alternatives to investigate (in order of preference):**
+
+1. **`node_exporter` on Proxmox hosts** — if node_exporter is deployed on each
+   Proxmox node, `node_network_receive_bytes_total` / `node_network_transmit_bytes_total`
+   expose per-NIC counters at the OS level.
+2. **Proxmox API** — the `/api2/json/nodes/{node}/network` endpoint may expose
+   interface statistics. Evaluate whether these are scrapable via a custom exporter
+   or Prometheus HTTP SD.
+3. **SNMP from switches** — switch ports facing each Proxmox host provide an
+   external, switch-authoritative view of host NIC bandwidth.
+4. **Derived node totals** — sum `pve_network_receive_bytes{node="prox1"}` across
+   all VMs as a lower-bound approximation (excludes host-native traffic, but
+   acceptable for most monitoring purposes).
+
+**Dashboard goal:** per-node network in/out totals visible alongside per-VM
+breakdown; operators should not need to mentally sum VM rows to estimate host load.
+
+### Fix Switch Interface Utilization % Gauge
+
+*(Moved from Wave 5 Gate 5a)*
+
+The Switch Interface Utilization bandwidth panels (bits/s) work correctly. The
+utilization % gauge shows No Data for many interfaces because `ifSpeed` is reported
+as 0 by the MikroTik SNMP exporter on high-speed and virtual/aggregate interfaces.
+
+**Root cause:** `ifSpeed` is 0 on some SFP+ and aggregate ports on the MikroTik
+CRS328. The gauge divides by `ifSpeed`; a 0 denominator produces no data point.
+
+**Action:**
+
+1. Investigate whether the MikroTik SNMP scrape exposes `ifHighSpeed` (IF-MIB
+   64-bit Mbps field). If available, use `ifHighSpeed * 1e6` as the denominator.
+2. If `ifHighSpeed` is also 0 or absent, replace the utilization % gauge with a
+   "% of nominal uplink capacity" panel scoped to the important WAN-facing and
+   uplink interfaces only (hardcode the expected speed for those ports).
+3. Confirm the fix handles the mixed 1G/10G environment without requiring per-port
+   overrides in the dashboard.
+
+### Network Switch Hardware Monitoring
+
+Hardware health visibility for the MikroTik CRS328 and UniFi switches, complementing
+the existing interface utilization dashboard.
+
+**MikroTik CRS328 signals (via SNMP):**
+
+- Board temperature (`/system/health` OIDs or MIKROTIK-MIB health subtree)
+- Fan status (if applicable to the CRS328 model)
+- PSU state
+- PoE budget and per-port PoE consumption
+- SFP/transceiver optical levels (TX/RX power, temperature)
+
+**UniFi switch signals (via UnPoller):**
+
+- Device temperature if exposed by `unpoller_device_*` metric families
+- PoE budget and per-port draw
+- Uplink SFP health
+
+**Implementation notes:**
+
+- MikroTik hardware OIDs may require extending the SNMP exporter config with the
+  MIKROTIK-MIB health subtree (additional MIBs beyond IF-MIB and IFMIB).
+- Check whether UnPoller already exposes device health metrics before adding
+  a separate UniFi exporter.
+- PoE monitoring is operationally valuable for tracking AP and camera power budgets.
+
+---
+
+## Wave 7 — Edge / WAN / Internet Telemetry
+
+Telemetry for the network edge, WAN handoff, and DNS enrichment. These items
+involve external integrations, credentials management, or flow-layer enrichment
+that extends beyond the current homelab Kubernetes boundary.
+
+### Quantum Fiber Modem Optical Telemetry
+
+The Quantum Fiber ONT/modem exposes status only via a local Web UI; no documented
+REST API is known.
+
+**Signals to collect:**
+
+- Optical signal levels (RX/TX power, SNR)
+- WAN link status and uptime
+- Error counters and event log entries (if visible in Web UI)
+
+**Integration approach:**
+
+- Evaluate whether the Web UI has undocumented local API endpoints (common on
+  ONT devices) — check network requests in browser dev tools.
+- If no API: Playwright or a similar headless browser tool can scrape the Web UI
+  on a schedule and write metrics as Prometheus textfile collector output.
+- Credentials must be stored in a Kubernetes Secret or a secure local secret
+  store. Never commit credentials to git.
+
+**Dashboard goal:** "Is the fiber handoff healthy?" — optical levels, WAN link
+status, and recent errors visible without needing to log in to the modem UI.
+
+### Firewalla Dashboard
+
+The Firewalla Gold at `172.18.1.1` is the edge gateway. It has a documented local
+REST API and SSH access.
+
+**Signals:**
+
+- WAN status, throughput, and link quality
+- Blocked flows and security events
+- Active alarms and notifications
+- Per-device / per-client traffic summary
+- DNS and security event log (DoH, blocked domains)
+
+**Integration approach:**
+
+- Investigate the Firewalla local API or SSH-accessible data. The Firewalla
+  community has open-source integrations; evaluate before writing custom scraping.
+- If a Prometheus exporter exists, deploy it in the `network-observability`
+  namespace. If not, a cron-based textfile collector is a viable alternative.
+
+**Dashboard goal:** edge gateway health and security/event visibility — WAN up/down,
+top blocked events, and per-device summary in one place.
+
+### DNS Resolution for Flow IPs
+
+Flow dashboards currently show raw IP addresses (`172.18.x.x`). Operators must
+mentally map these to hosts, which is error-prone and slow.
+
+**Goal:** display IPs with their resolved names where possible. Format:
+`hostname (172.18.x.x)`. Unknown internal IPs: `unknown-172.18.x.x`.
+
+**Design questions to resolve:**
+
+- **Enrichment layer:** ingest time (Vector adds `src_hostname` / `dst_hostname`
+  fields), lookup-table time (CronJob adds DNS rows alongside k8s rows), or
+  dashboard layer (Grafana variable + transform). Ingest-time enrichment is
+  most powerful but adds latency and forward-DNS dependency.
+- **Source of truth:** BIND internal DNS at `172.18.232.10` / `172.18.5.10`.
+- **TTL and staleness:** DNS lookups at ingest time must handle failed lookups
+  gracefully (fallback to raw IP, not null or empty). Staleness window depends on
+  how often DHCP and static assignments change.
+- **K8s names:** use `src_k8s_workload` and `src_k8s_namespace` where already
+  enriched — do not duplicate what Wave 3b already provides.
+
+**Dashboard goal:** operators never need to look up `172.18.x.x` addresses
+manually; names appear in all table cells that currently show raw IPs.
+
+### MaxMind GeoIP / ASN Enrichment
+
+*(Moved from Wave 5 Gate 5a — deferred until a license key is available)*
+
+`dst_country` and `dst_asn` fields are absent from flow documents because the
+MaxMind GeoIP database has not been configured.
+
+**Action:**
+
+1. Obtain a MaxMind GeoLite2 license key.
+2. Create the `geoip-credentials` Secret in `network-observability` (key: `LICENSE_KEY`).
+   **Never commit the key to git.**
+3. Enable the GeoIP enrichment block in the Vector config (the placeholder is
+   already present but disabled when the secret is absent).
+4. Validate that `dst_country`, `dst_asn`, and `dst_as_org` appear in new flow
+   documents.
+5. Restore the country/ASN panels in Traffic Mix and Destination Analysis.
+
+**Note:** no historical backfill is expected or planned — GeoIP fields will only
+appear in documents indexed after enrichment is enabled.
 
 ---
 
@@ -129,31 +391,28 @@ minor additions:
 - Grafana Hubble metrics dashboard (drop rate, flow count by namespace, DNS latency)
 - Platform Health dashboard Hubble Relay target added
 
+---
+
 ## Wave 3b Hardening Items
 
 These items were accepted as residual conditions at Wave 3b closeout. They do not
 block Wave 4 or Wave 5.
 
-### Build dedicated K8s Flow Context dashboard
-
-~~Moved to Wave 5 scope.~~ The K8s Flow Context dashboard is now an active
-deliverable in Wave 5 Phase 2. It is no longer a backlog item.
-
-**Wave 5 Phase 2 will deliver:** namespace traffic breakdown, top pod-to-pod
-flows, service-type flow volume, `internal-unknown` classification rate, and
-per-node flow heatmap. See [wave-5-plan.md](wave-5-plan.md).
-
-### Tune CronJob schedule from 30 min to 5 min after stable soak
+### Tune CronJob Schedule from 30 min to 5 min After Stable Soak
 
 The 30-minute interval was conservative for soak validation. Short-lived pods
 (Jobs, CronJobs) may complete before the exporter runs and will never appear as
 `pod`-type in flow documents.
 
-**Action:** After confirming stable CronJob operation (no failures across ≥7 days),
-update `k8s-ip-exporter-cronjob.yaml` schedule from `*/30 * * * *` to `*/5 * * * *`.
-Verify the change-detection no-op path keeps flow-collector restart frequency acceptable.
+The k8s-ip-exporter CronJob is now unsuspended and PostSync-protected (3a79385).
+The CronJob and lookup-table durability are confirmed working during Wave 5c soak.
 
-### Add Prometheus alert for CronJob failure
+**Action:** After confirming stable CronJob operation (no failures across ≥7 days
+of Wave 5c soak), update `k8s-ip-exporter-cronjob.yaml` schedule from
+`*/30 * * * *` to `*/5 * * * *`. Verify the change-detection no-op path keeps
+flow-collector restart frequency acceptable.
+
+### Add Prometheus Alert for CronJob Failure
 
 A CronJob failure (RBAC error, K8s API timeout, validation failure, size guard
 trip) leaves previous valid lookup tables in place but produces no alert. Operators
@@ -164,7 +423,7 @@ jobs with `job-name` matching `k8s-ip-exporter-*`. Wire to the platform alert
 routing. This requires Prometheus to scrape kube-state-metrics (already present
 via kube-prometheus-stack).
 
-### Investigate distroless container debugging limitations
+### Investigate Distroless Container Debugging Limitations
 
 The `timberio/vector:0.45.0-distroless-static` image has no shell, package
 manager, or debugging tools. `kubectl exec` is not possible. VRL debugging
@@ -176,7 +435,7 @@ maintaining a `vector:0.45.0-debian` test deployment spec (not in production) th
 can be swapped in temporarily during incidents. Evaluate whether future Vector
 upgrades ship a distroless image with vector-top or similar minimal introspection.
 
-### Review rolling restart ingestion gap
+### Review Rolling Restart Ingestion Gap
 
 Each CronJob-triggered rolling restart causes ~10–30 seconds of reduced ingest
 while the new pod starts up. GoFlow2 buffers in the shared volume, so no data is
@@ -187,7 +446,7 @@ dashboards, evaluate: (1) preloading enrichment tables before binding the listen
 port, or (2) adding a readiness probe delay. At 30-minute cadence with change
 detection, most CronJob runs are no-ops; restarts are infrequent.
 
-### Clean up expired init Job
+### Clean Up Expired Init Job
 
 `k8s-ip-exporter-init-1` was the manual init Job used for Phase 2 first-run
 validation. It completed successfully but remains in the namespace consuming
@@ -203,16 +462,7 @@ TTL is set to 2 hours (`ttlSecondsAfterFinished: 7200`) for CronJob-spawned jobs
 but manually-created jobs are not subject to CronJob TTL. The job can be deleted
 manually.
 
-### Evaluate ArgoCD/Kustomize Helm chart cache comparison noise
-
-During Wave 3b deployment, ArgoCD reported comparison errors related to Helm chart
-cache state on some sync cycles. These were transient and did not block deployment,
-but added noise to the sync status view.
-
-**Action:** After Wave 4/5 manifest work, check ArgoCD app diff output for
-persistent Helm cache drift entries. If present, evaluate adding
-`--server-side-apply` reconciliation options or a targeted `ignoreDifferences`
-entry. Low priority unless frequency increases.
+---
 
 ## Wave 2 Hardening Items
 
@@ -220,7 +470,7 @@ These items were accepted as residual conditions at Wave 2 closeout. They must b
 addressed before Wave 2 is considered fully hardened, but they do not block Wave 3
 planning.
 
-### Suppress or route GoFlow2 template-warning noise
+### Suppress or Route GoFlow2 Template-Warning Noise
 
 GoFlow2 logs `No template found for ...` warnings on every undecodable flow until
 the NetFlow v9 template packet arrives. At scale these warnings obscure actionable
@@ -230,7 +480,7 @@ log output.
 GoFlow2 structured logging to suppress the template-missing class. Evaluate whether
 a Vector log transform can drop them before they reach persistent storage.
 
-### Verify ISM retention policy is applying to `flows-*`
+### Verify ISM Retention Policy Is Applying to `flows-*`
 
 The `flow-retention-14d` ISM policy was loaded at bootstrap, but correct attachment
 to the `flows-*` index pattern should be confirmed after 14+ days of operation.
@@ -243,16 +493,7 @@ curl localhost:9200/_cat/indices/flows-*?v&s=index
 curl localhost:9200/_plugins/_ism/explain/flows-$(date -d '15 days ago' +%Y.%m.%d)
 ```
 
-### Clean remaining GitOps drift and local-only changes
-
-`vector-config` and related resources were patched directly against the cluster
-during Wave 2 debugging. ArgoCD may show drift until a clean sync cycle runs.
-
-**Action:** After the next ArgoCD hard refresh and sync, verify `argocd app get
-network-observability` shows Synced, Healthy with no diff. Resolve any lingering
-out-of-sync resources.
-
-### Validate Grafana Top Talkers performance on 100k+ documents
+### Validate Grafana Top Talkers Performance on 100k+ Documents
 
 The Top Talkers dashboard uses a `terms` aggregation over `flows-*`. At 116k+
 documents and growing, query latency should be measured.
@@ -261,7 +502,7 @@ documents and growing, query latency should be measured.
 response. If > 5s, evaluate increasing `number_of_shards` on the index template
 or adding a `date_histogram` pre-filter.
 
-### Standardize explicit Proxmox exporter service pattern across all hosts
+### Standardize Explicit Proxmox Exporter Service Pattern Across All Hosts
 
 The explicit `softflowd-netflow.service` custom unit pattern was developed during
 Wave 2 rollout. This should be documented and standardized so new Proxmox hosts
@@ -271,7 +512,7 @@ added in the future follow the same pattern.
 covering: mask default unit, configure `/etc/default/softflowd`, deploy
 `softflowd-netflow.service`.
 
-### Document interface autodetect to avoid hardcoded NIC mistakes
+### Document Interface Autodetect to Avoid Hardcoded NIC Mistakes
 
 Different Proxmox hosts use different interface names (`eno1`, `eth0`, `bond0`, etc.).
 Hardcoding the interface in the service unit causes silent failures on hosts with
@@ -281,58 +522,30 @@ different NICs.
 pattern (grep from `/etc/default/softflowd`) and add a warning against hardcoding
 interface names in the service unit template.
 
-## Server Hardware Monitoring
+---
 
-**Scope:** Physical host telemetry for Proxmox nodes and storage hosts.
+## Completed / Resolved
 
-**Candidate sources:**
+Items closed out of the active backlog. Kept for reference.
 
-- IPMI / BMC sensors (via ipmi_exporter or freeipmi-based collectors)
-- Redfish API (modern BMC REST interface — vendor-dependent)
-- node_exporter textfile collectors (custom scripts writing .prom files)
-- Vendor-specific exporters (Dell iDRAC, HP iLO, Supermicro)
+### Build Dedicated K8s Flow Context Dashboard
 
-**Signals:**
+Delivered in Wave 5 Phase 2. The `flow-k8s-context` dashboard is live with
+namespace traffic breakdown, top pod-to-pod flows, flow type distribution,
+internal-unknown rate over time, per-node flow volume, and service-type panel.
 
-- CPU and board temperatures
-- Fan speeds and status
-- PSU voltage, wattage, and failure state
-- ECC memory errors and alerts
-- Disk health (SMART via node_exporter or smartctl_exporter)
-- Chassis intrusion alarms
-- Overall hardware health rollup
+### k8s-ip-exporter CronJob Unsuspended and PostSync-Protected
 
-**Why it matters:** Proxmox node failures from thermal, PSU, or disk issues are invisible to Kubernetes-level monitoring. Hardware telemetry provides early warning before a node goes down.
+The CronJob was suspended during Wave 5c pre-soak gating. Commit 3a79385
+unsuspended the CronJob and added the ArgoCD PostSync hook that ensures lookup
+table durability after each sync. Both changes are in production.
 
-**Not in Wave 2.** This is a telemetry plane extension, not a flow plane concern. Candidate for a future wave after the flow plane is stable.
+### Clean Remaining GitOps Drift
 
-## Network Switch Hardware Monitoring
+Resolved by commit 2fd7039. ArgoCD shows Synced, Healthy with no persistent diff
+on the `network-observability` app.
 
-**Scope:** Hardware health for MikroTik CRS328 and, if worthwhile, UniFi switches.
+### Evaluate ArgoCD/Kustomize Helm Chart Cache Comparison Noise
 
-**MikroTik CRS328 signals (via SNMP):**
-
-- Board temperature (`/system/health` OIDs)
-- System temperature
-- Fan status (if applicable to the CRS328 model)
-- PSU state
-- PoE budget and per-port PoE consumption
-- SFP/transceiver optical levels (TX/RX power, temperature)
-- Hardware alarms
-
-**UniFi switch signals (via controller API):**
-
-- Device temperature (if exposed by UnPoller)
-- Fan status
-- PoE budget and per-port draw
-- Uplink SFP health
-
-**Why it matters:** The current SNMP exporter collects interface traffic counters but not hardware health. A switch overheating or losing a PSU would not be visible until ports go down.
-
-**Implementation notes:**
-
-- MikroTik hardware OIDs may require extending the SNMP exporter config with additional MIBs (MIKROTIK-MIB health subtree)
-- UnPoller may already expose some device health metrics — check `unpoller_device_*` metric families
-- PoE monitoring is operationally valuable for tracking AP and camera power budgets
-
-**Not in Wave 2.** This extends the existing SNMP/UnPoller integration. Candidate for a future telemetry plane enhancement.
+Resolved by commit d2541f4 (`ServerSideApply=true` + `RespectIgnoreDifferences=true`).
+ArgoCD sync is clean; no Helm cache drift in the diff output.
