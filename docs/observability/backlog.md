@@ -54,6 +54,27 @@ Moved to [Post-Wave 5 Flow Enrichment](#post-wave-5-flow-enrichment).
 
 Moved to [Wave 7 — Edge / WAN / Internet Telemetry](#wave-7--edge--wan--internet-telemetry).
 
+### OpenSearch Cross-Index K8s Mapping Mismatch
+
+Flow indices created before Wave 3b (`flows-2026.*` up to the date enrichment was
+enabled) do not have the `src_k8s_type`, `src_k8s_namespace`, and related fields
+in their mapping. When the K8s Flow Context dashboard queries `flows-*` with a
+wide time range that includes these old indices, the K8s columns may appear empty
+or partially populated for older documents.
+
+**Root cause:** OpenSearch applies the index template only to newly-created indices.
+Existing indices retain their original mapping and cannot be retroactively updated
+without a reindex.
+
+**Action:** No immediate action required. Old indices age out under the ISM 14-day
+retention policy — the mismatch resolves automatically over time. If per-document
+K8s field population on historical data is needed, a reindex from old to new indices
+(with the current mapping) is the only path; this is not planned.
+
+**Operational note:** Narrow the dashboard time range to the post-Wave-3b window
+(after the K8s enrichment was activated) to avoid the partially-mapped index issue
+in queries.
+
 ---
 
 ## Post-Wave 5 Flow Enrichment

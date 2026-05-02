@@ -34,11 +34,12 @@ This directory contains design documentation for the GitOps-managed network obse
 | [wave-3-plan.md](wave-3-plan.md) | Wave 3 plan: Kubernetes flow correlation, enrichment strategy, phased implementation |
 | [wave-3b-closeout.md](wave-3b-closeout.md) | Wave 3b formal closeout: K8s IP correlation accepted, hotfixes, caveats, runbook |
 | [wave-4-plan.md](wave-4-plan.md) | Wave 4 plan: Cilium/Hubble K8s visibility — **DEFERRED** (blocked on CNI migration, no scheduled window) |
-| [wave-5-plan.md](wave-5-plan.md) | Wave 5 plan: Unified operator UX — **ACTIVE WAVE** (no Cilium required) |
+| [wave-5-plan.md](wave-5-plan.md) | Wave 5 plan: Unified operator UX — **COMPLETE** (2026-05-02; 4-day owner-approved soak) |
 | [backlog.md](backlog.md) | Hardening items and future-wave work not blocking active rollout (includes deferred Wave 4) |
 | [operations-notes.md](operations-notes.md) | Runtime ops decisions and context (softflowd service pattern, legacy cleanup) |
 | [../evidence/wave5-pass3/](../evidence/wave5-pass3/) | Gate 5a evidence screenshots — seven-dashboard baseline, accepted 2026-04-26 |
 | [../evidence/wave5b/](../evidence/wave5b/) | Gate 5b evidence screenshots — home dashboard, navigation, and drill-down test, accepted 2026-04-26 |
+| [../evidence/wave5c/](../evidence/wave5c/) | Gate 5c final validation — point-in-time platform health check, accepted by owner 2026-05-02 (4-day soak) |
 
 ## Platform Structure
 

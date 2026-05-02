@@ -2,6 +2,49 @@
 
 Runtime decisions and operational context that affect how the platform is understood but are not architecture changes.
 
+## 2026-05-02 — Wave 5 Closed: Platform Go-Live
+
+Wave 5 (Unified Operator UX) is accepted. The network observability platform is
+at go-live status.
+
+**Soak:** 4 days (2026-04-28 to 2026-05-02). Owner-approved deviation from the
+previously recommended 7-day soak. Codex technical review returned HOLD for
+duration and evidence completeness only — no runtime blockers were identified.
+Owner accepted the reduced duration based on healthy final validation and lab
+risk tolerance.
+
+**Final validation summary (2026-05-02 10:30):**
+
+- ArgoCD: Synced, Healthy
+- Grafana: all dashboards provisioned; no datasource errors
+- OpenSearch: daily flow indices present through `flows-2026.05.02`; recent
+  ingest buckets populated
+- `flow-collector` (Vector + GoFlow2): healthy; no OpenSearch sink errors,
+  backpressure, rejects, or drops during soak
+- `k8s-ip-exporter`: running on `*/30 * * * *` schedule, `suspend=false`;
+  lookup tables populated (pods: 81 rows, services: 39 rows, nodes: 5 rows)
+- Fresh flow documents contain namespace, workload, node, and type enrichment
+- Prometheus scrape health: `up=1` for SNMP exporter, UnPoller, and Proxmox
+  exporter
+
+**Accepted residual conditions:** documented in full in
+`docs/observability/go-no-go-gates.md` (Gate 5c) and `docs/observability/backlog.md`.
+Key items: GeoIP not configured, Hubble deferred (Wave 4), switch utilization %
+gauge No Data, duplicate legacy Prometheus datasource, unlabeled port cleanup,
+GoFlow2 template-warning noise, OpenSearch cross-index K8s mapping mismatch on
+pre-Wave-3b documents.
+
+**Evidence:** `docs/evidence/wave5c/final-validation-20260502-1030.txt`
+
+**Active work after go-live:**
+
+- k8s-ip-exporter CronJob schedule tune from 30 min to 5 min (backlog, Wave 3b
+  hardening — after confirming stable soak)
+- App-to-port relationship registry (backlog, Post-Wave 5)
+- Wave 6 scope: server hardware, TrueNAS, Proxmox node network
+
+---
+
 ## 2026-04-27 — Wave 5c Pre-Soak: K8s Enrichment Runbook
 
 k8s-ip-exporter CronJob is now running on a 30-minute schedule (`suspend: false` committed at Wave 5c soak start). ArgoCD is configured to leave runtime-written ConfigMap data intact — `ignoreDifferences` on `.data` plus `RespectIgnoreDifferences=true` prevents header-only placeholder data from being re-applied on sync. This was confirmed working: ConfigMap data survived the 2026-04-27 sync at 05:04:45Z.

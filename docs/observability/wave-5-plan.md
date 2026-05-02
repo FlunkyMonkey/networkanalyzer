@@ -1,4 +1,4 @@
-# Wave 5 Plan — Unified Operator UX
+# Wave 5 Plan — Unified Operator UX *(COMPLETE — 2026-05-02)*
 
 ## Executive Summary
 
@@ -333,6 +333,13 @@ Operator executes at least one playbook end-to-end.
 
 7-day soak with daily spot-checks of homepage, datasources, and Wave 3b health.
 Document evidence. Write wave-5-closeout.md. Declare platform go-live.
+
+> **Phase 7 status: COMPLETE — 2026-05-02.**
+> Soak duration: 4 days (owner-approved deviation from the recommended 7-day window).
+> Codex technical review returned HOLD for duration and evidence completeness, not for
+> any runtime failure. Owner accepted the reduced duration based on healthy final
+> validation and lab risk tolerance. Closeout documentation in `go-no-go-gates.md` and
+> `operations-notes.md`. Evidence: `docs/evidence/wave5c/final-validation-20260502-1030.txt`.
 
 ---
 

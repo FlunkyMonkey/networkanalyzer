@@ -301,7 +301,7 @@ section. Wave 3b resumes automatically after pod restart cycle.
 
 ---
 
-## Wave 5 — Unified UX Go-Live *(ACTIVE)*
+## Wave 5 — Unified UX Go-Live *(COMPLETE — 2026-05-02)*
 
 **Baseline:** Waves 1, 2, 3, 3b complete. Wave 4 deferred.
 
@@ -431,19 +431,22 @@ health dashboard all operational.
 
 | # | Check | Command / Action | Expected | Pass |
 |---|---|---|---|---|
-| 5.7.1 | 7-day soak: homepage | Daily spot-check: `/d/correlation-home` loads | No load failures across 7 days | [ ] |
-| 5.7.2 | 7-day soak: data sources | Daily spot-check: both datasources healthy | No persistent datasource errors | [ ] |
-| 5.7.3 | 7-day soak: Wave 3b regression | `kubectl get jobs -n network-observability --sort-by=.metadata.creationTimestamp \| tail -5` | All recent CronJob runs successful | [ ] |
-| 5.7.4 | 7-day soak: doc count | `curl localhost:9200/flows-*/_count` | Count higher than Phase 1 baseline | [ ] |
-| 5.7.5 | ArgoCD clean at closeout | `argocd app get network-observability` | Synced, Healthy | [ ] |
-| 5.7.6 | All prior wave checks pass | Spot-check items from Waves 1, 2, 3, 3b | No regressions | [ ] |
-| 5.7.7 | wave-5-closeout.md written | Review doc | Executive summary, evidence, caveats, acceptance statement present | [ ] |
+| 5.7.1 | 4-day soak: homepage | Daily spot-check: `/d/correlation-home` loads | No load failures — confirmed clean across 4-day soak | [x] |
+| 5.7.2 | 4-day soak: data sources | Daily spot-check: both datasources healthy | No persistent datasource errors — confirmed by final validation | [x] |
+| 5.7.3 | 4-day soak: Wave 3b regression | `kubectl get jobs -n network-observability --sort-by=.metadata.creationTimestamp \| tail -5` | All recent CronJob runs successful — confirmed; lookup tables populated 81/39/5 rows | [x] |
+| 5.7.4 | 4-day soak: doc count | `curl localhost:9200/flows-*/_count` | Count growing — daily indices present through flows-2026.05.02 | [x] |
+| 5.7.5 | ArgoCD clean at closeout | `argocd app get network-observability` | Synced, Healthy — confirmed by final validation | [x] |
+| 5.7.6 | All prior wave checks pass | Spot-check items from Waves 1, 2, 3, 3b | No regressions — SNMP/UnPoller/Proxmox up=1, enrichment fields present in new docs | [x] |
+| 5.7.7 | Closeout documentation written | Review go-no-go-gates.md and operations-notes.md | Executive summary, evidence, residual conditions, acceptance statement present | [x] |
 
-**Gate 5c:** All soak items pass, closeout doc written → Gate 5 met. Platform go-live.
+**Gate 5c: ACCEPTED BY OWNER — 2026-05-02**
 
-**Rollback trigger:** Homepage consistently fails to load. Both datasources erroring.
-Wave 3b enrichment fields dropping out during soak.
+> Soak duration: 4 days (owner-approved deviation from 7-day recommendation).
+> Codex technical review: HOLD (duration and evidence completeness only — no runtime
+> blockers found). Owner accepted the reduced duration based on healthy final validation
+> and lab risk tolerance. Evidence: `docs/evidence/wave5c/final-validation-20260502-1030.txt`.
+> Accepted residual conditions documented in go-no-go-gates.md and backlog.md.
 
-**Rollback:** Comment out `../../base/correlation-ux` in overlay, commit, push.
-ArgoCD prunes all UX ConfigMaps. Grafana reverts to plain Prometheus + OpenSearch
-datasources. All data planes (Wave 1–3b) unaffected.
+**Rollback (post-go-live, if needed):** Comment out `../../base/correlation-ux` in
+overlay, commit, push. ArgoCD prunes all UX ConfigMaps. All data planes (Wave 1–3b)
+unaffected.
