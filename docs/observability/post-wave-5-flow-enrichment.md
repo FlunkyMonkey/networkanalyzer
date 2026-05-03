@@ -1,8 +1,8 @@
 # Post-Wave 5 Flow Enrichment Plan
 
-## Status: Phase 2 — Registry and Lookup Table Plumbing Complete
+## Status: Phase 3a — OpenSearch Mapping Hardened
 
-Phase 1 audit completed 2026-05-02. Phase 2 wiring deployed 2026-05-02.
+Phase 1 audit completed 2026-05-02. Phase 2 wiring deployed 2026-05-02. Phase 3a mapping deployed 2026-05-03.
 
 ---
 
@@ -244,15 +244,51 @@ requires `string!(r.short_name)` — VRL 0.45.0's type checker does not verify t
 - Pod IPs (10.244.x.x): `src_display_name = "unknown-10.244.x.x"` (RFC1918 fallback) ✓
 - Ceph OSD port 6802: no new flows observed in 15-minute post-restart window (labeling confirmed by port registry entry; will appear when Ceph replication traffic arrives)
 
-### Phase 3 — Vector Enrichment Fields
+### Phase 3a — OpenSearch Mapping Hardening — COMPLETE (2026-05-03)
 
-**Scope:** Add workload-based app labeling VRL, validate, deploy.
+**What was implemented:**
+
+Updated `platform/base/flow-analytics/opensearch-index-template.yaml` to explicitly
+map all 7 new Phase 2 enrichment fields as `keyword`:
+
+- `src_hostname`, `dst_hostname`
+- `src_display_name`, `dst_display_name`
+- `dst_app_label`, `dst_app_category`, `dst_app_source`
+
+Previously these were dynamically mapped by OpenSearch as `text` with a
+`.keyword` subfield (256 char limit). Future daily indices (`flows-YYYY.MM.DD`)
+will use native `keyword` with no size limit and no `.keyword` path needed.
+
+**Index mapping caveat:**
+
+The current-day index (`flows-2026.05.03` and any earlier indices) retains
+`text + .keyword` dynamic mapping from when Phase 2 first wrote these fields.
+Aggregations and dashboards MUST use the `.keyword` path (e.g.,
+`dst_app_source.keyword`) until those indices age out of retention. Beginning
+2026-05-04, new daily indices will have native `keyword` and plain field paths
+will work without `.keyword`.
+
+No rollover was forced. Operators can request a manual rollover to get clean
+mapping on today's index if needed (low-risk: today's index is ~3.1M docs).
+
+**Validated (2026-05-03):**
+
+- `kustomize build --enable-helm platform/overlays/lab` passes twice (52 resources)
+- ArgoCD: Synced/Healthy (commit 58554bd)
+- `PUT /_index_template/flows` → `{"acknowledged":true}`
+- Template stored in OpenSearch with all 7 new fields as `{"type":"keyword"}`
+- `dst_app_source.keyword` aggregation: unlabeled=1,781,751 existing=937,570 registry=380,745
+- `dst_app_label.keyword` top: Kubernetes=526,160 etcd-Peer=259,969 Ceph-Monitor=86,804
+- `src_display_name.keyword` top: kube1(172.18.1.61)=506,666 kube3=462,546 kube2=454,699
+- `dst_app_category.keyword` top: k8s=804,064 network=180,598 storage=105,327
+- Vector: no errors post-restart
+
+### Phase 3b — Workload-Pattern VRL
+
+**Scope:** Add workload-based app labeling VRL for Ceph OSD ephemeral ports.
 
 1. Add the workload-pattern VRL block to `enrich_meta` (see section B above).
-2. Add `app_category` field derived from the registry `category` column.
-3. Update the OpenSearch index template to add `src_hostname`, `dst_hostname`,
-   and `app_category` as keyword fields.
-4. Validate: confirm Ceph OSD flows show `app: Ceph-OSD` in new documents.
+2. Validate: confirm Ceph OSD flows show `app: Ceph-OSD` in new documents.
 
 ### Phase 4 — Dashboard Label Updates
 
