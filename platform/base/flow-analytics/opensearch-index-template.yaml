@@ -57,7 +57,14 @@ data:
             "dst_k8s_service":   { "type": "keyword" },
             "dst_k8s_pod":       { "type": "keyword" },
             "dst_k8s_node":      { "type": "keyword" },
-            "dst_k8s_type":      { "type": "keyword" }
+            "dst_k8s_type":      { "type": "keyword" },
+            "src_hostname":      { "type": "keyword" },
+            "dst_hostname":      { "type": "keyword" },
+            "src_display_name":  { "type": "keyword" },
+            "dst_display_name":  { "type": "keyword" },
+            "dst_app_label":     { "type": "keyword" },
+            "dst_app_category":  { "type": "keyword" },
+            "dst_app_source":    { "type": "keyword" }
           }
         }
       },
