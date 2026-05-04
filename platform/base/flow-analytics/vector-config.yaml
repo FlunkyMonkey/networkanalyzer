@@ -272,7 +272,7 @@ data:
           - enrich_k8s
         source: |
           # --- App label enrichment from port registry ---
-          # Priority: existing .app (hardcoded map) > registry match > unlabeled.
+          # Priority: existing .app (hardcoded map) > registry match > workload pattern > unlabeled.
           # dst_app_label / dst_app_category / dst_app_source are always set.
           port_int = to_int(.dst_port) ?? 0
           proto    = to_string(.protocol_name) ?? ""
@@ -286,7 +286,15 @@ data:
             .dst_app_category = r.category
             .dst_app_source   = "registry"
           } else {
-            .dst_app_source = "unlabeled"
+            dst_wl = to_string(.dst_k8s_workload) ?? ""
+            src_wl = to_string(.src_k8s_workload) ?? ""
+            if starts_with(dst_wl, "rook-ceph-osd") || starts_with(src_wl, "rook-ceph-osd") {
+              .dst_app_label    = "Ceph-OSD"
+              .dst_app_category = "storage"
+              .dst_app_source   = "workload"
+            } else {
+              .dst_app_source = "unlabeled"
+            }
           }
 
           # --- Hostname / display-name enrichment ---
