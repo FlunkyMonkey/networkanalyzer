@@ -1,9 +1,10 @@
 # Post-Wave 5 Flow Enrichment Plan
 
-## Status: Phase 3b — Workload-Pattern App Labeling Complete
+## Status: Phase 4 — Dashboard Label Updates Complete
 
 Phase 1 audit completed 2026-05-02. Phase 2 wiring deployed 2026-05-02.
 Phase 3a mapping deployed 2026-05-03. Phase 3b workload labeling deployed 2026-05-03.
+Phase 4 dashboard updates deployed 2026-05-03.
 
 ---
 
@@ -334,16 +335,46 @@ on this index.
 
 ### Phase 4 — Dashboard Label Updates
 
-**Scope:** Surface `src_hostname`, `dst_hostname`, and `app_category` in dashboards.
+**Deployed 2026-05-03, commits 3317ca6 and fbd8eb9.**
 
-1. **Top Talkers:** rename "Source IP" column to "Source" and display
-   `src_hostname ?? src_ip` using a Grafana value mapping or transform.
-   Format: `short_name (ip)` where available, raw IP otherwise.
-2. **Destination Analysis:** same treatment for `dst_ip` / `dst_hostname`.
-3. **Traffic Mix:** add `app_category` piechart alongside the existing `app` chart.
-4. **K8s Context:** already shows namespace/workload — hostname enrichment is
-   additive here, lower priority.
-5. Update `Sum bytes` → `Total Volume` field labels in any panels not yet renamed.
+**What changed:**
+
+| Dashboard | Changes |
+|-----------|---------|
+| Flow — Top Talkers | Replaced raw src_ip/dst_ip term buckets with nested src_display_name.keyword → src_ip and dst_display_name.keyword → dst_ip. Column headers: Source, Source IP, Destination, Destination IP. Drill-down links pass the raw IP (not display name) so Destination Analysis filtering stays intact. |
+| Flow — Destination Analysis | Top Destinations: same nested display_name → ip approach. Top Destination Ports: replaced old `app` bucket with dst_app_label.keyword + dst_app_source.keyword. New panel: App Labels, Categories & Sources — shows dst_app_label / dst_app_category / dst_app_source, making enrichment path visible. Top Sources (Inbound): nested src_display_name → src_ip. |
+| Flow — Traffic Mix | Full Breakdown table: replaced old `app` / `protocol_name` nested buckets with dst_app_label.keyword, dst_app_category.keyword, dst_app_source.keyword. Traffic by Application renamed to "Traffic by App Label", updated to use dst_app_label.keyword. New panel: Top App Categories by Volume. New panel: Traffic by Enrichment Source — shows labeled vs unlabeled split. GeoIP notice shifted down. |
+| Network Observability — Home | Added GitOps flow enrichment status row (✅ Active). Updated "High-volume unlabeled ports" from 📋 Backlog to ⚠️ Residual (expected). |
+
+**Implementation caveat — .keyword column names:**
+The Grafana OpenSearch datasource plugin preserves the `.keyword` suffix in column names
+returned from terms aggregations. All `renameByName` keys and `byName` fieldConfig
+overrides use the `.keyword` form (e.g., `dst_app_label.keyword`) to match correctly.
+Numeric fields (`dst_port`, `src_ip`, `dst_ip`) and metric fields (`Sum`, `Count`) are
+unaffected.
+
+**Validated (2026-05-03):**
+
+- `kustomize build --enable-helm platform/overlays/lab` passes twice (deterministic)
+- ArgoCD: Synced/Healthy (commit fbd8eb9)
+- Flow — Top Talkers: Source column shows `prox2 (172.18.1.20)`, `truenas01 (172.18.1.96)` etc.
+  Source IP column shows raw IPs in blue (linked). Drill-down links functional.
+- Flow — Traffic Mix: Full Breakdown columns Category | App Label | Port | Enrich Source |
+  Total Volume | Flow Count. Top rows: storage/NFS/2049/existing, storage/Ceph-OSD/6802/registry.
+  Top App Categories shows k8s, infrastructure, network, storage, web. Traffic by Enrichment
+  Source shows unlabeled / existing / registry split.
+- Flow — Destination Analysis: Destinations show as `truenas01 (172.18.1.96)` etc.
+  App Labels, Categories & Sources panel visible with enrichment path breakdown.
+- Network Observability — Home: GitOps flow enrichment row shows ✅ Active.
+- No datasource errors. Volumes render as GB. Flow counts render as K notation.
+
+**Evidence screenshots:**
+- `docs/evidence/post-wave5-flow-enrichment-phase4/top-talkers.png`
+- `docs/evidence/post-wave5-flow-enrichment-phase4/traffic-mix-top.png`
+- `docs/evidence/post-wave5-flow-enrichment-phase4/destination-analysis.png`
+- `docs/evidence/post-wave5-flow-enrichment-phase4/home-status.png`
+- `docs/evidence/post-wave5-flow-enrichment-phase4/top-talkers-table-zoom.png`
+- `docs/evidence/post-wave5-flow-enrichment-phase4/traffic-mix-table-zoom.png`
 
 ### Phase 5 — Validation and Closeout
 
