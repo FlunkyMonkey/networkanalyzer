@@ -1,8 +1,9 @@
 # Post-Wave 5 Flow Enrichment Plan
 
-## Status: Phase 3a — OpenSearch Mapping Hardened
+## Status: Phase 3b — Workload-Pattern App Labeling Complete
 
-Phase 1 audit completed 2026-05-02. Phase 2 wiring deployed 2026-05-02. Phase 3a mapping deployed 2026-05-03.
+Phase 1 audit completed 2026-05-02. Phase 2 wiring deployed 2026-05-02.
+Phase 3a mapping deployed 2026-05-03. Phase 3b workload labeling deployed 2026-05-03.
 
 ---
 
@@ -283,12 +284,53 @@ mapping on today's index if needed (low-risk: today's index is ~3.1M docs).
 - `dst_app_category.keyword` top: k8s=804,064 network=180,598 storage=105,327
 - Vector: no errors post-restart
 
-### Phase 3b — Workload-Pattern VRL
+### Phase 3b — Workload-Pattern VRL — COMPLETE (2026-05-03)
 
-**Scope:** Add workload-based app labeling VRL for Ceph OSD ephemeral ports.
+**What was implemented:**
 
-1. Add the workload-pattern VRL block to `enrich_meta` (see section B above).
-2. Validate: confirm Ceph OSD flows show `app: Ceph-OSD` in new documents.
+Extended the `enrich_flow` VRL transform's app-labeling priority chain from
+`existing > registry > unlabeled` to `existing > registry > workload > unlabeled`.
+
+In the `else` branch (registry lookup missed), the VRL now checks:
+
+```vrl
+dst_wl = to_string(.dst_k8s_workload) ?? ""
+src_wl = to_string(.src_k8s_workload) ?? ""
+if starts_with(dst_wl, "rook-ceph-osd") || starts_with(src_wl, "rook-ceph-osd") {
+  .dst_app_label    = "Ceph-OSD"
+  .dst_app_category = "storage"
+  .dst_app_source   = "workload"
+} else {
+  .dst_app_source = "unlabeled"
+}
+```
+
+**Precedence notes:**
+
+- Ceph OSD traffic on fixed known ports (6800–6804, 6808) already in the registry
+  continues to get `dst_app_source = "registry"` — the registry wins because the
+  port lookup succeeds before the workload check runs.
+- Ephemeral destination ports used in Ceph OSD replication (e.g., 34036, 59604)
+  have no registry match; the workload check fires for these.
+- Both `dst_k8s_workload` and `src_k8s_workload` are checked so that bidirectional
+  flows (e.g., rook-ceph-mon → rook-ceph-osd ephemeral reply) are also captured.
+
+**Validated (2026-05-03, index flows-2026.05.04):**
+
+- `kustomize build --enable-helm platform/overlays/lab` passes twice (52 resources)
+- ArgoCD: Synced/Healthy (commit 143db09)
+- flow-collector: 2/2 Running, 0 restarts
+- Vector: no errors
+- `dst_app_source` distribution: unlabeled=102,260 existing=53,913 registry=25,738 **workload=72**
+- Workload-source sample:
+  - `rook-ceph-mgr-b → rook-ceph-osd-2` dst_port=34036: Ceph-OSD/storage/workload ✓
+  - `rook-ceph-mon-i → rook-ceph-osd-0` dst_port=59604: Ceph-OSD/storage/workload ✓
+- Registry still wins: etcd-Peer=17,971 Ceph-Monitor=5,804 Ceph-OSD(fixed ports)=1,052 NFS-Mountd=14 ✓
+- Existing still wins: Kubernetes=36,594 DNS=11,646 Proxmox=3,297 ✓
+
+**Note on index:** flows-2026.05.04 has native `keyword` mapping for all enrichment
+fields (Phase 3a template applied). No `.keyword` path required for aggregations
+on this index.
 
 ### Phase 4 — Dashboard Label Updates
 
