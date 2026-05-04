@@ -6,8 +6,15 @@
 #   - All panels use Lucene aggregation queries (bucketAggs + metrics).
 #   - PPL is NOT used.
 #
+# Post-Wave 5 Phase 4 enrichment fields used throughout:
+#   - src_display_name.keyword / dst_display_name.keyword  (friendly name + IP)
+#   - dst_app_label.keyword   (Kubernetes, Ceph-OSD, DNS, SSH, etc.)
+#   - dst_app_category.keyword (k8s, storage, network, infrastructure, web, etc.)
+#   - dst_app_source.keyword   (existing, registry, workload, unlabeled)
+#   - Raw src_ip / dst_ip preserved in nested buckets for drill-down link correctness.
+#
 # Dashboards:
-#   flow-top-talkers     uid: flow-top-talkers    — top source IPs by bytes
+#   flow-top-talkers     uid: flow-top-talkers    — top sources/destinations by bytes
 #   flow-destinations    uid: flow-destinations   — per-host destination/port breakdown
 #   flow-traffic-mix     uid: flow-traffic-mix    — protocol, app, port distribution
 apiVersion: v1
@@ -34,11 +41,11 @@ data:
           "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
           "options": {
             "mode": "markdown",
-            "content": "## 📊 Top Talkers\nTop source and destination IPs ranked by **total byte volume** over the selected time range. Click any IP to drill down into its destination breakdown."
+            "content": "## 📊 Top Talkers\nTop sources and destinations ranked by **total byte volume** over the selected time range. Names show as **hostname (IP)** — e.g. `kube1 (172.18.1.61)` or `unknown-10.244.x.x`. Click **Source IP** or **Destination IP** to drill down into its destination breakdown."
           }
         },
         {
-          "title": "Top Source IPs by Volume",
+          "title": "Top Sources by Volume",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 12, "w": 12, "x": 0, "y": 3 },
@@ -56,8 +63,14 @@ data:
                 {
                   "id": "3",
                   "type": "terms",
-                  "field": "src_ip",
+                  "field": "src_display_name.keyword",
                   "settings": { "size": "20", "order": "desc", "orderBy": "1" }
+                },
+                {
+                  "id": "4",
+                  "type": "terms",
+                  "field": "src_ip",
+                  "settings": { "size": "1", "order": "desc", "orderBy": "1" }
                 }
               ]
             }
@@ -79,20 +92,33 @@ data:
                 ]
               },
               {
+                "matcher": { "id": "byName", "options": "Source" },
+                "properties": [{ "id": "custom.width", "value": 220 }]
+              },
+              {
                 "matcher": { "id": "byName", "options": "Source IP" },
                 "properties": [
-                  { "id": "links", "value": [{ "title": "Drill down", "url": "/d/flow-destinations/flow-destination-analysis?var-src_ip=${__value.text}" }] }
+                  { "id": "custom.width", "value": 130 },
+                  { "id": "links", "value": [{ "title": "Drill down to destinations", "url": "/d/flow-destinations/flow-destination-analysis?var-src_ip=${__value.text}" }] }
                 ]
               }
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "src_ip": "Source IP", "Sum": "Total Volume", "Count": "Flow Count" } } }
+            { "id": "organize", "options": {
+              "renameByName": {
+                "src_display_name": "Source",
+                "src_ip": "Source IP",
+                "Sum": "Total Volume",
+                "Count": "Flow Count"
+              },
+              "indexByName": { "Source": 0, "Source IP": 1, "Total Volume": 2, "Flow Count": 3 }
+            } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
         {
-          "title": "Top Destination IPs by Volume",
+          "title": "Top Destinations by Volume",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 12, "w": 12, "x": 12, "y": 3 },
@@ -110,8 +136,14 @@ data:
                 {
                   "id": "3",
                   "type": "terms",
-                  "field": "dst_ip",
+                  "field": "dst_display_name.keyword",
                   "settings": { "size": "20", "order": "desc", "orderBy": "1" }
+                },
+                {
+                  "id": "4",
+                  "type": "terms",
+                  "field": "dst_ip",
+                  "settings": { "size": "1", "order": "desc", "orderBy": "1" }
                 }
               ]
             }
@@ -133,15 +165,28 @@ data:
                 ]
               },
               {
+                "matcher": { "id": "byName", "options": "Destination" },
+                "properties": [{ "id": "custom.width", "value": 220 }]
+              },
+              {
                 "matcher": { "id": "byName", "options": "Destination IP" },
                 "properties": [
-                  { "id": "links", "value": [{ "title": "Drill down", "url": "/d/flow-destinations/flow-destination-analysis?var-dst_ip=${__value.text}" }] }
+                  { "id": "custom.width", "value": 130 },
+                  { "id": "links", "value": [{ "title": "Drill down to destinations", "url": "/d/flow-destinations/flow-destination-analysis?var-dst_ip=${__value.text}" }] }
                 ]
               }
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "dst_ip": "Destination IP", "Sum": "Total Volume", "Count": "Flow Count" } } }
+            { "id": "organize", "options": {
+              "renameByName": {
+                "dst_display_name": "Destination",
+                "dst_ip": "Destination IP",
+                "Sum": "Total Volume",
+                "Count": "Flow Count"
+              },
+              "indexByName": { "Destination": 0, "Destination IP": 1, "Total Volume": 2, "Flow Count": 3 }
+            } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
@@ -233,11 +278,11 @@ data:
           "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
           "options": {
             "mode": "markdown",
-            "content": "## 🔍 Destination Analysis\nWhat destinations are hosts connecting to? Top destination IPs, ports, and inbound sources by byte volume. Click any IP in Top Talkers to drill down here."
+            "content": "## 🔍 Destination Analysis\nWhat destinations are hosts connecting to? Names show as **hostname (IP)** where enriched. App labels show enrichment source: **existing** (original registry), **registry** (GitOps port map), **workload** (K8s workload pattern), **unlabeled** (no match). Click any IP in Top Talkers to drill down here."
           }
         },
         {
-          "title": "Top Destination IPs by Volume",
+          "title": "Top Destinations by Volume",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 12, "w": 24, "x": 0, "y": 3 },
@@ -255,8 +300,14 @@ data:
                 {
                   "id": "3",
                   "type": "terms",
-                  "field": "dst_ip",
+                  "field": "dst_display_name.keyword",
                   "settings": { "size": "30", "order": "desc", "orderBy": "1" }
+                },
+                {
+                  "id": "4",
+                  "type": "terms",
+                  "field": "dst_ip",
+                  "settings": { "size": "1", "order": "desc", "orderBy": "1" }
                 }
               ]
             }
@@ -276,17 +327,33 @@ data:
                   { "id": "unit", "value": "short" },
                   { "id": "custom.width", "value": 120 }
                 ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Destination" },
+                "properties": [{ "id": "custom.width", "value": 220 }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Destination IP" },
+                "properties": [{ "id": "custom.width", "value": 130 }]
               }
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "dst_ip": "Destination IP", "Sum": "Total Volume", "Count": "Flow Count" } } }
+            { "id": "organize", "options": {
+              "renameByName": {
+                "dst_display_name": "Destination",
+                "dst_ip": "Destination IP",
+                "Sum": "Total Volume",
+                "Count": "Flow Count"
+              },
+              "indexByName": { "Destination": 0, "Destination IP": 1, "Total Volume": 2, "Flow Count": 3 }
+            } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
         {
           "title": "Top Destination Ports",
-          "description": "Top destination ports by volume. App Label shows Vector-enriched names where available; 'unlabeled' means the port has no mapping yet.",
+          "description": "Top destination ports by volume. App Label from dst_app_label enrichment; Source shows whether the label came from the existing registry, GitOps port registry, K8s workload pattern, or is unlabeled.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 10, "w": 12, "x": 0, "y": 15 },
@@ -310,7 +377,13 @@ data:
                 {
                   "id": "4",
                   "type": "terms",
-                  "field": "app",
+                  "field": "dst_app_label.keyword",
+                  "settings": { "size": "1", "order": "desc", "orderBy": "1", "missing": "unlabeled" }
+                },
+                {
+                  "id": "5",
+                  "type": "terms",
+                  "field": "dst_app_source.keyword",
                   "settings": { "size": "1", "order": "desc", "orderBy": "1", "missing": "unlabeled" }
                 }
               ]
@@ -331,11 +404,32 @@ data:
                   { "id": "unit", "value": "short" },
                   { "id": "custom.width", "value": 120 }
                 ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Port" },
+                "properties": [{ "id": "custom.width", "value": 70 }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "App Label" },
+                "properties": [{ "id": "custom.width", "value": 140 }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Source" },
+                "properties": [{ "id": "custom.width", "value": 100 }]
               }
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "dst_port": "Port", "app": "App Label", "Sum": "Total Volume", "Count": "Flow Count" } } }
+            { "id": "organize", "options": {
+              "renameByName": {
+                "dst_port": "Port",
+                "dst_app_label": "App Label",
+                "dst_app_source": "Source",
+                "Sum": "Total Volume",
+                "Count": "Flow Count"
+              },
+              "indexByName": { "Port": 0, "App Label": 1, "Source": 2, "Total Volume": 3, "Flow Count": 4 }
+            } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
@@ -350,11 +444,11 @@ data:
           }
         },
         {
-          "title": "Top Source IPs by Volume (Inbound View)",
-          "description": "Top source IPs sending traffic to this network, ranked by volume.",
+          "title": "App Labels, Categories & Sources",
+          "description": "Traffic breakdown by enriched app label. Source column shows enrichment origin: existing (original registry), registry (GitOps port map), workload (K8s workload-pattern), unlabeled (no match).",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 25 },
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 25 },
           "targets": [
             {
               "refId": "A",
@@ -369,8 +463,20 @@ data:
                 {
                   "id": "3",
                   "type": "terms",
-                  "field": "src_ip",
+                  "field": "dst_app_label.keyword",
                   "settings": { "size": "20", "order": "desc", "orderBy": "1" }
+                },
+                {
+                  "id": "4",
+                  "type": "terms",
+                  "field": "dst_app_category.keyword",
+                  "settings": { "size": "1", "order": "desc", "orderBy": "1", "missing": "unknown" }
+                },
+                {
+                  "id": "5",
+                  "type": "terms",
+                  "field": "dst_app_source.keyword",
+                  "settings": { "size": "1", "order": "desc", "orderBy": "1", "missing": "unlabeled" }
                 }
               ]
             }
@@ -392,15 +498,104 @@ data:
                 ]
               },
               {
+                "matcher": { "id": "byName", "options": "App Label" },
+                "properties": [{ "id": "custom.width", "value": 150 }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Category" },
+                "properties": [{ "id": "custom.width", "value": 110 }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Enrich Source" },
+                "properties": [{ "id": "custom.width", "value": 100 }]
+              }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": {
+              "renameByName": {
+                "dst_app_label": "App Label",
+                "dst_app_category": "Category",
+                "dst_app_source": "Enrich Source",
+                "Sum": "Total Volume",
+                "Count": "Flow Count"
+              },
+              "indexByName": { "App Label": 0, "Category": 1, "Enrich Source": 2, "Total Volume": 3, "Flow Count": 4 }
+            } }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
+        },
+        {
+          "title": "Top Sources by Volume (Inbound View)",
+          "description": "Top source endpoints sending traffic, ranked by volume.",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 25 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "3",
+                  "type": "terms",
+                  "field": "src_display_name.keyword",
+                  "settings": { "size": "20", "order": "desc", "orderBy": "1" }
+                },
+                {
+                  "id": "4",
+                  "type": "terms",
+                  "field": "src_ip",
+                  "settings": { "size": "1", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Sum" },
+                "properties": [
+                  { "id": "unit", "value": "decbytes" },
+                  { "id": "custom.width", "value": 140 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Flow Count" },
+                "properties": [
+                  { "id": "unit", "value": "short" },
+                  { "id": "custom.width", "value": 120 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Source" },
+                "properties": [{ "id": "custom.width", "value": 220 }]
+              },
+              {
                 "matcher": { "id": "byName", "options": "Source IP" },
                 "properties": [
-                  { "id": "links", "value": [{ "title": "Drill down", "url": "/d/flow-destinations/flow-destination-analysis?var-src_ip=${__value.text}" }] }
+                  { "id": "custom.width", "value": 130 },
+                  { "id": "links", "value": [{ "title": "Drill down to destinations", "url": "/d/flow-destinations/flow-destination-analysis?var-src_ip=${__value.text}" }] }
                 ]
               }
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "src_ip": "Source IP", "Sum": "Total Volume", "Count": "Flow Count" } } }
+            { "id": "organize", "options": {
+              "renameByName": {
+                "src_display_name": "Source",
+                "src_ip": "Source IP",
+                "Sum": "Total Volume",
+                "Count": "Flow Count"
+              },
+              "indexByName": { "Source": 0, "Source IP": 1, "Total Volume": 2, "Flow Count": 3 }
+            } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         }
@@ -428,12 +623,12 @@ data:
           "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
           "options": {
             "mode": "markdown",
-            "content": "## 🔀 Traffic Mix\nWhat applications, protocols, and ports are generating traffic? App labels come from Vector port-based enrichment. Ports without a mapping show as **unlabeled** — these are candidates for adding to the Vector port map."
+            "content": "## 🔀 Traffic Mix\nApplication, protocol, and port distribution. **App Label** comes from GitOps port-registry enrichment. **Source** shows label origin: `existing` (original registry), `registry` (GitOps port map), `workload` (K8s workload-pattern match), `unlabeled` (no match — candidates for the port map)."
           }
         },
         {
           "title": "Traffic by Destination Port — Full Breakdown",
-          "description": "Every destination port ranked by total volume, with the Vector-enriched app label and layer-4 protocol. 'unlabeled' means the port has no mapping in Vector yet.",
+          "description": "Every destination port ranked by total volume, with enriched app label, category, and source. 'unlabeled' means the port has no mapping in the GitOps registry yet.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 16, "w": 24, "x": 0, "y": 3 },
@@ -457,14 +652,20 @@ data:
                 {
                   "id": "5",
                   "type": "terms",
-                  "field": "app",
+                  "field": "dst_app_label.keyword",
                   "settings": { "size": "1", "order": "desc", "orderBy": "1", "missing": "unlabeled" }
                 },
                 {
                   "id": "6",
                   "type": "terms",
-                  "field": "protocol_name",
-                  "settings": { "size": "1", "order": "desc", "orderBy": "1" }
+                  "field": "dst_app_category.keyword",
+                  "settings": { "size": "1", "order": "desc", "orderBy": "1", "missing": "unknown" }
+                },
+                {
+                  "id": "7",
+                  "type": "terms",
+                  "field": "dst_app_source.keyword",
+                  "settings": { "size": "1", "order": "desc", "orderBy": "1", "missing": "unlabeled" }
                 }
               ]
             }
@@ -494,29 +695,40 @@ data:
                 "properties": [{ "id": "custom.width", "value": 160 }]
               },
               {
-                "matcher": { "id": "byName", "options": "Protocol" },
-                "properties": [{ "id": "custom.width", "value": 90 }]
+                "matcher": { "id": "byName", "options": "Category" },
+                "properties": [{ "id": "custom.width", "value": 120 }]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Enrich Source" },
+                "properties": [{ "id": "custom.width", "value": 100 }]
               }
             ]
           },
           "transformations": [
             { "id": "organize", "options": {
-              "renameByName": { "dst_port": "Port", "app": "App Label", "protocol_name": "Protocol", "Sum": "Total Volume", "Count": "Flow Count" },
-              "indexByName": { "Port": 0, "App Label": 1, "Protocol": 2, "Total Volume": 3, "Flow Count": 4 }
+              "renameByName": {
+                "dst_port": "Port",
+                "dst_app_label": "App Label",
+                "dst_app_category": "Category",
+                "dst_app_source": "Enrich Source",
+                "Sum": "Total Volume",
+                "Count": "Flow Count"
+              },
+              "indexByName": { "Port": 0, "App Label": 1, "Category": 2, "Enrich Source": 3, "Total Volume": 4, "Flow Count": 5 }
             } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
         {
-          "title": "Traffic by Application (labeled ports only)",
-          "description": "Aggregated view of traffic where Vector has assigned an app label. Unlabeled port traffic is excluded — see the full port table above.",
+          "title": "Traffic by App Label (labeled only)",
+          "description": "Aggregated view of traffic where an app label is present. Unlabeled port traffic is excluded — see the full port table above.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 12, "w": 12, "x": 0, "y": 19 },
           "targets": [
             {
               "refId": "A",
-              "query": "_exists_:app",
+              "query": "_exists_:dst_app_label",
               "queryType": "lucene",
               "timeField": "@timestamp",
               "metrics": [
@@ -527,7 +739,7 @@ data:
                 {
                   "id": "3",
                   "type": "terms",
-                  "field": "app",
+                  "field": "dst_app_label.keyword",
                   "settings": { "size": "20", "order": "desc", "orderBy": "1" }
                 }
               ]
@@ -552,7 +764,60 @@ data:
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "app": "Application", "Sum": "Total Volume", "Count": "Flow Count" } } }
+            { "id": "organize", "options": { "renameByName": { "dst_app_label": "App Label", "Sum": "Total Volume", "Count": "Flow Count" } } }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
+        },
+        {
+          "title": "Top App Categories by Volume",
+          "description": "Traffic grouped by enriched app category. Categories: k8s, storage, network, infrastructure, web, monitoring, database, iot, security.",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 12, "w": 12, "x": 12, "y": 19 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "3",
+                  "type": "terms",
+                  "field": "dst_app_category.keyword",
+                  "settings": { "size": "15", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Sum" },
+                "properties": [
+                  { "id": "unit", "value": "decbytes" },
+                  { "id": "custom.width", "value": 140 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Flow Count" },
+                "properties": [
+                  { "id": "unit", "value": "short" },
+                  { "id": "custom.width", "value": 120 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Category" },
+                "properties": [{ "id": "custom.width", "value": 140 }]
+              }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "dst_app_category": "Category", "Sum": "Total Volume", "Count": "Flow Count" } } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
@@ -561,7 +826,7 @@ data:
           "description": "Layer-4 protocol distribution (TCP, UDP, etc.) by total volume.",
           "type": "table",
           "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 12, "w": 12, "x": 12, "y": 19 },
+          "gridPos": { "h": 12, "w": 12, "x": 0, "y": 31 },
           "targets": [
             {
               "refId": "A",
@@ -606,9 +871,62 @@ data:
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
         {
+          "title": "Traffic by Enrichment Source",
+          "description": "Shows what fraction of flows are labeled by each enrichment path. 'unlabeled' flows are candidates for expanding the GitOps port registry.",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 12, "w": 12, "x": 12, "y": 31 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
+              ],
+              "bucketAggs": [
+                {
+                  "id": "3",
+                  "type": "terms",
+                  "field": "dst_app_source.keyword",
+                  "settings": { "size": "10", "order": "desc", "orderBy": "1" }
+                }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Sum" },
+                "properties": [
+                  { "id": "unit", "value": "decbytes" },
+                  { "id": "custom.width", "value": 140 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Flow Count" },
+                "properties": [
+                  { "id": "unit", "value": "short" },
+                  { "id": "custom.width", "value": 120 }
+                ]
+              },
+              {
+                "matcher": { "id": "byName", "options": "Enrich Source" },
+                "properties": [{ "id": "custom.width", "value": 140 }]
+              }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "dst_app_source": "Enrich Source", "Sum": "Total Volume", "Count": "Flow Count" } } }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
+        },
+        {
           "title": "🌍 GeoIP / ASN Enrichment — Not Configured",
           "type": "text",
-          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 31 },
+          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 43 },
           "options": {
             "mode": "markdown",
             "content": "**Country and ASN panels are not shown** because MaxMind GeoIP enrichment is not configured. To enable:\n1. Obtain a MaxMind license key\n2. Add GeoIP lookup to the Vector pipeline\n3. Fields `dst_country` and `dst_as_org` will populate in new flow documents\n\nOnce enabled, country and ASN tables will appear here automatically. This is **expected**, not a data error."
