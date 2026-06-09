@@ -24,12 +24,17 @@ serviceMonitor:
 
 # Inline the SNMP module + auth config. The chart creates its own ConfigMap
 # and mounts it at /etc/snmp_exporter/snmp.yml.
-# Replace SNMP_COMMUNITY with the actual community string before deployment.
-# See docs/observability/secrets-and-bootstrap.md.
+#
+# Community string: the MikroTik uses the default read-only community "public"
+# (non-sensitive default; the switch is a LAN-internal L2 device with SNMP
+# read-only access). It is inlined here because it is not a secret. If you move
+# the switch to a non-default/private community, switch to the Secret +
+# `--config.expand-environment-variables` pattern in secrets-and-bootstrap.md
+# (Option B) so the value is not committed to git.
 config: |-
   auths:
     mikrotik_v2:
-      community: SNMP_COMMUNITY
+      community: public
       security_level: noAuthNoPriv
       auth_protocol: MD5
       priv_protocol: DES
@@ -41,6 +46,10 @@ config: |-
         - 1.3.6.1.2.1.2.2
         - 1.3.6.1.2.1.31.1.1
         - 1.3.6.1.2.1.1
+        # MIKROTIK-MIB health sensor table (mtxrHlSensor): names at .100.1.2.<id>,
+        # values at .100.1.3.<id>. Exposes cpu/board temperature, fan speeds,
+        # PSU voltage/current, and PoE-out consumption on the CRS328-24P-4S+.
+        - 1.3.6.1.4.1.14988.1.1.3.100.1
       metrics:
         - name: ifHCInOctets
           oid: 1.3.6.1.2.1.31.1.1.1.6
@@ -89,7 +98,7 @@ config: |-
         - name: ifSpeed
           oid: 1.3.6.1.2.1.2.2.1.5
           type: gauge
-          help: Interface speed in bits per second.
+          help: Interface speed in bits per second (32-bit; reads 0 above ~4Gbps).
           indexes:
             - labelname: ifIndex
               type: Integer
@@ -97,6 +106,26 @@ config: |-
             - labels: [ifIndex]
               labelname: ifDescr
               oid: 1.3.6.1.2.1.2.2.1.2
+              type: DisplayString
+        # 64-bit speed in Mbps (ifXTable). Use ifHighSpeed * 1e6 as the
+        # utilization denominator so 10G SFP+ uplinks (where ifSpeed overflows
+        # to 0) compute correctly. Same ifDescr+ifAlias lookups as ifHCInOctets
+        # so the two divide with matching label sets.
+        - name: ifHighSpeed
+          oid: 1.3.6.1.2.1.31.1.1.1.15
+          type: gauge
+          help: Interface speed in Mbps (64-bit, ifXTable).
+          indexes:
+            - labelname: ifIndex
+              type: Integer
+          lookups:
+            - labels: [ifIndex]
+              labelname: ifDescr
+              oid: 1.3.6.1.2.1.2.2.1.2
+              type: DisplayString
+            - labels: [ifIndex]
+              labelname: ifAlias
+              oid: 1.3.6.1.2.1.31.1.1.1.18
               type: DisplayString
         - name: sysName
           oid: 1.3.6.1.2.1.1.5.0
@@ -106,6 +135,23 @@ config: |-
           oid: 1.3.6.1.2.1.1.3.0
           type: gauge
           help: Device uptime in hundredths of a second.
+        # MikroTik health sensors. One gauge per sensor, identified by the
+        # `sensor` label (cpu-temperature, board-temperature1, fan1-speed,
+        # fan2-speed, psu1-voltage, psu2-voltage, psu1-current, psu2-current,
+        # poe-out-consumption). Units: temperature degC; fan RPM; voltage/
+        # current/power in deci-units (multiply by 0.1 in dashboards).
+        - name: mikrotik_health_sensor
+          oid: 1.3.6.1.4.1.14988.1.1.3.100.1.3
+          type: gauge
+          help: MikroTik health sensor value; see the sensor label for name and units.
+          indexes:
+            - labelname: sensorIndex
+              type: Integer
+          lookups:
+            - labels: [sensorIndex]
+              labelname: sensor
+              oid: 1.3.6.1.4.1.14988.1.1.3.100.1.2
+              type: DisplayString
 
 # Resource limits — SNMP exporter is lightweight.
 resources:

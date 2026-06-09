@@ -71,7 +71,7 @@ data:
           "gridPos": { "h": 8, "w": 24, "x": 0, "y": 11 },
           "targets": [
             {
-              "expr": "(rate(ifHCInOctets[5m]) * 8 / clamp_min(ifSpeed, 1)) * 100",
+              "expr": "(rate(ifHCInOctets{ifDescr!~\"lo|bridge.*\"}[5m]) * 8 * 100) / (ifHighSpeed{ifDescr!~\"lo|bridge.*\"} * 1e6 > 0)",
               "legendFormat": "{{ifDescr}}"
             }
           ],
@@ -202,7 +202,7 @@ data:
           "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
           "options": {
             "mode": "markdown",
-            "content": "Proxmox VM network bandwidth from the Proxmox VE exporter (`pve_network_receive/transmit_bytes`). Node-level network counters are not exposed by the current exporter version — see the notice panel below."
+            "content": "Proxmox VM network bandwidth from the Proxmox VE exporter (`pve_network_receive/transmit_bytes`). The PVE exporter does not expose node-level counters (`pve_node_info_netin/netout` are absent), so the bottom panel derives **switch-authoritative** per-host bandwidth from the MikroTik uplink port each node connects to (prox1→ether7, prox2→ether6, prox3→ether19, prox4→ether23, prox5→ether3). This reflects each host's physical NIC traffic (host + its VMs on that uplink)."
           }
         },
         {
@@ -242,12 +242,25 @@ data:
           }
         },
         {
-          "title": "Node-Level Network Counters",
-          "type": "text",
-          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 11 },
-          "options": {
-            "mode": "markdown",
-            "content": "**Node-level network counters are not exposed by the current Proxmox VE exporter.** The metrics `pve_node_info_netin` / `pve_node_info_netout` do not exist in the live Prometheus scrape. Per-VM receive/transmit panels above are the available granularity. Node totals can be approximated by summing VMs per node in the panels above."
+          "title": "Per-Host Network — Switch-Authoritative (bits/s)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 11 },
+          "targets": [
+            {
+              "expr": "rate(ifHCInOctets{ifDescr=~\"ether3|ether6|ether7|ether19|ether23\"}[5m]) * 8",
+              "legendFormat": "{{ifAlias}} ▼ in"
+            },
+            {
+              "expr": "rate(ifHCOutOctets{ifDescr=~\"ether3|ether6|ether7|ether19|ether23\"}[5m]) * 8",
+              "legendFormat": "{{ifAlias}} ▲ out"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bps",
+              "custom": { "fillOpacity": 10 }
+            }
           }
         }
       ],
@@ -257,4 +270,174 @@ data:
       "time": { "from": "now-24h", "to": "now" },
       "title": "Proxmox Node & VM Network",
       "uid": "infra-proxmox-net"
+    }
+
+  switch-hardware.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "",
+          "type": "text",
+          "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+          "options": {
+            "mode": "markdown",
+            "content": "Network switch and AP hardware health. **MikroTik CRS328-24P-4S+** via SNMP (`mikrotik_health_sensor`, by `sensor` label) — temperatures, fan speeds, PSU voltage/current, PoE-out. **UniFi** APs/switches via UnPoller (`unpoller_device_*`). Voltage/current/power sensors are read in deci-units and scaled ×0.1 here."
+          }
+        },
+        {
+          "title": "MikroTik Temperatures (°C)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 3 },
+          "targets": [
+            {
+              "expr": "mikrotik_health_sensor{sensor=~\"cpu-temperature|board-temperature1\"}",
+              "legendFormat": "{{sensor}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "celsius",
+              "custom": { "fillOpacity": 10 },
+              "thresholds": {
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 60 },
+                  { "color": "red", "value": 75 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "title": "MikroTik Fan Speed (RPM)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 3 },
+          "targets": [
+            {
+              "expr": "mikrotik_health_sensor{sensor=~\"fan.*-speed\"}",
+              "legendFormat": "{{sensor}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "rotrpm",
+              "custom": { "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "title": "MikroTik PSU Voltage (V)",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 5, "w": 8, "x": 0, "y": 10 },
+          "targets": [
+            {
+              "expr": "mikrotik_health_sensor{sensor=~\"psu.*-voltage\"} * 0.1",
+              "legendFormat": "{{sensor}}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "volt" } }
+        },
+        {
+          "title": "MikroTik PSU Current (A)",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 5, "w": 8, "x": 8, "y": 10 },
+          "targets": [
+            {
+              "expr": "mikrotik_health_sensor{sensor=~\"psu.*-current\"} * 0.1",
+              "legendFormat": "{{sensor}}"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "amp" } }
+        },
+        {
+          "title": "MikroTik PoE-Out Consumption (W)",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 5, "w": 8, "x": 16, "y": 10 },
+          "targets": [
+            {
+              "expr": "mikrotik_health_sensor{sensor=\"poe-out-consumption\"} * 0.1",
+              "legendFormat": "PoE-out"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "watt" } }
+        },
+        {
+          "title": "UniFi Devices (UnPoller)",
+          "type": "text",
+          "gridPos": { "h": 2, "w": 24, "x": 0, "y": 15 },
+          "options": { "mode": "markdown", "content": "UniFi access points and switches — device-level health from UnPoller." }
+        },
+        {
+          "title": "UniFi Device Temperature (°C)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 17 },
+          "targets": [
+            {
+              "expr": "unpoller_device_temperature_celsius",
+              "legendFormat": "{{name}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "celsius",
+              "custom": { "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "title": "UniFi CPU / Memory Utilization (%)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 17 },
+          "targets": [
+            {
+              "expr": "unpoller_device_cpu_utilization_ratio * 100",
+              "legendFormat": "{{name}} cpu"
+            },
+            {
+              "expr": "unpoller_device_memory_utilization_ratio * 100",
+              "legendFormat": "{{name}} mem"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "max": 100,
+              "custom": { "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "title": "UniFi Device Status",
+          "type": "table",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 24 },
+          "targets": [
+            {
+              "expr": "unpoller_device_uptime_seconds",
+              "legendFormat": "{{name}}",
+              "format": "table",
+              "instant": true
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["network", "hardware", "mikrotik", "unifi", "infra-telemetry"],
+      "templating": { "list": [] },
+      "time": { "from": "now-6h", "to": "now" },
+      "title": "Network Switch & AP Hardware Health",
+      "uid": "infra-switch-hw"
     }
