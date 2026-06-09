@@ -441,3 +441,166 @@ data:
       "title": "Network Switch & AP Hardware Health",
       "uid": "infra-switch-hw"
     }
+
+  truenas-storage.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "",
+          "type": "text",
+          "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+          "options": {
+            "mode": "markdown",
+            "content": "TrueNAS storage health for TrueNAS01 (172.18.1.96, SSD) and TrueNAS02 (172.18.1.97, HDD) via the TrueNAS REST API v2.0. Answers: is storage **healthy**, **protected** (scrub/alerts), and **replicating**? Capacity, fragmentation, scrub errors, active alerts, and replication-task state."
+          }
+        },
+        {
+          "title": "Pool Status",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 5, "w": 8, "x": 0, "y": 3 },
+          "targets": [
+            { "expr": "truenas_pool_healthy", "legendFormat": "{{host}}/{{pool}}", "instant": true }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "type": "value", "options": { "1": { "text": "HEALTHY", "color": "green" }, "0": { "text": "UNHEALTHY", "color": "red" } } }
+              ],
+              "thresholds": { "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+            }
+          },
+          "options": { "colorMode": "background", "graphMode": "none" }
+        },
+        {
+          "title": "Active CRITICAL Alerts",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 5, "w": 8, "x": 8, "y": 3 },
+          "targets": [
+            { "expr": "sum by (host) (truenas_alerts{level=\"CRITICAL\"})", "legendFormat": "{{host}}", "instant": true }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }
+            }
+          },
+          "options": { "colorMode": "background", "graphMode": "none" }
+        },
+        {
+          "title": "Replication Errors",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 5, "w": 8, "x": 16, "y": 3 },
+          "targets": [
+            { "expr": "truenas_replication_error", "legendFormat": "{{host}}: {{task}}", "instant": true }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "type": "value", "options": { "0": { "text": "OK", "color": "green" }, "1": { "text": "FAILED", "color": "red" } } }
+              ],
+              "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }
+            }
+          },
+          "options": { "colorMode": "background", "graphMode": "none" }
+        },
+        {
+          "title": "Pool Capacity Used (%)",
+          "type": "gauge",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 6, "w": 12, "x": 0, "y": 8 },
+          "targets": [
+            { "expr": "truenas_pool_allocated_bytes / truenas_pool_size_bytes * 100", "legendFormat": "{{host}}/{{pool}}", "instant": true }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "max": 100,
+              "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 85 } ] }
+            }
+          }
+        },
+        {
+          "title": "Pool Free Space",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 6, "w": 12, "x": 12, "y": 8 },
+          "targets": [
+            { "expr": "truenas_pool_free_bytes", "legendFormat": "{{host}}/{{pool}}", "instant": true }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        },
+        {
+          "title": "Fragmentation (%)",
+          "type": "bargauge",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 6, "w": 8, "x": 0, "y": 14 },
+          "targets": [
+            { "expr": "truenas_pool_fragmentation_ratio", "legendFormat": "{{host}}/{{pool}}", "instant": true }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "max": 100,
+              "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 50 }, { "color": "red", "value": 80 } ] }
+            }
+          }
+        },
+        {
+          "title": "Scrub Errors",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 6, "w": 8, "x": 8, "y": 14 },
+          "targets": [
+            { "expr": "truenas_pool_scrub_errors", "legendFormat": "{{host}}/{{pool}}", "instant": true }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }
+            }
+          },
+          "options": { "colorMode": "background", "graphMode": "none" }
+        },
+        {
+          "title": "Disks per Host",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 6, "w": 8, "x": 16, "y": 14 },
+          "targets": [
+            { "expr": "truenas_disk_count", "legendFormat": "{{host}}", "instant": true }
+          ]
+        },
+        {
+          "title": "Active Alerts by Level",
+          "type": "bargauge",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 20 },
+          "targets": [
+            { "expr": "truenas_alerts > 0", "legendFormat": "{{host}} {{level}}", "instant": true }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" } }
+        },
+        {
+          "title": "Replication Tasks",
+          "type": "table",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 20 },
+          "targets": [
+            { "expr": "truenas_replication_state", "legendFormat": "{{host}} {{task}} {{state}}", "format": "table", "instant": true }
+          ]
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["storage", "truenas", "zfs", "infra-telemetry"],
+      "templating": { "list": [] },
+      "time": { "from": "now-6h", "to": "now" },
+      "title": "TrueNAS Storage Health",
+      "uid": "infra-truenas"
+    }

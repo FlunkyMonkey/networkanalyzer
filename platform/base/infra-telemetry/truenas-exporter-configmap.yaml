@@ -1,0 +1,161 @@
+# TrueNAS exporter script. A small stdlib-only Python exporter that queries the
+# TrueNAS REST API v2.0 for each configured host and exposes Prometheus metrics.
+# Mounted into the stock python:3-slim image (see truenas-exporter-deployment.yaml).
+# This mirrors the repo's existing scripted-component pattern (k8s-ip-exporter).
+#
+# Metrics exposed (all carry a `host` label = truenas01 / truenas02):
+#   truenas_scrape_success                       1/0 per host (API reachable)
+#   truenas_system_uptime_seconds
+#   truenas_system_info{version,hostname}        1
+#   truenas_pool_healthy{pool}                   1/0
+#   truenas_pool_status{pool,status}             1  (status as label: ONLINE/DEGRADED/...)
+#   truenas_pool_size_bytes{pool}
+#   truenas_pool_allocated_bytes{pool}
+#   truenas_pool_free_bytes{pool}
+#   truenas_pool_fragmentation_ratio{pool}       percent
+#   truenas_pool_scrub_errors{pool}
+#   truenas_pool_scrub_end_timestamp_seconds{pool}
+#   truenas_alerts{level}                        active (non-dismissed) alert count by level
+#   truenas_disk_count
+#   truenas_replication_error{task}              1 if last run ERROR/FAILED
+#   truenas_replication_state{task,state}        1  (state as label)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: truenas-exporter-script
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: truenas-exporter
+    app.kubernetes.io/component: infra-telemetry
+data:
+  truenas_exporter.py: |
+    import os, ssl, json, urllib.request
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    CTX = ssl._create_unverified_context()
+    TIMEOUT = float(os.environ.get("TRUENAS_TIMEOUT", "10"))
+    PORT = int(os.environ.get("EXPORTER_PORT", "9888"))
+
+    def targets():
+        out = []
+        for item in os.environ.get("TARGETS", "").split(","):
+            item = item.strip()
+            if not item:
+                continue
+            name, ip = item.split(":", 1)
+            key = os.environ.get(name.upper() + "_API_KEY", "")
+            out.append((name.strip(), ip.strip(), key))
+        return out
+
+    def api(ip, key, path):
+        req = urllib.request.Request(
+            "https://%s/api/v2.0%s" % (ip, path),
+            headers={"Authorization": "Bearer " + key},
+        )
+        with urllib.request.urlopen(req, timeout=TIMEOUT, context=CTX) as r:
+            return json.load(r)
+
+    def esc(v):
+        return str(v).replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
+
+    class Metrics:
+        def __init__(self):
+            self.lines = []
+            self.seen = set()
+        def add(self, name, value, labels=None, help=None, typ="gauge"):
+            if name not in self.seen:
+                if help:
+                    self.lines.append("# HELP %s %s" % (name, help))
+                self.lines.append("# TYPE %s %s" % (name, typ))
+                self.seen.add(name)
+            if labels:
+                lbl = ",".join('%s="%s"' % (k, esc(v)) for k, v in labels.items())
+                self.lines.append("%s{%s} %s" % (name, lbl, value))
+            else:
+                self.lines.append("%s %s" % (name, value))
+        def text(self):
+            return "\n".join(self.lines) + "\n"
+
+    def collect():
+        m = Metrics()
+        for name, ip, key in targets():
+            h = {"host": name}
+            try:
+                info = api(ip, key, "/system/info")
+                m.add("truenas_scrape_success", 1, h, "1 if the TrueNAS API was reachable")
+                m.add("truenas_system_uptime_seconds", round(info.get("uptime_seconds", 0) or 0), h)
+                m.add("truenas_system_info", 1, {"host": name,
+                      "version": info.get("version", ""), "hostname": info.get("hostname", "")})
+            except Exception:
+                m.add("truenas_scrape_success", 0, h, "1 if the TrueNAS API was reachable")
+                continue
+            try:
+                for p in api(ip, key, "/pool"):
+                    pl = {"host": name, "pool": p.get("name", "")}
+                    m.add("truenas_pool_healthy", 1 if p.get("healthy") else 0, pl, "1 if the pool is healthy")
+                    m.add("truenas_pool_status", 1, {"host": name, "pool": p.get("name", ""),
+                          "status": p.get("status", "")}, "pool status as a label (value always 1)")
+                    m.add("truenas_pool_size_bytes", p.get("size") or 0, pl)
+                    m.add("truenas_pool_allocated_bytes", p.get("allocated") or 0, pl)
+                    m.add("truenas_pool_free_bytes", p.get("free") or 0, pl)
+                    m.add("truenas_pool_fragmentation_ratio", p.get("fragmentation") or 0, pl, "pool fragmentation percent")
+                    s = p.get("scan") or {}
+                    m.add("truenas_pool_scrub_errors", s.get("errors") or 0, pl)
+                    end = s.get("end_time") or {}
+                    ts = (end.get("$date") or 0) / 1000.0 if isinstance(end, dict) else 0
+                    m.add("truenas_pool_scrub_end_timestamp_seconds", round(ts), pl)
+            except Exception:
+                m.add("truenas_pool_query_success", 0, h, "1 if /pool was queried successfully")
+            try:
+                counts = {}
+                for a in api(ip, key, "/alert/list"):
+                    if a.get("dismissed"):
+                        continue
+                    lvl = a.get("level", "UNKNOWN")
+                    counts[lvl] = counts.get(lvl, 0) + 1
+                for lvl in ["CRITICAL", "ERROR", "WARNING", "NOTICE", "INFO"]:
+                    m.add("truenas_alerts", counts.get(lvl, 0), {"host": name, "level": lvl},
+                          "active (non-dismissed) alerts by level")
+            except Exception:
+                pass
+            try:
+                m.add("truenas_disk_count", len(api(ip, key, "/disk")), h, "number of physical disks")
+            except Exception:
+                pass
+            try:
+                for t in api(ip, key, "/replication"):
+                    st = t.get("state") or {}
+                    state = (st.get("state") if isinstance(st, dict) else st) or "UNKNOWN"
+                    tl = {"host": name, "task": t.get("name", "")}
+                    m.add("truenas_replication_error", 1 if state in ("ERROR", "FAILED") else 0, tl,
+                          "1 if the last replication run errored/failed")
+                    m.add("truenas_replication_state", 1, {"host": name, "task": t.get("name", ""),
+                          "state": state}, "replication task state as a label (value always 1)")
+            except Exception:
+                pass
+        return m.text()
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path.startswith("/metrics"):
+                try:
+                    body = collect().encode()
+                except Exception as e:
+                    body = ("# collect error: %s\n" % e).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; version=0.0.4")
+                self.end_headers()
+                self.wfile.write(body)
+            elif self.path in ("/healthz", "/"):
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"ok\n")
+            else:
+                self.send_response(404)
+                self.end_headers()
+        def log_message(self, *a):
+            pass
+
+    if __name__ == "__main__":
+        print("truenas-exporter listening on :%d" % PORT, flush=True)
+        HTTPServer(("0.0.0.0", PORT), Handler).serve_forever()

@@ -1,0 +1,93 @@
+# TrueNAS exporter — stdlib Python script (truenas-exporter-script ConfigMap) run
+# on the stock python:3-slim image. Queries the TrueNAS REST API v2.0 for each host
+# and exposes Prometheus metrics on :9888. API keys come from the truenas-credentials
+# Secret (created out-of-band — see docs/observability/secrets-and-bootstrap.md).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: truenas-exporter
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: truenas-exporter
+    app.kubernetes.io/component: infra-telemetry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: truenas-exporter
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: truenas-exporter
+        app.kubernetes.io/component: infra-telemetry
+      annotations:
+        # Roll the pod when the script changes so config updates take effect.
+        checksum/script: truenas-exporter-v1
+    spec:
+      containers:
+        - name: truenas-exporter
+          image: python:3.12-slim
+          command: ["python3", "/app/truenas_exporter.py"]
+          ports:
+            - name: metrics
+              containerPort: 9888
+              protocol: TCP
+          env:
+            - name: EXPORTER_PORT
+              value: "9888"
+            - name: TARGETS
+              value: "truenas01:172.18.1.96,truenas02:172.18.1.97"
+            - name: TRUENAS01_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: truenas-credentials
+                  key: truenas01-api-key
+            - name: TRUENAS02_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: truenas-credentials
+                  key: truenas02-api-key
+          volumeMounts:
+            - name: script
+              mountPath: /app
+              readOnly: true
+          resources:
+            requests:
+              cpu: 25m
+              memory: 48Mi
+            limits:
+              cpu: 100m
+              memory: 96Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: script
+          configMap:
+            name: truenas-exporter-script
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: truenas-exporter
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: truenas-exporter
+    app.kubernetes.io/component: infra-telemetry
+spec:
+  selector:
+    app.kubernetes.io/name: truenas-exporter
+  ports:
+    - name: metrics
+      port: 9888
+      targetPort: metrics
+      protocol: TCP

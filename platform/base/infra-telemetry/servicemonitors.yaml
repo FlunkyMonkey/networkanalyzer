@@ -67,3 +67,24 @@ spec:
       params:
         target:
           - "172.18.1.50:8006"
+---
+# TrueNAS exporter — scrapes the stdlib Python exporter that queries the
+# TrueNAS REST API v2.0 for both storage hosts (truenas01, truenas02).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: truenas-exporter
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: truenas-exporter
+    app.kubernetes.io/component: infra-telemetry
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: truenas-exporter
+  endpoints:
+    - port: metrics
+      interval: 60s
+      path: /metrics
+      scrapeTimeout: 30s
