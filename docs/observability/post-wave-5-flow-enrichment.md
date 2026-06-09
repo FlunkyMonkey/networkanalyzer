@@ -1,10 +1,11 @@
 # Post-Wave 5 Flow Enrichment Plan
 
-## Status: Phase 4 — Dashboard Label Updates Complete
+## Status: Phase 5 — Validated and Closed Out
 
 Phase 1 audit completed 2026-05-02. Phase 2 wiring deployed 2026-05-02.
 Phase 3a mapping deployed 2026-05-03. Phase 3b workload labeling deployed 2026-05-03.
-Phase 4 dashboard updates deployed 2026-05-03.
+Phase 4 dashboard updates deployed 2026-05-03. Phase 5 validated and closed out
+2026-06-08 on live data (`flows-2026.06.08`, 3.48M docs).
 
 ---
 
@@ -369,6 +370,7 @@ unaffected.
 - No datasource errors. Volumes render as GB. Flow counts render as K notation.
 
 **Evidence screenshots:**
+
 - `docs/evidence/post-wave5-flow-enrichment-phase4/top-talkers.png`
 - `docs/evidence/post-wave5-flow-enrichment-phase4/traffic-mix-top.png`
 - `docs/evidence/post-wave5-flow-enrichment-phase4/destination-analysis.png`
@@ -376,14 +378,45 @@ unaffected.
 - `docs/evidence/post-wave5-flow-enrichment-phase4/top-talkers-table-zoom.png`
 - `docs/evidence/post-wave5-flow-enrichment-phase4/traffic-mix-table-zoom.png`
 
-### Phase 5 — Validation and Closeout
+### Phase 5 — Validation and Closeout — COMPLETE (2026-06-08)
 
-1. Verify top unlabeled ports are now labeled in Traffic Mix.
-2. Verify Proxmox/TrueNAS hosts show friendly names in Top Talkers.
-3. Verify no regression in existing K8s enrichment fields.
-4. Update backlog to mark post-wave-5 items complete.
-5. Run `kustomize build` and markdownlint.
-6. Commit closeout.
+Validated on live data via read-only OpenSearch aggregation queries against
+`flows-2026.06.08` (last complete day, 3,480,542 docs, native `keyword` mapping).
+ArgoCD `network-observability` Synced/Healthy; flow-collector 2/2 Running.
+
+Full evidence: `docs/evidence/post-wave5-flow-enrichment-phase5/final-validation-20260608.txt`
+
+**Check 1 — top unlabeled ports now labeled (by byte volume): PASS**
+
+`dst_app_source` split: existing 232.90 GiB, registry 123.26 GiB, workload 47.14 GiB,
+unlabeled 70.45 GiB — **~85% of byte volume is now labeled** (403.3 of 473.8 GiB).
+Every top-unlabeled port from the Phase 1 audit now carries a label: 6801/6802
+Ceph-OSD, 786 NFS-Mountd, 813/747/741 NFS-Aux, 2380 etcd-Peer, 3300 Ceph-Monitor,
+6808 Ceph-Manager. Category rollup is storage-dominated (399.77 GiB), matching the
+homelab's Ceph + NFS profile.
+
+**Check 2 — Proxmox/TrueNAS show friendly names: PASS**
+
+`src_display_name` / `dst_display_name` render infrastructure hosts as `name (ip)`:
+`prox3 (172.18.1.30)`, `prox2 (172.18.1.20)`, `truenas01 (172.18.1.96)` (228.77 GiB
+inbound NFS), all kube nodes. Pod IPs fall back to `unknown-10.244.x.x` as designed.
+
+**Check 3 — no regression in K8s enrichment: PASS**
+
+`src_k8s_type`: node 2,103,390 / external 807,729 / pod 569,389 / internal-unknown
+**34** (0.001%). `src_hostname` populated on 79.8% of docs (remainder are pod/public
+IPs without a map entry — expected). Phase 3b workload labeling still fires
+(`dst_app_source=workload` → Ceph-OSD, 1,835 flows).
+
+**Residual (tracked in backlog, small/optional):** the remaining ~70 GiB unlabeled
+slice is dominated by two *identifiable* ports — **5405 Corosync (18.85 GiB)** and
+**5353 mDNS (3.06 GiB)** — plus genuinely ephemeral high ports that cannot be
+labeled by port. Adding 5405 and 5353 to `app-port-registry.csv` would reclaim
+~22 GiB of the residual.
+
+**Validation tooling:** `kustomize build --enable-helm platform/overlays/lab`
+passes (no manifest changes in this closeout); `markdownlint-cli2` clean on edited
+docs.
 
 ---
 

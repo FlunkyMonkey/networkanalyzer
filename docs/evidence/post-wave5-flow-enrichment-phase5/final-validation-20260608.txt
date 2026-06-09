@@ -1,0 +1,100 @@
+Post-Wave 5 Flow Enrichment — Phase 5 Validation & Closeout
+============================================================
+Date:        2026-06-08 (cluster UTC 2026-06-09)
+Index:       flows-2026.06.08 (last complete day, 3,480,542 docs, native keyword mapping)
+Method:      read-only OpenSearch aggregation queries via kubectl port-forward
+             (svc/opensearch-cluster-master 9200, plugins.security.disabled=true)
+Cluster:     network-observability ArgoCD app Synced / Healthy
+             flow-collector 2/2 Running, opensearch-cluster-master-0 1/1 Running
+             k8s-ip-exporter CronJob completing on schedule
+
+Note: this validation followed restoration of cluster API reachability. A stale
+permanent ARP entry on the operator workstation pinned the API VIP 172.18.1.60 to
+a wrong MAC (d0:11:e5:b8:fa:23) after a kube-vip failover; it was deleted so the
+entry re-learned the correct kube1 MAC (bc:24:11:1c:e2:fe). Not a platform fault.
+
+------------------------------------------------------------
+CHECK 1 — Top unlabeled ports are now labeled (by byte volume)
+------------------------------------------------------------
+dst_app_source distribution (whole-day, by volume):
+  existing       232.90 GiB      977,477 flows
+  registry       123.26 GiB      434,375 flows
+  unlabeled       70.45 GiB    2,066,855 flows
+  workload        47.14 GiB        1,835 flows
+
+  => Labeled (existing+registry+workload) = 403.3 GiB of 473.8 GiB = ~85% of bytes.
+
+dst_app_label top (by volume):
+  NFS            228.80   Ceph-OSD      98.89   NFS-Aux       23.84
+  Ceph-Manager    23.79   NFS-Mountd    17.61   Ceph-Monitor   3.63
+  OpenSearch       3.20   etcd-Peer      2.05   Kubelet        0.58
+  HTTP-Alt         0.24   Kubernetes     0.20   Proxmox        0.17
+  Redis            0.13   HTTPS-Alt      0.12   DNS            0.02   (GiB)
+
+  => Every top-unlabeled port from the Phase 1 audit now carries a label:
+     6801/6802 Ceph-OSD, 786 NFS-Mountd, 813/747/741 NFS-Aux, 2380 etcd-Peer,
+     3300 Ceph-Monitor, 6808 Ceph-Manager. PASS.
+
+dst_app_category (by volume):
+  storage 399.77 | k8s 2.83 | web 0.37 | infrastructure 0.17 | database 0.14 |
+  network 0.02 | monitoring/iot/security ~0  (GiB)
+
+Residual unlabeled top ports (the remaining ~70 GiB "unknown" slice):
+  5405  18.85 GiB   <-- Corosync (Proxmox cluster heartbeat) — IDENTIFIABLE
+  5353   3.06 GiB   <-- mDNS — IDENTIFIABLE
+  8081   0.13 GiB   <-- HTTP-alt
+  55033/52210/9315/62204/51612/57260/22295/34993/59196 — ephemeral high ports,
+       not port-labelable.
+  => Follow-up: add 5405 (Corosync) and 5353 (mDNS) to app-port-registry.csv to
+     reclaim ~22 GiB of the residual. Tracked in backlog.
+
+------------------------------------------------------------
+CHECK 2 — Proxmox / TrueNAS show friendly names
+------------------------------------------------------------
+src_display_name top (by volume):
+  prox3 (172.18.1.30)      79.65 GiB
+  prox4 (172.18.1.40)      63.23 GiB
+  prox2 (172.18.1.20)      62.17 GiB
+  truenas01 (172.18.1.96)  41.46 GiB
+  prox1 (172.18.1.10)      40.65 GiB
+  unknown-10.244.9.171     29.48 GiB   (pod IP — RFC1918 fallback, expected)
+  kube4 (172.18.1.64)      18.68 GiB
+  kube1 (172.18.1.61)      17.42 GiB
+  kube2 (172.18.1.62)      12.89 GiB
+
+dst_display_name top (by volume):
+  truenas01 (172.18.1.96)  228.77 GiB   (NFS storage target)
+  kube1 (172.18.1.61)       28.71 GiB
+  prox3 (172.18.1.30)       20.93 GiB
+  prox2 (172.18.1.20)       16.18 GiB
+  prox1 (172.18.1.10)       14.54 GiB
+  kube3 (172.18.1.63)        8.79 GiB
+  prox4 (172.18.1.40)        6.58 GiB
+  unknown-10.244.x.x         (pod IPs — RFC1918 fallback, expected)
+
+  => All Phase 1 audit targets (prox2/.20, truenas01/.96, prox3/.30, prox4/.40)
+     render as "name (ip)". Pod IPs fall back to unknown-10.244.x.x. PASS.
+
+------------------------------------------------------------
+CHECK 3 — No regression in K8s enrichment fields
+------------------------------------------------------------
+src_k8s_type distribution:
+  node              2,103,390 flows
+  external            807,729 flows
+  pod                 569,389 flows
+  internal-unknown         34 flows   (0.001% — negligible)
+
+src_hostname populated on 2,776,307 / 3,480,542 docs (79.8%)
+  (remainder = pod IPs and public IPs with no host-map entry — expected)
+
+workload-source flows -> labels (Phase 3b VRL still firing):
+  Ceph-OSD          1,835 flows
+
+  => node/pod/external classification intact; workload-pattern labeling active;
+     internal-unknown rate negligible (backlog monitoring item effectively closed).
+     PASS.
+
+------------------------------------------------------------
+RESULT: Phase 5 PASS. Post-Wave 5 Flow Enrichment validated on live data.
+Follow-up (small, optional): add Corosync 5405 + mDNS 5353 to the port registry.
+------------------------------------------------------------

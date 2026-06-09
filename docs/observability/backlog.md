@@ -39,12 +39,13 @@ the lookup tables stabilize. A persistently high `internal-unknown` rate indicat
 lookup table gaps, high pod churn, or a stale restart cycle.
 
 The k8s-ip-exporter CronJob is now unsuspended and PostSync-protected (3a79385).
-The 30-minute schedule is still in effect during soak.
+The 30-minute schedule is still in effect.
 
-**Action:** Establish a baseline `internal-unknown` rate from the K8s Flow Context
-dashboard during Wave 5c soak. If the rate exceeds baseline by more than 20%,
-investigate CronJob frequency and consider reducing to 5 min (see Wave 3b hardening
-item: tune CronJob schedule).
+**Baseline established (2026-06-08):** `internal-unknown` is **34 flows out of
+3,480,542** on `flows-2026.06.08` (0.001%) — negligible. The lookup tables have
+stabilized; the 30-minute CronJob cadence is sufficient and no reduction to 5 min
+is warranted on this evidence. This monitoring item is effectively closed; reopen
+only if the rate climbs materially above this baseline.
 
 ### Unlabeled Port Visibility
 
@@ -79,47 +80,48 @@ in queries.
 
 ## Post-Wave 5 Flow Enrichment
 
-**Design doc:** [post-wave-5-flow-enrichment.md](post-wave-5-flow-enrichment.md) — Phase 1 audit complete (2026-05-02). Scaffold files in `config/enrichment/`. Phase 2 (wiring) is the next step, requires decision on ConfigMap placement.
+**Status: COMPLETE (2026-06-08).**
+
+**Design doc:** [post-wave-5-flow-enrichment.md](post-wave-5-flow-enrichment.md) —
+Phases 1–5 complete. Validated on live data 2026-06-08 (`flows-2026.06.08`): ~85%
+of byte volume now labeled, infrastructure hosts render as friendly names, no K8s
+enrichment regression. Evidence:
+`docs/evidence/post-wave5-flow-enrichment-phase5/final-validation-20260608.txt`.
 
 Items that improve flow data quality and dashboard readability without requiring
-new infrastructure. No new telemetry planes.
+new infrastructure. No new telemetry planes. The two sub-items below are resolved;
+one small residual port-labeling follow-up remains (see below).
 
-### App-to-Port Relationship Registry
+### App-to-Port Relationship Registry — DONE
 
-Several high-traffic destination ports appear without an application label in the
-Traffic Mix and Destination Analysis dashboards. The current Vector enrichment uses
-a hardcoded port_apps map, which is not operator-maintainable without a config
-change and redeployment.
+Delivered in Post-Wave 5 Phase 2. Operator-maintainable CSV registry at
+`config/enrichment/app-port-registry.csv`, surfaced into Vector via the GitOps-owned
+`flow-enrichment-tables` ConfigMap and consumed by the `enrich_flow` VRL transform
+(`dst_app_label` / `dst_app_category` / `dst_app_source`). The hardcoded `port_apps`
+VRL object remains as the `existing` source; the registry adds the `registry` source.
 
-**Goal:** a maintainable registry where operators can add or correct app-to-port
-mappings without touching VRL directly.
+**Acceptance — met (2026-06-08):** every top-unlabeled port from the Phase 1 audit
+now shows a readable label (Ceph-OSD, NFS-Mountd/Aux, etcd-Peer, Ceph-Monitor/Manager).
+~85% of byte volume is labeled. See Phase 5 evidence.
 
-**Options to evaluate:**
+### High-Volume Unlabeled Port Cleanup — MOSTLY DONE (one residual)
 
-- YAML or CSV file in the repo rendered into Vector config at build time
-- ConfigMap-backed lookup table (separate from k8s-lookup-tables)
-- Small internal admin UI (later, if scope grows)
+The bulk of high-volume unlabeled traffic was labeled in Phases 2–3b (static ports
+via the registry; ephemeral Ceph OSD replication via the workload-pattern VRL). The
+Phase 5 audit (2026-06-08) of the *remaining* ~70 GiB unlabeled slice found it is
+now dominated by genuinely ephemeral high ports (not port-labelable) plus two
+identifiable ports:
 
-**Required fields:** port, protocol, app label, category, optional host/subnet
-scope, optional notes/owner.
+- **5405 — Corosync** (Proxmox cluster heartbeat) — 18.85 GiB/day, the single
+  largest remaining unlabeled port.
+- **5353 — mDNS** — 3.06 GiB/day.
 
-**Acceptance:** top unlabeled ports in Traffic Mix and Destination Analysis
-show readable names rather than raw port numbers after the registry is seeded.
-
-### High-Volume Unlabeled Port Cleanup
-
-After the App-to-Port Registry is in place (or as an immediate Vector config pass):
-
-1. Identify the top 10–20 destination ports by total byte volume that have no `app`
-   label in current flow documents.
-2. For each, determine the service: known internal app, infrastructure traffic,
-   third-party service, or genuinely unknown.
-3. Add mappings to the registry / Vector enrichment config.
-4. Validate that Traffic Mix "Traffic by App Label" and Destination Analysis
-   become more readable with fewer unlabeled entries.
-
-Prioritize ports appearing in the top 5 by bytes — these contribute the most
-to the "unknown" slice in the piechart.
+**Residual action (small, optional):** add `5405,UDP,Corosync,infrastructure,...`
+and `5353,UDP,mDNS,network,...` rows to `config/enrichment/app-port-registry.csv`.
+This reclaims ~22 GiB/day of the residual. Requires a flow-collector restart
+(picked up automatically on ConfigMap change) and re-validation that new flows on
+those ports get `dst_app_source=registry`. Everything below the top 2 is ephemeral
+and cannot be labeled by port — the "unknown" slice will not reach zero by design.
 
 ---
 
