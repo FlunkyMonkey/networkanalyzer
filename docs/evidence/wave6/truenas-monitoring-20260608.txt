@@ -1,0 +1,57 @@
+Wave 6 item 2 — TrueNAS Storage Monitoring
+==========================================
+Date:    2026-06-08 (cluster UTC 2026-06-09)
+Commit:  0a88a08
+Method:  scripted stdlib Python exporter (python:3-slim + ConfigMap) querying the
+         TrueNAS REST API v2.0 for both hosts; keys in the truenas-credentials
+         Secret (created out-of-band, NOT in git). Scraped by the existing
+         monitoring-namespace Prometheus via ServiceMonitor.
+
+KEYS / API
+----------
+TrueNAS01 (172.18.1.96) + TrueNAS02 (172.18.1.97), Scale 25.04.2.1.
+Both API keys authenticate (HTTP 200). API key material kept only in the
+truenas-credentials Secret; never committed; safety-grepped out of the repo.
+
+LOCAL PRE-DEPLOY TEST (exporter run on workstation vs live API)
+--------------------------------------------------------------
+  truenas_scrape_success    truenas01=1 truenas02=1
+  truenas_pool_status       TrueNAS01_SSD=ONLINE  TrueNAS02_HDD=ONLINE
+  truenas_pool_healthy      both = 1
+  truenas_disk_count        truenas01=11  truenas02=6
+  truenas_replication_error truenas01 "TrueNAS01_SSD - TrueNAS02_HDD/..._Backup" = 1
+  truenas_alerts CRITICAL   truenas01=1  truenas02=4
+
+LIVE IN-CLUSTER VALIDATION (after ArgoCD sync 0a88a08)
+------------------------------------------------------
+  ArgoCD synced 0a88a08 in ~10s
+  truenas-exporter pod: Running, ready, 0 restarts
+  Prometheus scrape up{job=~".*truenas.*"} = 1 (after ~70s)
+  scrape_success t01/t02            = 1 / 1
+  count(truenas_pool_healthy == 1)  = 2
+  disk_count t01/t02                = 11 / 6
+  truenas_replication_error t01     = 1   (failing backup flagged)
+  sum(truenas_alerts{level=CRITICAL}) = 5  (1 on t01 + 4 on t02)
+  truenas_pool_free_bytes t01       = 1889528348672 (~1.72 TiB)
+
+OPERATIONAL FINDINGS (surfaced by this monitoring)
+--------------------------------------------------
+1. TrueNAS01 -> TrueNAS02 backup REPLICATION IS FAILING (state ERROR). The
+   homelab doc recorded last success 2026-02-21. truenas_replication_error=1.
+2. TrueNAS02 has 4 active CRITICAL alerts (content not yet reviewed).
+Both are now visible on the "TrueNAS Storage Health" dashboard (uid infra-truenas).
+
+METRICS EXPOSED (all carry host=truenas01|truenas02)
+----------------------------------------------------
+truenas_scrape_success, truenas_system_uptime_seconds, truenas_system_info,
+truenas_pool_healthy{pool}, truenas_pool_status{pool,status},
+truenas_pool_size_bytes/allocated_bytes/free_bytes{pool},
+truenas_pool_fragmentation_ratio{pool}, truenas_pool_scrub_errors{pool},
+truenas_pool_scrub_end_timestamp_seconds{pool}, truenas_alerts{level},
+truenas_disk_count, truenas_replication_error{task}, truenas_replication_state{task,state}.
+
+NOT INCLUDED (possible future iteration)
+----------------------------------------
+Per-disk SMART attribute detail and per-dataset capacity were left out of v1 to
+keep the exporter small; pool-level capacity + scrub + alerts cover the
+"is storage healthy, protected, replicating?" question.

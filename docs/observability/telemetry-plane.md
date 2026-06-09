@@ -8,6 +8,7 @@
 | prometheus-snmp-exporter | 9.13.1 | SNMP polling proxy for MikroTik CRS328 | This repo |
 | unpoller | 2.39.0 | UniFi controller/AP/client metrics exporter | This repo |
 | prometheus-pve-exporter | 3.5.3 | Proxmox VE node and VM metrics exporter | This repo |
+| truenas-exporter | (scripted) | TrueNAS REST API → Prometheus (pool/scrub/alerts/replication), `python:3-slim` + ConfigMap | This repo |
 | Prometheus | (existing) | Scrape backend — 7d retention | Cluster infra (`monitoring` namespace) |
 | Prometheus Operator | (existing) | ServiceMonitor CRD controller | Cluster infra (`monitoring` namespace) |
 
@@ -81,9 +82,22 @@ All components are deployed via the single ArgoCD Application. Helm charts are r
 - **Target:** Proxmox API endpoint configured in the ServiceMonitor params. Default: `proxmox.local:8006`.
 - **Auth:** Proxmox user and password from `proxmox-credentials` Secret. Use a dedicated PVEAuditor-role API user.
 
+### TrueNAS Scale (REST API)
+
+- **Method:** a small stdlib Python exporter (`truenas-exporter`) queries the
+  TrueNAS REST API v2.0 for each host and exposes Prometheus metrics on `:9888`.
+  Mirrors the repo's scripted-component pattern (k8s-ip-exporter): a ConfigMap-mounted
+  script run on the stock `python:3-slim` image — no custom image to build/publish.
+- **Hosts:** TrueNAS01 (`172.18.1.96`, SSD pool) and TrueNAS02 (`172.18.1.97`, HDD pool).
+- **Signals:** pool status/health/capacity/fragmentation, scrub state and errors,
+  active alerts by level, disk count, and replication-task state.
+- **Scrape interval:** 60s (ServiceMonitor, `scrapeTimeout: 30s`).
+- **Auth:** per-host API keys from the `truenas-credentials` Secret
+  (`truenas01-api-key`, `truenas02-api-key`). Self-signed TLS accepted (LAN).
+
 ## Dashboards
 
-Three dashboards are provisioned via ConfigMap:
+Dashboards provisioned via ConfigMap:
 
 | Dashboard | UID | Covers |
 |---|---|---|
@@ -91,6 +105,7 @@ Three dashboards are provisioned via ConfigMap:
 | UniFi AP & WLAN Clients | `infra-unifi-clients` | Per-client bandwidth, client count, AP status |
 | Proxmox Node & VM Network | `infra-proxmox-net` | Per-VM throughput + switch-authoritative per-host bandwidth (uplink port) |
 | Network Switch & AP Hardware Health | `infra-switch-hw` | MikroTik temps/fans/PSU/PoE (SNMP) + UniFi device temp/cpu/mem/uptime (UnPoller) |
+| TrueNAS Storage Health | `infra-truenas` | Pool status/capacity/fragmentation/scrub, alerts by level, replication-task state |
 
 These are functional starting points — expect iteration in later phases when the full UX is built.
 
@@ -122,6 +137,16 @@ These are functional starting points — expect iteration in later phases when t
   `pve_node_info_netout` do not exist in the live scrape (verified 2026-06-08).
   Per-host network is derived instead from the MikroTik uplink port each node
   connects to (switch-authoritative; see the Proxmox dashboard).
+
+### From TrueNAS Exporter (both hosts, `host` label)
+
+- `truenas_scrape_success` — 1/0 per host (API reachable)
+- `truenas_pool_healthy` / `truenas_pool_status{status}` — pool health
+- `truenas_pool_size_bytes` / `_allocated_bytes` / `_free_bytes` / `_fragmentation_ratio`
+- `truenas_pool_scrub_errors` / `_scrub_end_timestamp_seconds`
+- `truenas_alerts{level}` — active (non-dismissed) alerts by level
+- `truenas_replication_error{task}` / `truenas_replication_state{task,state}`
+- `truenas_disk_count`, `truenas_system_uptime_seconds`, `truenas_system_info`
 
 ## Known Blind Spots
 

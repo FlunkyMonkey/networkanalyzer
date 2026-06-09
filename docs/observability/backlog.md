@@ -130,15 +130,18 @@ and cannot be labeled by port — the "unknown" slice will not reach zero by des
 New telemetry planes for physical hardware and storage. None of these require
 flow plane changes. Candidate sources are Prometheus-native or easily scraped.
 
-**Status (2026-06-08, commit 45ff67e):** items below are partially delivered.
+**Status (2026-06-08, commits 45ff67e / 0a88a08):** mostly delivered.
 
 - **DONE:** Proxmox node-level network counters, switch interface util % gauge,
-  network switch hardware monitoring (MikroTik + UniFi).
+  network switch hardware monitoring (MikroTik + UniFi), **TrueNAS monitoring**.
 - **Found & fixed along the way:** the MikroTik SNMP scrape was silently **down**
   (deployed config had the placeholder community `SNMP_COMMUNITY` → walk timeout →
   no interface metrics at all). Community set to `public`; plane restored. See
   `docs/evidence/wave6/snmp-restore-and-hardware-20260608.txt`.
-- **BLOCKED on operator credentials:** server hardware (IPMI) and TrueNAS.
+- **Surfaced by TrueNAS monitoring:** the TrueNAS01→TrueNAS02 backup replication is
+  **failing** (state ERROR), and TrueNAS02 has 4 active CRITICAL alerts — both now
+  visible on the storage dashboard. Operator follow-up, not a platform defect.
+- **BLOCKED on operator credentials:** server hardware (IPMI) only.
 
 ### Server Hardware Monitoring — BLOCKED (needs BMC IPs + IPMI creds + ipmi_exporter approval)
 
@@ -176,14 +179,20 @@ before a node goes down.
 **Dashboard goal:** physical host health rollup by server — one row per host,
 green/yellow/red by worst health signal.
 
-### TrueNAS Monitoring Dashboard — BLOCKED (needs API key + exporter approval)
+### TrueNAS Monitoring Dashboard — DONE (2026-06-08, commit 0a88a08)
 
-**Discovery (2026-06-08):** both hosts up — TrueNAS01 (172.18.1.96, SSD pool) and
-TrueNAS02 (172.18.1.97, HDD pool), Scale 25.04.2.1. The REST API responds (HTTP 401
-without auth). Needs an API key per host (as a Secret) and approval to add a
-TrueNAS exporter scraping `/api/v2.0`.
+Delivered as the `truenas-exporter` (stdlib Python on `python:3-slim`, ConfigMap
+script — the repo's scripted-component pattern) querying the TrueNAS REST API v2.0
+for both hosts, plus the **TrueNAS Storage Health** dashboard (`infra-truenas`).
+Per-host API keys live in the `truenas-credentials` Secret (out-of-band, not in git).
+Signals: pool status/health/capacity/fragmentation, scrub state/errors, alerts by
+level, disk count, and replication-task state. Validated live in-cluster
+(`up=1`, both pools healthy, disks 11/6, replication failure correctly flagged).
+Evidence: `docs/evidence/wave6/truenas-monitoring-20260608.txt`.
 
-Storage platform visibility for the TrueNAS host.
+Not in v1 (possible iteration): per-disk SMART attribute detail and per-dataset
+capacity. Pool-level capacity + scrub + alerts answer "is storage healthy,
+protected, replicating?".
 
 **Why it matters:** Storage failures are silent until a pool goes degraded or a
 dataset runs out of space. Replication failures may not surface until a restore

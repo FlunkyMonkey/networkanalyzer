@@ -114,6 +114,35 @@ kubectl create secret generic geoip-credentials \
 - Generate a license key under Account > Manage License Keys.
 - Without this secret, flows still ingest — GeoIP fields (country, ASN) will be absent.
 
+### 5. truenas-credentials
+
+**Used by:** `truenas-exporter` (TrueNAS REST API v2.0 polling)
+
+**Namespace:** `network-observability`
+
+**Keys:**
+
+| Key | Description |
+|---|---|
+| `truenas01-api-key` | API key for TrueNAS01 (172.18.1.96) |
+| `truenas02-api-key` | API key for TrueNAS02 (172.18.1.97) |
+
+**Create:**
+
+```bash
+kubectl create secret generic truenas-credentials \
+  --namespace network-observability \
+  --from-literal=truenas01-api-key='<truenas01-api-key>' \
+  --from-literal=truenas02-api-key='<truenas02-api-key>'
+```
+
+**Prerequisites:**
+
+- Generate an API key per host in the TrueNAS UI (Credentials > Local Users >
+  API Keys, or the top-right key icon). A read-only key is sufficient.
+- Without this secret, the `truenas-exporter` pod will not start (the keys are
+  required env vars). The storage dashboard then has no data.
+
 ## Bootstrap Order
 
 1. Create the `network-observability` namespace (ArgoCD will do this on first sync, or create it manually):
