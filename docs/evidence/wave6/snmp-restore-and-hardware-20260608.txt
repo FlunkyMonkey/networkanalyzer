@@ -1,0 +1,88 @@
+Wave 6 — SNMP Plane Restore + Switch/Node Telemetry (items 3, 4, 5)
+===================================================================
+Date:     2026-06-08 (cluster UTC 2026-06-09)
+Commit:   45ff67e
+Method:   read-only SNMP walks from workstation (community public) + live
+          Prometheus queries via LB http://172.18.1.204; GitOps deploy via ArgoCD.
+
+ROOT-CAUSE FINDING (pre-existing outage, not new Wave 6 work)
+------------------------------------------------------------
+The deployed snmp-exporter ConfigMap carried the literal placeholder community
+"SNMP_COMMUNITY". The MikroTik silently dropped the bogus-community walk -> request
+timeout -> Prometheus scrape target down (up=0/1) -> ZERO interface metrics
+(ifHCInOctets, ifSpeed, anything if*). The "working" switch bandwidth dashboards
+were actually dark. Almost certainly went dark when an ArgoCD sync reasserted the
+git placeholder over a manual fix. Nothing surfaced it.
+
+Fix: community set to "public" (the switch's read-only default; non-sensitive).
+
+BEFORE (discovery)
+------------------
+  up{job="snmp-exporter-prometheus-snmp-exporter"} = 0   (down)
+  snmp-exporter logs: "error walking target 172.18.1.13: request timeout (after 3 retries)"
+  count(ifHCInOctets) = 0
+  count(ifSpeed)      = 0   (no series at all)
+
+AFTER (post-deploy, ArgoCD synced 45ff67e, exporter pod recycled)
+-----------------------------------------------------------------
+  snmp target up                  = 1          (recovered after ~110s)
+  count(ifHCInOctets)             = 29
+  count(ifHighSpeed)              = 29   (NEW - item 4)
+  count(mikrotik_health_sensor)   = 9    (NEW - item 5)
+
+ITEM 4 — Switch Interface Utilization % gauge
+---------------------------------------------
+Root issue was twofold: (a) no SNMP data at all (community), (b) 32-bit ifSpeed
+overflows to 0 on 10G SFP+. Both addressed:
+- ifHighSpeed (64-bit Mbps, ifXTable) added with ifDescr+ifAlias lookups.
+- Gauge denominator changed from clamp_min(ifSpeed,1) to (ifHighSpeed * 1e6 > 0),
+  which is 10G-safe and drops logical/zero-speed interfaces (bridge1).
+Live ifHighSpeed for active host ports (all 1Gb):
+  ether7  prox1-eno1     1000 Mb
+  ether6  prox2-enp1s0f0 1000 Mb
+  ether19 prox3-enp1s0f1 1000 Mb
+  ether23 prox4-enp3s0   1000 Mb
+  ether3  prox5-enp3s0   1000 Mb
+(Only bridge1 has ifHighSpeed=0 - logical aggregate, correctly excluded.)
+
+ITEM 3 — Proxmox node-level network counters
+--------------------------------------------
+Confirmed pve_node_info_netin/netout DO NOT EXIST (only pve_node_info). The doc
+previously claimed they existed - corrected. Replaced the "not available"
+placeholder panel with switch-authoritative per-host bandwidth from each node's
+MikroTik uplink port (ifHCIn/OutOctets on ether3/6/7/19/23), labeled by ifAlias.
+
+ITEM 5 — Network switch & AP hardware health (new dashboard infra-switch-hw)
+---------------------------------------------------------------------------
+MikroTik CRS328-24P-4S+ health sensors live via mikrotik_health_sensor{sensor=...}:
+  board-temperature1 = 34      (degC)
+  cpu-temperature    = 47      (degC)
+  fan1-speed         = 2865    (RPM)
+  fan2-speed         = 2790    (RPM)
+  poe-out-consumption= 1689    (deci-W -> ~168.9W; dashboards scale x0.1)
+  psu1-voltage       = 266     (deci-V -> 26.6V)
+  psu2-voltage       = 526     (deci-V -> 52.6V, PoE rail)
+  psu1-current       = 0       (deci-A)
+  psu2-current       = 3       (deci-A -> 0.3A)
+UniFi side already scraped by UnPoller (unpoller_device_temperature_celsius,
+_fan_level, _cpu_utilization_ratio, _memory_utilization_ratio, _uptime_seconds) -
+dashboard panels added, no new exporter needed.
+
+DEPLOY NOTES
+------------
+- ArgoCD app network-observability: automated sync (prune+selfHeal); synced 45ff67e in ~24s.
+- The prometheus-snmp-exporter chart does NOT roll the pod on ConfigMap change;
+  the running exporter reads config at startup only. Deleted the pod to reload
+  (safe: Deployment recreates it; ArgoCD does not fight a pod delete).
+- kustomize build: 53 resources; all 4 dashboard JSON bodies parse.
+
+REMAINING (blocked on operator-provided credentials)
+----------------------------------------------------
+- Item 1 (server hardware/IPMI): only prox1 + prox4 (Supermicro X9SCM) have BMCs
+  (mbipmi01/mbipmi02). Needs BMC IPs + read-only IPMI creds + ipmi_exporter approval.
+  The other 3 nodes (2x Lenovo TS140, 1x HP MicroServer N54L) have no usable BMC.
+- Item 2 (TrueNAS .96/.97): API up, returns 401. Needs API key(s) + exporter approval.
+
+GRAFANA: dashboard JSON deployed via the infra-telemetry-dashboards ConfigMap
+(sidecar-provisioned, same mechanism as the existing 3 dashboards). Visual
+confirmation of panels populating is the remaining operator eyeball step.

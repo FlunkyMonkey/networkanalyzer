@@ -130,7 +130,24 @@ and cannot be labeled by port — the "unknown" slice will not reach zero by des
 New telemetry planes for physical hardware and storage. None of these require
 flow plane changes. Candidate sources are Prometheus-native or easily scraped.
 
-### Server Hardware Monitoring
+**Status (2026-06-08, commit 45ff67e):** items below are partially delivered.
+
+- **DONE:** Proxmox node-level network counters, switch interface util % gauge,
+  network switch hardware monitoring (MikroTik + UniFi).
+- **Found & fixed along the way:** the MikroTik SNMP scrape was silently **down**
+  (deployed config had the placeholder community `SNMP_COMMUNITY` → walk timeout →
+  no interface metrics at all). Community set to `public`; plane restored. See
+  `docs/evidence/wave6/snmp-restore-and-hardware-20260608.txt`.
+- **BLOCKED on operator credentials:** server hardware (IPMI) and TrueNAS.
+
+### Server Hardware Monitoring — BLOCKED (needs BMC IPs + IPMI creds + ipmi_exporter approval)
+
+**Discovery (2026-06-08):** only **2 of 5** Proxmox nodes have a usable BMC —
+prox1 and prox4 (Supermicro X9SCL/X9SCM, `/dev/ipmi0` present, cabled to switch
+ports `mbipmi01`/`mbipmi02`). The other three have no IPMI-over-LAN: prox2/prox3
+(Lenovo ThinkServer TS140) and prox5 (HP ProLiant MicroServer N54L). Plan:
+deploy `ipmi_exporter` scraping the two BMCs over IPMI-over-LAN. Needs the BMC IPs,
+a read-only IPMI user/password (as a Secret), and approval to add the exporter.
 
 Physical host telemetry for Proxmox nodes and any bare-metal storage hosts.
 
@@ -159,7 +176,12 @@ before a node goes down.
 **Dashboard goal:** physical host health rollup by server — one row per host,
 green/yellow/red by worst health signal.
 
-### TrueNAS Monitoring Dashboard
+### TrueNAS Monitoring Dashboard — BLOCKED (needs API key + exporter approval)
+
+**Discovery (2026-06-08):** both hosts up — TrueNAS01 (172.18.1.96, SSD pool) and
+TrueNAS02 (172.18.1.97, HDD pool), Scale 25.04.2.1. The REST API responds (HTTP 401
+without auth). Needs an API key per host (as a Secret) and approval to add a
+TrueNAS exporter scraping `/api/v2.0`.
 
 Storage platform visibility for the TrueNAS host.
 
@@ -190,12 +212,18 @@ is needed.
 **Dashboard goal:** a single "Is storage healthy, protected, and replicating?"
 dashboard that answers all four questions without requiring TrueNAS UI access.
 
-### Proxmox Node-Level Network Counters
+### Proxmox Node-Level Network Counters — DONE (2026-06-08, commit 45ff67e)
 
-The current Proxmox dashboard shows per-VM network receive/transmit rates but
-cannot show per-node totals because `pve_node_info_netin` / `pve_node_info_netout`
-do not exist in the live Proxmox exporter scrape. The current dashboard has an
-explanatory text panel noting this limitation.
+Confirmed `pve_node_info_netin` / `pve_node_info_netout` do not exist (only
+`pve_node_info`). Delivered via **alternative 3 (switch SNMP)**: the Proxmox
+dashboard now shows switch-authoritative per-host bandwidth from each node's
+MikroTik uplink port (prox1→ether7, prox2→ether6, prox3→ether19, prox4→ether23,
+prox5→ether3), labeled by the switch port comment (`ifAlias`). This is the
+external, switch-authoritative view of each host's NIC and needs no agent on the
+Proxmox hosts. The original explanatory placeholder panel was replaced.
+
+Original context (kept for reference): the per-VM panels could not be rolled up to
+per-node totals because the node-level counters are absent from the PVE exporter.
 
 **Goal:** replace the explanatory panel with an actual node-level network bandwidth
 panel, or confirm that a reasonable approximation is sufficient.
@@ -217,13 +245,17 @@ panel, or confirm that a reasonable approximation is sufficient.
 **Dashboard goal:** per-node network in/out totals visible alongside per-VM
 breakdown; operators should not need to mentally sum VM rows to estimate host load.
 
-### Fix Switch Interface Utilization % Gauge
+### Fix Switch Interface Utilization % Gauge — DONE (2026-06-08, commit 45ff67e)
 
 *(Moved from Wave 5 Gate 5a)*
 
-The Switch Interface Utilization bandwidth panels (bits/s) work correctly. The
-utilization % gauge shows No Data for many interfaces because `ifSpeed` is reported
-as 0 by the MikroTik SNMP exporter on high-speed and virtual/aggregate interfaces.
+Two root causes were found. First, the entire SNMP scrape was **down** (placeholder
+community) so the bandwidth panels were *not* working either — fixed by setting the
+community to `public`. Second, the 32-bit `ifSpeed` overflows to 0 on 10G SFP+ —
+fixed by adding 64-bit `ifHighSpeed` and changing the gauge denominator to
+`ifHighSpeed * 1e6 > 0` (which also drops logical/zero-speed interfaces like
+`bridge1`). Validated: 29 interface series restored; gauge denominator correct for
+all active host ports. Original analysis below.
 
 **Root cause:** `ifSpeed` is 0 on some SFP+ and aggregate ports on the MikroTik
 CRS328. The gauge divides by `ifSpeed`; a 0 denominator produces no data point.
@@ -238,7 +270,13 @@ CRS328. The gauge divides by `ifSpeed`; a 0 denominator produces no data point.
 3. Confirm the fix handles the mixed 1G/10G environment without requiring per-port
    overrides in the dashboard.
 
-### Network Switch Hardware Monitoring
+### Network Switch Hardware Monitoring — DONE (2026-06-08, commit 45ff67e)
+
+Delivered as the new **Network Switch & AP Hardware Health** dashboard (`infra-switch-hw`).
+MikroTik CRS328 health via the MIKROTIK-MIB sensor table (`mikrotik_health_sensor`):
+cpu/board temperature, fan1/2 speed, psu1/2 voltage/current, poe-out-consumption —
+all confirmed live. UniFi side uses existing UnPoller metrics (`unpoller_device_*`:
+temperature, fan, cpu, memory, uptime) — no new exporter needed. Original notes below.
 
 Hardware health visibility for the MikroTik CRS328 and UniFi switches, complementing
 the existing interface utilization dashboard.

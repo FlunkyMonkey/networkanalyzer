@@ -53,11 +53,15 @@ All components are deployed via the single ArgoCD Application. Helm charts are r
 ### MikroTik CRS328 (SNMP)
 
 - **Method:** prometheus-snmp-exporter polls the switch via SNMP.
-- **Metrics:** 64-bit interface counters (ifHCInOctets, ifHCOutOctets), interface speed, operational status, system identity/uptime.
-- **Labels:** Each metric carries `ifDescr` (port name) and `ifAlias` (port description) for human-readable identification.
+- **Metrics:** 64-bit interface counters (ifHCInOctets, ifHCOutOctets), 32-bit and
+  64-bit interface speed (ifSpeed, ifHighSpeed), operational status, system
+  identity/uptime, and the MIKROTIK-MIB health sensor table (`mikrotik_health_sensor`:
+  temperatures, fans, PSU voltage/current, PoE-out).
+- **Labels:** Each interface metric carries `ifDescr` (port name) and `ifAlias` (port description) for human-readable identification; health sensors carry a `sensor` label.
 - **Scrape interval:** 60 seconds.
-- **SNMP target:** Configured in the snmp-exporter values as `mikrotik-crs328.local`. Override in lab overlay if DNS differs.
-- **Auth:** SNMP community string is inlined in the chart's `config` value (`snmp-exporter-values.yaml`). Replace `SNMP_COMMUNITY` with the real value before deployment. For production, move to SNMPv3 with credentials from a Secret.
+- **SNMP target:** `172.18.1.13` (CRS328-24P-4S+), configured in the snmp-exporter values params.
+- **Auth:** SNMP v2c, community `public` (read-only default), inlined in
+  `snmp-exporter-values.yaml`. See blind spot #5 for the private-community hardening path.
 
 ### UniFi Controller / APs / WLAN Clients
 
@@ -83,9 +87,10 @@ Three dashboards are provisioned via ConfigMap:
 
 | Dashboard | UID | Covers |
 |---|---|---|
-| Switch Interface Utilization | `infra-iface-util` | Per-port bandwidth in/out, utilization % gauge |
+| Switch Interface Utilization | `infra-iface-util` | Per-port bandwidth in/out, utilization % gauge (denominator = `ifHighSpeed`) |
 | UniFi AP & WLAN Clients | `infra-unifi-clients` | Per-client bandwidth, client count, AP status |
-| Proxmox Node & VM Network | `infra-proxmox-net` | Per-VM and per-node network throughput |
+| Proxmox Node & VM Network | `infra-proxmox-net` | Per-VM throughput + switch-authoritative per-host bandwidth (uplink port) |
+| Network Switch & AP Hardware Health | `infra-switch-hw` | MikroTik temps/fans/PSU/PoE (SNMP) + UniFi device temp/cpu/mem/uptime (UnPoller) |
 
 These are functional starting points — expect iteration in later phases when the full UX is built.
 
@@ -95,7 +100,11 @@ These are functional starting points — expect iteration in later phases when t
 
 - `ifHCInOctets` / `ifHCOutOctets` — bytes per interface (counter, use `rate()`)
 - `ifOperStatus` — link up/down per interface
-- `ifSpeed` — interface speed for utilization calculation
+- `ifSpeed` — 32-bit interface speed (reads 0 above ~4Gbps; do not use as a denominator)
+- `ifHighSpeed` — 64-bit interface speed in Mbps; use `ifHighSpeed * 1e6` for utilization %
+- `mikrotik_health_sensor` — health table by `sensor` label (cpu/board temperature,
+  fan1/2 speed, psu1/2 voltage/current, poe-out-consumption); voltage/current/power
+  are deci-units (×0.1)
 - `sysName` / `sysUpTime` — device identity and uptime
 
 ### From UnPoller (UniFi)
@@ -107,10 +116,12 @@ These are functional starting points — expect iteration in later phases when t
 
 ### From PVE Exporter (Proxmox)
 
-- `pve_guest_info_netin` / `pve_guest_info_netout` — per-VM network bytes
-- `pve_node_info_netin` / `pve_node_info_netout` — per-node network bytes
-- `pve_guest_info` — VM status metadata
-- `pve_node_info` — node status metadata
+- `pve_network_receive_bytes` / `pve_network_transmit_bytes` — per-VM network bytes
+- `pve_node_info` — node status metadata (the only `pve_node_*` series present)
+- **Node-level network counters are NOT exposed** — `pve_node_info_netin` /
+  `pve_node_info_netout` do not exist in the live scrape (verified 2026-06-08).
+  Per-host network is derived instead from the MikroTik uplink port each node
+  connects to (switch-authoritative; see the Proxmox dashboard).
 
 ## Known Blind Spots
 
@@ -118,7 +129,12 @@ These are functional starting points — expect iteration in later phases when t
 2. **UniFi historical data** — UnPoller captures point-in-time snapshots. Historical data beyond Prometheus retention depends on the controller's own limited history.
 3. **Proxmox aggregate counters** — VM netin/netout are cumulative since boot. Requires `rate()` for meaningful throughput. Resets on VM restart.
 4. **No flow-level data** — This phase provides bandwidth/utilization only. Top talkers, destinations, app classification require the flow analytics plane (Phase 4).
-5. **SNMP community in config** — The inlined SNMP config has a placeholder community string (`SNMP_COMMUNITY`). Replace before deployment or migrate to SNMPv3.
+5. **SNMP community in config** — The community is `public` (the switch's
+   non-sensitive read-only default), inlined in `snmp-exporter-values.yaml`.
+   A prior placeholder (`SNMP_COMMUNITY`) silently broke the entire scrape until
+   2026-06-08; see the Wave 6 evidence. If the switch moves to a private community,
+   migrate to the Secret + `--config.expand-environment-variables` pattern so the
+   value is not committed to git.
 
 ## Self-Health
 
