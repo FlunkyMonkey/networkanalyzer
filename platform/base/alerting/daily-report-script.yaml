@@ -1,13 +1,14 @@
 # Daily status report script (Wave 8 heartbeat).
 #
 # Composes a morning status email from Prometheus, Alertmanager, and OpenSearch
-# and sends it via Gmail SMTP. Runs as a CronJob at 06:00 America/Los_Angeles
-# (see daily-report-cronjob.yaml). The report's *absence* is itself a signal:
-# it is the platform's dead-man's switch — if no morning email arrives, the
-# cluster, the report job, or the SMTP path is broken and needs eyes.
+# and sends it via Gmail SMTP as multipart/alternative: a styled HTML body
+# (inline CSS, table layout — the subset email clients render reliably) with a
+# plain-text fallback. Runs as a CronJob at 06:00 America/Los_Angeles (see
+# daily-report-cronjob.yaml). The report's *absence* is itself a signal: it is
+# the platform's dead-man's switch.
 #
-# Every section is independently fault-isolated: a failing query degrades to an
-# error line in the email rather than suppressing the whole report.
+# Every collector is independently fault-isolated: a failing query degrades to
+# an error line in the email rather than suppressing the whole report.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -20,6 +21,7 @@ data:
   daily_report.py: |
     import json, os, smtplib, ssl, urllib.request, urllib.parse
     from datetime import datetime, timedelta, timezone
+    from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
 
     PROM = os.environ.get("PROM_URL", "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:80")
@@ -50,76 +52,63 @@ data:
         url = PROM + "/api/v1/query?" + urllib.parse.urlencode({"query": expr})
         return http_json(url)["data"]["result"]
 
-    def gib(b):
+    def human_bytes(b):
         return "%.2f TiB" % (b / 1024**4) if b >= 1024**4 else "%.1f GiB" % (b / 1024**3)
 
-    L = []  # report lines
+    # ------------------------------------------------------------------
+    # Collectors — structured data, fault-isolated
+    # ------------------------------------------------------------------
+    DATA, ERRORS = {}, {}
     problems = 0
     criticals = 0
 
-    def section(title):
-        L.append("")
-        L.append(title)
-        L.append("-" * len(title))
-
-    def guarded(title, fn):
+    def collect(key, fn):
         global problems
-        section(title)
         try:
-            fn()
+            DATA[key] = fn()
         except Exception as e:
             problems += 1
-            L.append("  !! section failed: %s" % str(e)[:120])
+            ERRORS[key] = str(e)[:140]
 
-    # --- Alerts ---
-    def alerts():
+    def c_alerts():
         global problems, criticals
-        data = http_json(AM + "/api/v2/alerts?active=true")
         plat, cluster = [], {}
-        for a in data:
+        for a in http_json(AM + "/api/v2/alerts?active=true"):
             lbl = a.get("labels", {})
             name = lbl.get("alertname", "?")
             if name == "Watchdog" or a.get("status", {}).get("state") != "active":
                 continue
             if lbl.get("namespace") == "network-observability":
-                plat.append(a)
+                sev = lbl.get("severity", "?")
+                problems += 1
+                if sev == "critical":
+                    criticals += 1
+                plat.append({"sev": sev, "name": name,
+                             "summary": a.get("annotations", {}).get("summary", "")[:120],
+                             "since": a.get("startsAt", "")[:16].replace("T", " ") + " UTC"})
             else:
                 cluster[name] = cluster.get(name, 0) + 1
-        if not plat:
-            L.append("  OK - no platform alerts firing")
-        for a in plat:
-            lbl = a.get("labels", {})
-            sev = lbl.get("severity", "?")
-            problems += 1
-            if sev == "critical":
-                criticals += 1
-            since = a.get("startsAt", "")[:16].replace("T", " ")
-            L.append("  [%s] %s (since %s UTC)" % (sev.upper(), lbl.get("alertname"), since))
-            summ = a.get("annotations", {}).get("summary", "")
-            if summ:
-                L.append("       %s" % summ[:110])
-        if cluster:
-            L.append("  cluster-level (non-platform): " + ", ".join(
-                "%s x%d" % (k, v) for k, v in sorted(cluster.items())))
+        return {"platform": plat, "cluster": sorted(cluster.items())}
 
-    # --- Collection planes ---
-    def planes():
+    def c_planes():
         global problems
-        res = promq('min by (job) (up{namespace="network-observability"})')
-        for r in sorted(res, key=lambda x: x["metric"].get("job", "")):
-            job = r["metric"].get("job", "?")
+        jobs = []
+        for r in sorted(promq('min by (job) (up{namespace="network-observability"})'),
+                        key=lambda x: x["metric"].get("job", "")):
             ok = r["value"][1] == "1"
             if not ok:
                 problems += 1
-            L.append("  %s %s" % ("UP  " if ok else "DOWN", job))
-        cnt = http_json(OS_URL + "/flows-*/_count", {"query": {"range": {"@timestamp": {"gte": "now-24h"}}}})["count"]
-        L.append("  flow ingest 24h: {:,} docs {}".format(cnt, "(OK)" if cnt > 500000 else "(LOW - investigate)"))
-        if cnt <= 500000:
+            jobs.append((r["metric"].get("job", "?").replace("-prometheus-snmp-exporter", ""), ok))
+        cnt = http_json(OS_URL + "/flows-*/_count",
+                        {"query": {"range": {"@timestamp": {"gte": "now-24h"}}}})["count"]
+        ok = cnt > 500000
+        if not ok:
             problems += 1
+        return {"jobs": jobs, "flow24h": cnt, "flow_ok": ok}
 
-    # --- Storage ---
-    def storage():
+    def c_storage():
         global problems
+        pools = []
         for r in sorted(promq("truenas_pool_healthy"), key=lambda x: x["metric"].get("host", "")):
             m = r["metric"]
             ok = r["value"][1] == "1"
@@ -128,72 +117,289 @@ data:
             cap = promq('truenas_pool_allocated_bytes{pool="%s"} / truenas_pool_size_bytes{pool="%s"}' % (m["pool"], m["pool"]))
             pct = float(cap[0]["value"][1]) * 100 if cap else 0
             free = promq('truenas_pool_free_bytes{pool="%s"}' % m["pool"])
-            fr = gib(float(free[0]["value"][1])) if free else "?"
-            L.append("  %s %s/%s — %.0f%% used, %s free" % (
-                "OK  " if ok else "BAD ", m.get("host"), m.get("pool"), pct, fr))
+            fr = human_bytes(float(free[0]["value"][1])) if free else "?"
+            pools.append({"host": m.get("host"), "pool": m.get("pool"), "ok": ok,
+                          "pct": pct, "free": fr})
+        repl = []
         for r in promq("truenas_replication_error"):
             bad = r["value"][1] == "1"
             if bad:
                 problems += 1
-            L.append("  %s replication: %s" % ("FAIL" if bad else "OK  ", r["metric"].get("task", "?")[:70]))
+            repl.append({"task": r["metric"].get("task", "?")[:70], "ok": not bad})
+        return {"pools": pools, "repl": repl}
 
-    # --- Hardware ---
-    def hardware():
+    def c_hardware():
         global problems
-        for r in sorted(promq("max by (host) (ipmi_sensor_state < 3)"), key=lambda x: x["metric"].get("host", "")):
+        ipmi = []
+        for r in sorted(promq("max by (host) (ipmi_sensor_state < 3)"),
+                        key=lambda x: x["metric"].get("host", "")):
             st = int(float(r["value"][1]))
-            word = {0: "OK  ", 1: "WARN", 2: "CRIT"}.get(st, "?")
             if st > 0:
                 problems += 1
-            L.append("  %s IPMI sensors %s" % (word, r["metric"].get("host")))
+            ipmi.append((r["metric"].get("host"), st))
         t = promq('mikrotik_health_sensor{sensor="cpu-temperature"}')
-        if t:
-            v = float(t[0]["value"][1])
-            L.append("  %s switch CPU %.0f C" % ("OK  " if v < 65 else "WARN", v))
-        sel = {r["metric"].get("host"): r["value"][1] for r in promq("ipmi_sel_logs_count")}
-        if sel:
-            L.append("  SEL entries: " + ", ".join("%s=%s" % kv for kv in sorted(sel.items())))
+        temp = float(t[0]["value"][1]) if t else None
+        sel = sorted((r["metric"].get("host"), int(float(r["value"][1])))
+                     for r in promq("ipmi_sel_logs_count"))
+        return {"ipmi": ipmi, "switch_temp": temp, "sel": sel}
 
-    # --- Network snapshot ---
-    def network():
+    def c_network():
         wifi = promq("count(unpoller_client_receive_bytes_total)")
-        if wifi:
-            L.append("  WiFi clients connected: %s" % wifi[0]["value"][1])
         agg = http_json(OS_URL + "/flows-*/_search?size=0", {
             "query": {"range": {"@timestamp": {"gte": "now-24h"}}},
             "aggs": {"talkers": {"terms": {"field": "src_display_name", "size": 3,
                      "order": {"vol": "desc"}},
                      "aggs": {"vol": {"sum": {"field": "bytes"}}}}}})
-        L.append("  top talkers 24h:")
-        for b in agg["aggregations"]["talkers"]["buckets"]:
-            L.append("    %-28s %s" % (b["key"], gib(b["vol"]["value"])))
+        talkers = [(b["key"], b["vol"]["value"])
+                   for b in agg["aggregations"]["talkers"]["buckets"]]
+        return {"wifi": wifi[0]["value"][1] if wifi else "?", "talkers": talkers}
 
-    guarded("ACTIVE ALERTS", alerts)
-    guarded("COLLECTION PLANES", planes)
-    guarded("STORAGE (TrueNAS)", storage)
-    guarded("HARDWARE (IPMI / switch)", hardware)
-    guarded("NETWORK SNAPSHOT", network)
+    collect("alerts", c_alerts)
+    collect("planes", c_planes)
+    collect("storage", c_storage)
+    collect("hardware", c_hardware)
+    collect("network", c_network)
 
-    L.append("")
-    L.append("Dashboards: %s  (Home -> all dashboards)" % GRAFANA)
-    L.append("This report is the platform heartbeat - if it stops arriving at")
-    L.append("06:00 Pacific, the cluster, report job, or SMTP path is down.")
-
-    verdict = "ALL HEALTHY" if problems == 0 else (
-        "%d CRITICAL / %d issue(s)" % (criticals, problems) if criticals else "%d issue(s)" % problems)
+    healthy = problems == 0
+    verdict = "ALL HEALTHY" if healthy else (
+        "%d CRITICAL / %d issue(s)" % (criticals, problems) if criticals
+        else "%d issue(s)" % problems)
     subject = "[homelab] Daily Status %s - %s" % (NOW.strftime("%Y-%m-%d"), verdict)
-    header = ["Homelab Network Observability - Daily Status",
-              NOW.strftime("Generated %Y-%m-%d %H:%M %Z"), ""]
-    body = "\n".join(header + L) + "\n"
 
+    # ------------------------------------------------------------------
+    # Plain-text rendering (multipart fallback)
+    # ------------------------------------------------------------------
+    def render_text():
+        L = ["Homelab Network Observability - Daily Status",
+             NOW.strftime("Generated %Y-%m-%d %H:%M %Z"), "", "VERDICT: " + verdict]
+        def sec(t):
+            L.extend(["", t, "-" * len(t)])
+        sec("ACTIVE ALERTS")
+        if "alerts" in DATA:
+            a = DATA["alerts"]
+            if not a["platform"]:
+                L.append("  OK - no platform alerts firing")
+            for x in a["platform"]:
+                L.append("  [%s] %s (since %s)" % (x["sev"].upper(), x["name"], x["since"]))
+                if x["summary"]:
+                    L.append("       " + x["summary"])
+            if a["cluster"]:
+                L.append("  cluster-level: " + ", ".join("%s x%d" % kv for kv in a["cluster"]))
+        else:
+            L.append("  !! " + ERRORS.get("alerts", "?"))
+        sec("COLLECTION PLANES")
+        if "planes" in DATA:
+            p = DATA["planes"]
+            for job, ok in p["jobs"]:
+                L.append("  %s %s" % ("UP  " if ok else "DOWN", job))
+            L.append("  flow ingest 24h: {:,} docs {}".format(
+                p["flow24h"], "(OK)" if p["flow_ok"] else "(LOW)"))
+        else:
+            L.append("  !! " + ERRORS.get("planes", "?"))
+        sec("STORAGE")
+        if "storage" in DATA:
+            for pl in DATA["storage"]["pools"]:
+                L.append("  %s %s/%s - %.0f%% used, %s free" % (
+                    "OK  " if pl["ok"] else "BAD ", pl["host"], pl["pool"], pl["pct"], pl["free"]))
+            for rp in DATA["storage"]["repl"]:
+                L.append("  %s replication: %s" % ("OK  " if rp["ok"] else "FAIL", rp["task"]))
+        else:
+            L.append("  !! " + ERRORS.get("storage", "?"))
+        sec("HARDWARE")
+        if "hardware" in DATA:
+            h = DATA["hardware"]
+            for host, st in h["ipmi"]:
+                L.append("  %s IPMI sensors %s" % ({0: "OK  ", 1: "WARN", 2: "CRIT"}.get(st, "?"), host))
+            if h["switch_temp"] is not None:
+                L.append("  switch CPU %.0f C" % h["switch_temp"])
+            L.append("  SEL entries: " + ", ".join("%s=%d" % kv for kv in h["sel"]))
+        else:
+            L.append("  !! " + ERRORS.get("hardware", "?"))
+        sec("NETWORK")
+        if "network" in DATA:
+            n = DATA["network"]
+            L.append("  WiFi clients: %s" % n["wifi"])
+            for name, vol in n["talkers"]:
+                L.append("    %-28s %s" % (name, human_bytes(vol)))
+        else:
+            L.append("  !! " + ERRORS.get("network", "?"))
+        L.extend(["", "Dashboards: " + GRAFANA,
+                  "This report is the platform heartbeat - if it stops arriving",
+                  "at 06:00 Pacific, the cluster, report job, or SMTP path is down."])
+        return "\n".join(L) + "\n"
+
+    # ------------------------------------------------------------------
+    # HTML rendering — inline CSS + tables only (Gmail-safe)
+    # ------------------------------------------------------------------
+    G_GREEN, G_GREEN_BG = "#067647", "#d1fadf"
+    G_RED, G_RED_BG = "#b42318", "#fee4e2"
+    G_AMBER, G_AMBER_BG = "#b54708", "#fef0c7"
+    INK, MUTED, LINE = "#101828", "#667085", "#eaecf0"
+    FONT = "font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"
+
+    def pill(text, fg, bg):
+        return ('<span style="display:inline-block;background:%s;color:%s;'
+                'border-radius:10px;padding:2px 10px;font-size:11px;font-weight:700;">%s</span>'
+                % (bg, fg, text))
+
+    def dot(ok, warn=False):
+        c = G_AMBER if warn else (G_GREEN if ok else G_RED)
+        return '<span style="color:%s;font-size:13px;">&#9679;</span>' % c
+
+    def bar(pct, color):
+        pct = max(2, min(100, int(pct)))
+        return ('<table width="100%%" cellpadding="0" cellspacing="0"><tr>'
+                '<td style="background:%s;border-radius:5px;height:8px;'
+                'font-size:1px;line-height:8px;">'
+                '<table width="%d%%" cellpadding="0" cellspacing="0"><tr>'
+                '<td style="background:%s;border-radius:5px;height:8px;'
+                'font-size:1px;line-height:8px;">&nbsp;</td></tr></table>'
+                '</td></tr></table>' % (LINE, pct, color))
+
+    def section(title, inner):
+        return ('<tr><td style="padding:18px 28px 0;">'
+                '<div style="font-size:11px;letter-spacing:1.2px;color:%s;'
+                'text-transform:uppercase;font-weight:700;margin-bottom:10px;">%s</div>'
+                '%s</td></tr>' % (MUTED, title, inner))
+
+    def err_box(key):
+        return ('<div style="background:%s;color:%s;border-radius:8px;padding:10px 14px;'
+                'font-size:13px;">Section failed: %s</div>'
+                % (G_AMBER_BG, G_AMBER, ERRORS.get(key, "?")))
+
+    def row(cells, pad="7px 0"):
+        tds = "".join('<td style="padding:%s;font-size:13px;color:%s;%s">%s</td>'
+                      % (pad, INK, extra, c) for c, extra in cells)
+        return '<tr style="border-bottom:1px solid %s;">%s</tr>' % (LINE, tds)
+
+    H = []
+    if "alerts" in DATA:
+        a = DATA["alerts"]
+        rows = []
+        if not a["platform"]:
+            rows.append(row([(dot(True) + "&nbsp; No platform alerts firing", "")]))
+        for x in a["platform"]:
+            sev = pill(x["sev"].upper(), G_RED if x["sev"] == "critical" else G_AMBER,
+                       G_RED_BG if x["sev"] == "critical" else G_AMBER_BG)
+            rows.append(row([
+                (sev, "width:90px;vertical-align:top;"),
+                ('<b>%s</b><br><span style="color:%s;font-size:12px;">%s</span>'
+                 '<br><span style="color:%s;font-size:11px;">since %s</span>'
+                 % (x["name"], MUTED, x["summary"], MUTED, x["since"]), "")]))
+        inner = '<table width="100%%" cellpadding="0" cellspacing="0">%s</table>' % "".join(rows)
+        if a["cluster"]:
+            inner += ('<div style="color:%s;font-size:11px;margin-top:8px;">'
+                      'Cluster-level (non-platform): %s</div>'
+                      % (MUTED, ", ".join("%s &times;%d" % kv for kv in a["cluster"])))
+        H.append(section("Active Alerts", inner))
+    else:
+        H.append(section("Active Alerts", err_box("alerts")))
+
+    if "planes" in DATA:
+        p = DATA["planes"]
+        cells = "".join('<td style="padding:6px 14px 6px 0;font-size:13px;color:%s;'
+                        'white-space:nowrap;">%s&nbsp;%s</td>'
+                        % (INK, dot(ok), job) for job, ok in p["jobs"])
+        flow = ('<div style="margin-top:8px;font-size:13px;color:%s;">%s&nbsp;'
+                'Flow ingest 24h: <b>{:,}</b> docs %s</div>'
+                % (INK, dot(p["flow_ok"]),
+                   "" if p["flow_ok"] else pill("LOW", G_RED, G_RED_BG))).format(p["flow24h"])
+        H.append(section("Collection Planes",
+                 '<table cellpadding="0" cellspacing="0"><tr>%s</tr></table>%s' % (cells, flow)))
+    else:
+        H.append(section("Collection Planes", err_box("planes")))
+
+    if "storage" in DATA:
+        rows = []
+        for pl in DATA["storage"]["pools"]:
+            color = G_GREEN if pl["pct"] < 70 else (G_AMBER if pl["pct"] < 85 else G_RED)
+            rows.append(row([
+                ('%s&nbsp;<b>%s</b> / %s' % (dot(pl["ok"]), pl["host"], pl["pool"]),
+                 "width:240px;"),
+                (bar(pl["pct"], color), "padding-right:12px;"),
+                ('<span style="white-space:nowrap;">%.0f%% &middot; %s free</span>'
+                 % (pl["pct"], pl["free"]), "width:150px;text-align:right;color:" + MUTED)]))
+        for rp in DATA["storage"]["repl"]:
+            st = pill("OK", G_GREEN, G_GREEN_BG) if rp["ok"] else pill("FAILING", G_RED, G_RED_BG)
+            rows.append(row([("Replication: <span style='color:%s;'>%s</span>" % (MUTED, rp["task"]), ""),
+                             (st, "text-align:right;width:90px;")]))
+        H.append(section("Storage — TrueNAS",
+                 '<table width="100%%" cellpadding="0" cellspacing="0">%s</table>' % "".join(rows)))
+    else:
+        H.append(section("Storage — TrueNAS", err_box("storage")))
+
+    if "hardware" in DATA:
+        h = DATA["hardware"]
+        items = []
+        for host, st in h["ipmi"]:
+            items.append("%s&nbsp;IPMI %s: <b>%s</b>" % (
+                dot(st == 0, warn=(st == 1)), host,
+                {0: "all nominal", 1: "WARNING", 2: "CRITICAL"}.get(st, "?")))
+        if h["switch_temp"] is not None:
+            hot = h["switch_temp"] >= 65
+            items.append("%s&nbsp;Switch CPU: <b>%.0f&deg;C</b>" % (dot(not hot), h["switch_temp"]))
+        items.append('<span style="color:%s;">SEL entries: %s</span>'
+                     % (MUTED, ", ".join("%s=%d" % kv for kv in h["sel"])))
+        inner = "".join('<div style="font-size:13px;color:%s;padding:4px 0;">%s</div>' % (INK, i)
+                        for i in items)
+        H.append(section("Hardware — IPMI / Switch", inner))
+    else:
+        H.append(section("Hardware — IPMI / Switch", err_box("hardware")))
+
+    if "network" in DATA:
+        n = DATA["network"]
+        rows = [row([("WiFi clients connected: <b>%s</b>" % n["wifi"], "")])]
+        if n["talkers"]:
+            mx = max(v for _, v in n["talkers"]) or 1
+            for name, vol in n["talkers"]:
+                rows.append(row([
+                    (name, "width:230px;"),
+                    (bar(100.0 * vol / mx, "#2e90fa"), "padding-right:12px;"),
+                    ('<span style="white-space:nowrap;">%s</span>' % human_bytes(vol),
+                     "width:90px;text-align:right;color:" + MUTED)]))
+        H.append(section("Network — Top Talkers (24h)",
+                 '<table width="100%%" cellpadding="0" cellspacing="0">%s</table>' % "".join(rows)))
+    else:
+        H.append(section("Network — Top Talkers (24h)", err_box("network")))
+
+    v_bg, v_fg, v_icon = (G_GREEN, "#ffffff", "&#9989;") if healthy else ("#7a1d14", "#ffffff", "&#128308;")
+    html = (
+        '<body style="margin:0;padding:0;background:#f0f2f5;">'
+        '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f2f5;"><tr>'
+        '<td align="center" style="padding:24px 12px;">'
+        '<table width="640" cellpadding="0" cellspacing="0" style="background:#ffffff;'
+        'border-radius:12px;overflow:hidden;' + FONT + 'text-align:left;">'
+        '<tr><td style="background:#15233f;padding:20px 28px;">'
+        '<div style="color:#ffffff;font-size:17px;font-weight:700;">&#127760; Homelab Network Observability</div>'
+        '<div style="color:#9fb0d0;font-size:12px;margin-top:3px;">Daily Status &mdash; '
+        + NOW.strftime("%A, %B ") + str(NOW.day) + NOW.strftime(" %Y &middot; %H:%M %Z") + '</div></td></tr>'
+        '<tr><td style="background:' + v_bg + ';color:' + v_fg + ';padding:12px 28px;'
+        'font-size:14px;font-weight:700;">' + v_icon + '&nbsp; ' + verdict + '</td></tr>'
+        + "".join(H) +
+        '<tr><td style="padding:22px 28px 24px;">'
+        '<a href="' + GRAFANA + '" style="display:inline-block;background:#15233f;color:#ffffff;'
+        'text-decoration:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:600;">'
+        'Open Dashboards &rarr;</a>'
+        '<div style="color:' + MUTED + ';font-size:11px;margin-top:14px;line-height:1.5;">'
+        'This report is the platform heartbeat &mdash; if it stops arriving at 06:00 Pacific, '
+        'the cluster, the report job, or the SMTP path is down and needs eyes.</div>'
+        '</td></tr></table></td></tr></table></body>')
+
+    text = render_text()
     if DRY_RUN:
         print(subject)
-        print(body)
+        print(text)
+        out = os.environ.get("HTML_OUT", "/tmp/daily-report.html")
+        with open(out, "w") as f:
+            f.write(html)
+        print("HTML written to %s" % out)
     else:
-        msg = MIMEText(body)
+        msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = MAIL_FROM
         msg["To"] = MAIL_TO
+        msg.attach(MIMEText(text, "plain", "utf-8"))
+        msg.attach(MIMEText(html, "html", "utf-8"))
         s = smtplib.SMTP("smtp.gmail.com", 587, timeout=30)
         s.starttls(context=ssl.create_default_context())
         s.login(MAIL_FROM, SMTP_PASS)
