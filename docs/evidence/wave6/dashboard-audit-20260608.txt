@@ -1,0 +1,67 @@
+Full-Platform Dashboard Audit — 2026-06-08
+==========================================
+Method:  every panel query on every provisioned dashboard replayed through
+         Grafana's /api/ds/query (admin API) — covers Prometheus and OpenSearch
+         datasources uniformly; template variables substituted from dashboard
+         defaults. 11 dashboards, 68 queryable targets.
+
+BEFORE (commit 8bf7e9b): 59 OK / 9 PROBLEMS
+-------------------------------------------
+NO DATA  Flow — Destination Analysis | Top Destinations by Volume
+NO DATA  Flow — Destination Analysis | App Labels, Categories & Sources
+NO DATA  Flow — Destination Analysis | Top Sources by Volume (Inbound View)
+NO DATA  Flow — Top Talkers         | Top Sources by Volume
+NO DATA  Flow — Top Talkers         | Top Destinations by Volume
+NO DATA  Flow — Traffic Mix         | Traffic by App Label (labeled only)
+NO DATA  Flow — Traffic Mix         | Top App Categories by Volume
+NO DATA  Flow — Traffic Mix         | Traffic by Enrichment Source
+NO DATA  Server Hardware (IPMI)     | Sensors Not Nominal
+
+ROOT CAUSE 1 — .keyword mapping rot (8 flow panels, dark ~3 weeks)
+------------------------------------------------------------------
+Phase 3a (2026-05-03) changed the index template to map the enrichment fields
+as native `keyword`. Phase 4 dashboards used `.keyword` paths, valid only while
+the older dynamically-mapped (text + .keyword) indices remained in retention.
+Those aged out of the 14-day ISM window ~2026-05-18. From then on, every panel
+aggregating on `<field>.keyword` returned zero buckets — silently.
+
+Proof on flows-2026.06.08:
+  dst_app_label mapping: {"type": "keyword"}
+  terms agg on dst_app_label.keyword -> 0 buckets
+  terms agg on dst_app_label         -> 3 buckets (data)
+
+Fix: all 46 `.keyword` references in grafana-flow-dashboards.yaml flipped to
+plain field paths (bucketAggs fields, renameByName keys, byName matchers).
+Design-doc caveat marked RESOLVED with the recorded lesson: a dashboard data
+audit must follow any retention-driven mapping transition. A nightly automated
+panel audit is proposed in the feature backlog.
+
+ROOT CAUSE 2 — empty-when-healthy panel (cosmetic)
+--------------------------------------------------
+Server Hardware "Sensors Not Nominal" returned no rows because all sensors are
+nominal — indistinguishable from a broken panel. Replaced with an always-
+populated color-mapped sensor-state table (sort_desc, worst first).
+
+OTHER REVIEW FINDINGS
+---------------------
+- correlation-ux plane (homepage/investigation/health/playbooks dashboards) is
+  in the repo but NOT enabled in the lab overlay — dormant since the Wave 5
+  pivot. Decision item recorded in the feature backlog (enable+refresh vs delete).
+- Home dashboard status table had stale rows (util gauge "fix pending" though
+  fixed; no Wave 6 rows). Refreshed; long-term fix (alert-driven banners)
+  recorded in the Wave 8 proposal.
+- Home dashboard question cards did not link the three Wave 6 dashboards. Added.
+
+AFTER (commit 79977a8, ArgoCD synced, sidecar reloaded)
+-------------------------------------------------------
+TARGETS OK: 68   PROBLEMS: 0
+
+All 11 dashboards return data on every panel:
+  Flow — Destination Analysis / K8s Context / Top Talkers / Traffic Mix
+  Network Observability — Home
+  Network Switch & AP Hardware Health
+  Proxmox Node & VM Network
+  Server Hardware Health (IPMI)
+  Switch Interface Utilization
+  TrueNAS Storage Health
+  UniFi AP & WLAN Clients

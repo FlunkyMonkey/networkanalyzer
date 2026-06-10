@@ -429,6 +429,135 @@ appear in documents indexed after enrichment is enabled.
 
 ---
 
+## Wave 8 — Alerting & Notification (proposed, 2026-06-08)
+
+The platform now *shows* everything but *tells* nothing. Three real failures sat
+unnoticed until humans went looking: the MikroTik SNMP plane was silently down for
+weeks (placeholder community), the TrueNAS01→02 backup replication has been failing
+since ~February, and prox1 filled its BMC SEL with ECC errors. All three were
+visible in data nobody was watching. Alerting is the highest-value next wave.
+
+### PrometheusRule alert pack
+
+Deploy `PrometheusRule` CRs (labeled `release: kube-prometheus-stack` so the
+existing Prometheus Operator picks them up) covering, per plane:
+
+- **Collection health:** any platform exporter `up == 0` for 10m (snmp, unpoller,
+  pve, truenas, ipmi, grafana); flow ingest stall via Vector internal metrics
+  (`vector_*_sent_events_total` flat for 15m); k8s-ip-exporter CronJob failure
+  (`kube_job_status_failed` — absorbs the existing Wave 3b hardening item).
+- **Storage:** `truenas_replication_error == 1`; `truenas_alerts{level="CRITICAL"} > 0`;
+  pool capacity > 85%; `predict_linear` days-to-full < 30d; scrub older than 35d
+  (`time() - truenas_pool_scrub_end_timestamp_seconds`).
+- **Hardware:** `ipmi_sensor_state >= 1` (excluding N/A=3); SEL growth
+  (`delta(ipmi_sel_logs_count[1d]) > 0`); MikroTik cpu-temperature > 65;
+  fan-speed = 0 on a previously-spinning fan.
+- **Network:** sustained interface utilization > 85% for 15m; `ifOperStatus`
+  flap rate on host-facing ports.
+
+### Routing and delivery
+
+Alertmanager already runs in-cluster (kube-prometheus-stack, `172.18.1.202`).
+**Needs an owner decision:** delivery channel (ntfy, Pushover, Telegram, Discord
+webhook, or email) and its credential as a Secret. Route severity `critical` to
+push, `warning` to a daily digest.
+
+### Alert-driven degraded-state banners
+
+Replace the Home dashboard's hand-maintained status table (two stale rows were
+found in the 2026-06-08 review) with panels driven by `ALERTS{alertstate="firing"}`
+— the platform's own no-silent-staleness principle applied to itself.
+
+---
+
+## Feature Backlog — Unscheduled Candidates (2026-06-08 review)
+
+Found or conceived during the full-project review. Not committed to any wave.
+
+### Nightly dashboard-data audit (self-observability)
+
+The `.keyword` mapping transition silently blanked 8 flow panels for ~3 weeks.
+The audit script that caught it (replays every panel query via Grafana
+`/api/ds/query`, flags No Data / errors) should run as a nightly CronJob exposing
+`dashboard_panels_nodata_total` for alerting. Directly implements "no silent
+stale-data states" for the dashboards themselves.
+
+### Enable / refresh the correlation-ux plane
+
+`platform/base/correlation-ux/` holds four dormant dashboards (homepage,
+investigation, health, playbooks) that predate the Wave 5 pivot and are **not
+deployed** (overlay excludes the plane). Decide: refresh their queries and enable
+the plane (the live platform-health dashboard would replace the static status
+table), or delete them as superseded by the Wave 5b home dashboard. Either way
+removes a confusing repo/deployment mismatch.
+
+### CI lint gate (GitHub Actions)
+
+The promotion gate says "lint required" but nothing enforces it. A workflow
+running markdownlint + `kustomize build` + dashboard-JSON parse on PRs/pushes
+would have caught several past hotfixes pre-merge. Cheap, high leverage.
+
+### UPS monitoring (NUT)
+
+Switch ports `ether1`/`ether9` are labeled PeakUPS/PeakUPS02 but not connected or
+monitored. If the UPSes have USB/serial to any host, NUT + `nut-exporter` gives
+battery charge, load, runtime, and on-battery alerts — closing a real blind spot
+(power events currently invisible until everything dies).
+
+### Disk SMART detail
+
+The TrueNAS API exposes per-disk SMART (`/disk` + smart test endpoints) — extend
+the existing scripted exporter with per-disk health/temperature (v1 ships disk
+count only). For the three non-BMC Proxmox hosts, host-level `node_exporter` +
+`smartctl_exporter` would need per-host agents — bigger lift, decide separately.
+
+### Syslog / log plane via existing Loki
+
+`loki-stack` already runs in-cluster. Point MikroTik, Firewalla, and Proxmox
+syslog at it (syslog-ng/promtail receiver), add a Logs panel to the flow
+investigation path. Gives the "what happened at the time of that flow spike"
+pivot the platform currently lacks.
+
+### UniFi DPI dashboards
+
+UnPoller already collects DPI (`UP_UNIFI_DEFAULT_SAVE_DPI=true`) — per-client
+application/category breakdowns are sitting in Prometheus unused. A WiFi-client
+app-mix dashboard would extend Traffic Mix to the wireless edge with zero new
+collection.
+
+### WAN quality / synthetic probes (feeds Wave 7)
+
+`blackbox_exporter`: ICMP latency/loss to the ISP gateway and anchors (1.1.1.1,
+8.8.8.8), DNS query checks against dns1/dns2, HTTPS checks for the lab's own UIs
+(Grafana, ArgoCD, TrueNAS, Proxmox). Optional scheduled `speedtest-exporter`.
+"Is the internet slow or is it us?" becomes answerable from one dashboard.
+
+### Capacity forecasting
+
+`predict_linear` days-to-full stat panels for TrueNAS pools and the OpenSearch
+PVC; TrueNAS01_SSD fragmentation trending (64% and rising is already notable).
+
+### Long-term retention (Phase 9 groundwork)
+
+Prometheus retention is 7d against a 30d requirement. Options: bump retention on
+the existing instance, Thanos sidecar + object storage (Ceph RGW exists), or
+OpenSearch daily rollup indices for flows. Needs a sizing/architecture decision —
+flagged, not started.
+
+### BMC hygiene
+
+After the prox1 DIMM fix: clear its SEL (baseline for the SEL-growth alert),
+sync both BMC clocks (their SEL timestamps are garbage — 2001/2006/2020), and
+document the in-band `ipmitool` workflow now available on prox1.
+
+### Proxmox cluster quorum panel
+
+`pve_up`/cluster metrics from the PVE exporter can surface quorum state (3-of-5
+required). One stat panel on the Proxmox dashboard; cheap insurance for a
+5-node cluster that loses quorum at 2 failures.
+
+---
+
 ## Wave 4 — Deferred: Kubernetes Network Visibility (Cilium + Hubble)
 
 Wave 4 is deferred to backlog. The full planning document is at

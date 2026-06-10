@@ -41,6 +41,8 @@ This directory contains design documentation for the GitOps-managed network obse
 | [../evidence/wave5-pass3/](../evidence/wave5-pass3/) | Gate 5a evidence screenshots — seven-dashboard baseline, accepted 2026-04-26 |
 | [../evidence/wave5b/](../evidence/wave5b/) | Gate 5b evidence screenshots — home dashboard, navigation, and drill-down test, accepted 2026-04-26 |
 | [../evidence/wave5c/](../evidence/wave5c/) | Gate 5c final validation — point-in-time platform health check, accepted by owner 2026-05-02 (4-day soak) |
+| [../evidence/post-wave5-flow-enrichment-phase5/](../evidence/post-wave5-flow-enrichment-phase5/) | Post-Wave 5 flow enrichment Phase 5 closeout — live-data validation, 2026-06-08 |
+| [../evidence/wave6/](../evidence/wave6/) | Wave 6 evidence — SNMP plane restore, switch/node/TrueNAS/IPMI telemetry, dashboard audit, 2026-06-08 |
 
 ## Platform Structure
 
