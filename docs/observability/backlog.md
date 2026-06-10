@@ -433,7 +433,7 @@ appear in documents indexed after enrichment is enabled.
 
 **Status update (2026-06-08): notification channel + starter pack DELIVERED.**
 Email channel live: `platform/base/alerting/` deploys an AlertmanagerConfig
-(Gmail SMTP → mike@vgriz.com, critical repeat 4h / warning 24h, send-resolved)
+(Gmail SMTP → `mike@vgriz.com`, critical repeat 4h / warning 24h, send-resolved)
 and a starter PrometheusRule pack (exporter-down, TrueNAS
 replication/critical-alerts/pool-health/capacity, IPMI sensor states, SEL
 growth, switch temperature — all expressions live-validated). App password in
