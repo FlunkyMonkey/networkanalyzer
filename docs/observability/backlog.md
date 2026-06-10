@@ -130,10 +130,12 @@ and cannot be labeled by port — the "unknown" slice will not reach zero by des
 New telemetry planes for physical hardware and storage. None of these require
 flow plane changes. Candidate sources are Prometheus-native or easily scraped.
 
-**Status (2026-06-08, commits 45ff67e / 0a88a08):** mostly delivered.
+**Status (2026-06-08, commits 45ff67e / 0a88a08 / item-1 closeout):** **all five
+items delivered.**
 
 - **DONE:** Proxmox node-level network counters, switch interface util % gauge,
-  network switch hardware monitoring (MikroTik + UniFi), **TrueNAS monitoring**.
+  network switch hardware monitoring (MikroTik + UniFi), TrueNAS monitoring,
+  server hardware monitoring (IPMI, prox1+prox4).
 - **Found & fixed along the way:** the MikroTik SNMP scrape was silently **down**
   (deployed config had the placeholder community `SNMP_COMMUNITY` → walk timeout →
   no interface metrics at all). Community set to `public`; plane restored. See
@@ -141,16 +143,30 @@ flow plane changes. Candidate sources are Prometheus-native or easily scraped.
 - **Surfaced by TrueNAS monitoring:** the TrueNAS01→TrueNAS02 backup replication is
   **failing** (state ERROR), and TrueNAS02 has 4 active CRITICAL alerts — both now
   visible on the storage dashboard. Operator follow-up, not a platform defect.
-- **BLOCKED on operator credentials:** server hardware (IPMI) only.
+- **Surfaced by IPMI monitoring:** **prox1 has a history of correctable ECC errors
+  on DIMM2B(CPU1)** — its BMC SEL is nearly full of them. Reseat/replace that DIMM
+  (prox1 runs kube1, a control-plane node). Operator follow-up.
 
-### Server Hardware Monitoring — BLOCKED (needs BMC IPs + IPMI creds + ipmi_exporter approval)
+### Server Hardware Monitoring — DONE (2026-06-08, partial coverage by hardware)
 
-**Discovery (2026-06-08):** only **2 of 5** Proxmox nodes have a usable BMC —
-prox1 and prox4 (Supermicro X9SCL/X9SCM, `/dev/ipmi0` present, cabled to switch
-ports `mbipmi01`/`mbipmi02`). The other three have no IPMI-over-LAN: prox2/prox3
-(Lenovo ThinkServer TS140) and prox5 (HP ProLiant MicroServer N54L). Plan:
-deploy `ipmi_exporter` scraping the two BMCs over IPMI-over-LAN. Needs the BMC IPs,
-a read-only IPMI user/password (as a Secret), and approval to add the exporter.
+Delivered via `ipmi-exporter` v1.10.1 polling the two Supermicro X9SCL/X9SCM BMCs
+over IPMI-over-LAN, plus the **Server Hardware Health (IPMI)** dashboard
+(`infra-server-hw`): temps, fans, voltages, sensor states, chassis faults, SEL
+counts. Credentials live in the `ipmi-exporter-config` Secret (out-of-band).
+
+**Coverage: 2 of 5 nodes by hardware reality** — prox1 (BMC 172.18.1.21/mbipmi02)
+and prox4 (BMC 172.18.1.11/mbipmi01); the BMC↔host mapping is counterintuitive and
+was verified in-band on prox1. prox2/prox3 (Lenovo TS140) and prox5 (HP
+MicroServer N54L) have no IPMI-over-LAN — host-level hardware telemetry for them
+would require node_exporter + smartctl on each host (out of scope; revisit if
+needed).
+
+**Residuals:**
+
+- Disk SMART detail (smartctl_exporter) not deployed — needs per-host agents;
+  the X9 BMCs do not expose disk health.
+- prox1 DIMM2B(CPU1) ECC history — hardware follow-up, tracked in the Wave 6
+  status note above.
 
 Physical host telemetry for Proxmox nodes and any bare-metal storage hosts.
 

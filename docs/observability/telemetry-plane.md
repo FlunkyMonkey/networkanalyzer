@@ -9,6 +9,7 @@
 | unpoller | 2.39.0 | UniFi controller/AP/client metrics exporter | This repo |
 | prometheus-pve-exporter | 3.5.3 | Proxmox VE node and VM metrics exporter | This repo |
 | truenas-exporter | (scripted) | TrueNAS REST API → Prometheus (pool/scrub/alerts/replication), `python:3-slim` + ConfigMap | This repo |
+| ipmi-exporter | 1.10.1 | IPMI-over-LAN hardware health for the Supermicro BMCs (prox1, prox4) | This repo |
 | Prometheus | (existing) | Scrape backend — 7d retention | Cluster infra (`monitoring` namespace) |
 | Prometheus Operator | (existing) | ServiceMonitor CRD controller | Cluster infra (`monitoring` namespace) |
 
@@ -95,6 +96,21 @@ All components are deployed via the single ArgoCD Application. Helm charts are r
 - **Auth:** per-host API keys from the `truenas-credentials` Secret
   (`truenas01-api-key`, `truenas02-api-key`). Self-signed TLS accepted (LAN).
 
+### Server BMCs (IPMI-over-LAN)
+
+- **Method:** `ipmi-exporter` (prometheus-community, v1.10.1) proxy-scrapes each
+  BMC over RMCP+/lanplus (`/ipmi?target=<bmc-ip>`, one ServiceMonitor endpoint
+  per BMC — same pattern as the Proxmox exporter).
+- **Targets:** `172.18.1.21` = prox1's BMC (mbipmi02) and `172.18.1.11` = prox4's
+  BMC (mbipmi01). **Note the counterintuitive mapping** — verified in-band
+  2026-06-08 via `ipmitool lan print 1` on prox1. Only these two hosts have BMCs;
+  prox2/prox3 (Lenovo TS140) and prox5 (HP MicroServer) have no IPMI-over-LAN.
+- **Signals:** temperatures, fan speeds, voltages, sensor states, chassis
+  power/cooling/drive fault state, SEL event-log counts.
+- **Scrape interval:** 60s (`scrapeTimeout: 45s` — lanplus walks are slow).
+- **Auth:** the exporter config (including BMC credentials) is mounted whole from
+  the `ipmi-exporter-config` Secret; nothing in git.
+
 ## Dashboards
 
 Dashboards provisioned via ConfigMap:
@@ -106,6 +122,7 @@ Dashboards provisioned via ConfigMap:
 | Proxmox Node & VM Network | `infra-proxmox-net` | Per-VM throughput + switch-authoritative per-host bandwidth (uplink port) |
 | Network Switch & AP Hardware Health | `infra-switch-hw` | MikroTik temps/fans/PSU/PoE (SNMP) + UniFi device temp/cpu/mem/uptime (UnPoller) |
 | TrueNAS Storage Health | `infra-truenas` | Pool status/capacity/fragmentation/scrub, alerts by level, replication-task state |
+| Server Hardware Health (IPMI) | `infra-server-hw` | BMC reachability, temps, fans, voltages, sensor states, chassis faults, SEL counts (prox1+prox4) |
 
 These are functional starting points — expect iteration in later phases when the full UX is built.
 
@@ -147,6 +164,17 @@ These are functional starting points — expect iteration in later phases when t
 - `truenas_alerts{level}` — active (non-dismissed) alerts by level
 - `truenas_replication_error{task}` / `truenas_replication_state{task,state}`
 - `truenas_disk_count`, `truenas_system_uptime_seconds`, `truenas_system_info`
+
+### From IPMI Exporter (prox1 + prox4, `host` / `bmc` / `bmc_name` labels)
+
+- `ipmi_up{collector}` — per-collector scrape success (bmc, ipmi, chassis, sel)
+- `ipmi_temperature_celsius{name}` — System/Peripheral temps (CPU Temp is
+  threshold-only on X9 boards: state, no analog value)
+- `ipmi_fan_speed_rpm{name}`, `ipmi_voltage_volts{name}`
+- `ipmi_sensor_state{name}` — 0 nominal, 1 warning, 2 critical, 3 N/A
+- `ipmi_chassis_power_state`, `ipmi_chassis_cooling_fault_state`, `ipmi_chassis_drive_fault_state`
+- `ipmi_sel_logs_count`, `ipmi_sel_free_space_bytes` — event-log pressure
+- `ipmi_bmc_info`, `ipmi_scrape_duration_seconds{collector}`
 
 ## Known Blind Spots
 

@@ -604,3 +604,189 @@ data:
       "title": "TrueNAS Storage Health",
       "uid": "infra-truenas"
     }
+
+  server-hardware.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "",
+          "type": "text",
+          "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+          "options": {
+            "mode": "markdown",
+            "content": "Physical server hardware health via IPMI (Supermicro X9 BMCs). **Coverage: prox1 (BMC 172.18.1.21 / mbipmi02) and prox4 (BMC 172.18.1.11 / mbipmi01) only** — prox2/prox3 (Lenovo TS140) and prox5 (HP MicroServer) have no usable BMC. CPU Temp on these boards is threshold-only (no analog reading); System/Peripheral temps are shown."
+          }
+        },
+        {
+          "title": "BMC Reachable",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 5, "w": 6, "x": 0, "y": 3 },
+          "targets": [
+            { "expr": "min by (host) (ipmi_up)", "legendFormat": "{{host}}", "instant": true }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } }
+              ],
+              "thresholds": { "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+            }
+          },
+          "options": { "colorMode": "background", "graphMode": "none" }
+        },
+        {
+          "title": "Worst Sensor State",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 5, "w": 6, "x": 6, "y": 3 },
+          "targets": [
+            { "expr": "max by (host) (ipmi_sensor_state < 3)", "legendFormat": "{{host}}", "instant": true }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "type": "value", "options": { "0": { "text": "OK", "color": "green" }, "1": { "text": "WARNING", "color": "yellow" }, "2": { "text": "CRITICAL", "color": "red" } } }
+              ],
+              "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 2 } ] }
+            }
+          },
+          "options": { "colorMode": "background", "graphMode": "none" }
+        },
+        {
+          "title": "Chassis Power",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 5, "w": 6, "x": 12, "y": 3 },
+          "targets": [
+            { "expr": "ipmi_chassis_power_state", "legendFormat": "{{host}}", "instant": true }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "type": "value", "options": { "1": { "text": "ON", "color": "green" }, "0": { "text": "OFF", "color": "red" } } }
+              ],
+              "thresholds": { "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+            }
+          },
+          "options": { "colorMode": "background", "graphMode": "none" }
+        },
+        {
+          "title": "SEL Log Entries",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 5, "w": 6, "x": 18, "y": 3 },
+          "targets": [
+            { "expr": "ipmi_sel_logs_count", "legendFormat": "{{host}}", "instant": true }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 100 }, { "color": "red", "value": 400 } ] }
+            }
+          },
+          "options": { "colorMode": "background", "graphMode": "none" }
+        },
+        {
+          "title": "Temperatures (°C)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "targets": [
+            { "expr": "ipmi_temperature_celsius", "legendFormat": "{{host}} {{name}}" }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "celsius",
+              "custom": { "fillOpacity": 10 },
+              "thresholds": {
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 55 },
+                  { "color": "red", "value": 70 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "title": "Fan Speeds (RPM)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "targets": [
+            { "expr": "ipmi_fan_speed_rpm", "legendFormat": "{{host}} {{name}}" }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "rotrpm",
+              "custom": { "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "title": "Voltages (V)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "targets": [
+            { "expr": "ipmi_voltage_volts", "legendFormat": "{{host}} {{name}}" }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "volt",
+              "custom": { "fillOpacity": 10 }
+            }
+          }
+        },
+        {
+          "title": "Sensors Not Nominal (warning=1, critical=2)",
+          "type": "table",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "targets": [
+            { "expr": "(ipmi_sensor_state > 0) and (ipmi_sensor_state < 3)", "legendFormat": "{{host}} {{name}}", "format": "table", "instant": true }
+          ]
+        },
+        {
+          "title": "Chassis Cooling / Drive Faults",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 5, "w": 12, "x": 0, "y": 24 },
+          "targets": [
+            { "expr": "ipmi_chassis_cooling_fault_state", "legendFormat": "{{host}} cooling", "instant": true },
+            { "expr": "ipmi_chassis_drive_fault_state", "legendFormat": "{{host}} drive", "instant": true }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "type": "value", "options": { "0": { "text": "OK", "color": "green" }, "1": { "text": "FAULT", "color": "red" } } }
+              ],
+              "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }
+            }
+          },
+          "options": { "colorMode": "background", "graphMode": "none" }
+        },
+        {
+          "title": "IPMI Scrape Duration (s)",
+          "type": "timeseries",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 5, "w": 12, "x": 12, "y": 24 },
+          "targets": [
+            { "expr": "ipmi_scrape_duration_seconds", "legendFormat": "{{host}} {{collector}}" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } } }
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["compute", "hardware", "ipmi", "supermicro", "infra-telemetry"],
+      "templating": { "list": [] },
+      "time": { "from": "now-6h", "to": "now" },
+      "title": "Server Hardware Health (IPMI)",
+      "uid": "infra-server-hw"
+    }

@@ -69,10 +69,10 @@ spec:
           - "172.18.1.50:8006"
 ---
 # IPMI exporter — one endpoint per BMC (proxy-scrape pattern, like the Proxmox
-# exporter above). The `host` label uses the BMCs' DNS identities
-# (mbipmi01/mbipmi02); prox1/prox4 attribution is pending operator confirmation
-# (see backlog "Server Hardware Monitoring") and is a one-line relabel here once
-# known.
+# exporter above). Host attribution verified in-band 2026-06-08 (`ipmitool lan
+# print 1` on prox1 returned 172.18.1.21): mbipmi02 (.21) = prox1, and by
+# elimination mbipmi01 (.11) = prox4. Note the IPs are counterintuitive — .11
+# is NOT prox1's BMC.
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -97,8 +97,10 @@ spec:
       relabelings:
         - sourceLabels: [__param_target]
           targetLabel: bmc
-        - targetLabel: host
+        - targetLabel: bmc_name
           replacement: mbipmi01
+        - targetLabel: host
+          replacement: prox4
     - port: metrics
       interval: 60s
       scrapeTimeout: 45s
@@ -109,8 +111,10 @@ spec:
       relabelings:
         - sourceLabels: [__param_target]
           targetLabel: bmc
-        - targetLabel: host
+        - targetLabel: bmc_name
           replacement: mbipmi02
+        - targetLabel: host
+          replacement: prox1
 ---
 # TrueNAS exporter — scrapes the stdlib Python exporter that queries the
 # TrueNAS REST API v2.0 for both storage hosts (truenas01, truenas02).

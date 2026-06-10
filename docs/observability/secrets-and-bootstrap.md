@@ -143,6 +143,51 @@ kubectl create secret generic truenas-credentials \
 - Without this secret, the `truenas-exporter` pod will not start (the keys are
   required env vars). The storage dashboard then has no data.
 
+### 6. ipmi-exporter-config
+
+**Used by:** `ipmi-exporter` (IPMI-over-LAN polling of the Supermicro BMCs)
+
+**Namespace:** `network-observability`
+
+**Keys:**
+
+| Key | Description |
+|---|---|
+| `ipmi_remote.yml` | Full ipmi_exporter config file, including BMC user/password |
+
+**Create:**
+
+```bash
+cat > /tmp/ipmi_remote.yml <<'YAML'
+modules:
+  default:
+    user: "<bmc-user>"
+    pass: "<bmc-password>"
+    driver: "LAN_2_0"
+    privilege: "user"
+    timeout: 30000
+    collectors:
+      - bmc
+      - ipmi
+      - chassis
+      - sel
+YAML
+kubectl create secret generic ipmi-exporter-config \
+  --namespace network-observability \
+  --from-file=ipmi_remote.yml=/tmp/ipmi_remote.yml
+rm /tmp/ipmi_remote.yml
+```
+
+**Prerequisites:**
+
+- The whole config file lives in the Secret because ipmi_exporter reads
+  credentials from its config file — keeping the entire file out of git avoids
+  any split-source confusion.
+- BMC targets are defined in the ServiceMonitor, not in this config
+  (proxy-scrape pattern: `/ipmi?target=<bmc-ip>`).
+- Without this secret, the `ipmi-exporter` pod will not start (config volume
+  mount fails). The Server Hardware dashboard then has no data.
+
 ## Bootstrap Order
 
 1. Create the `network-observability` namespace (ArgoCD will do this on first sync, or create it manually):

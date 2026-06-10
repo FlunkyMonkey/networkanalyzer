@@ -1,0 +1,60 @@
+Wave 6 item 1 — Server Hardware Monitoring (IPMI)
+=================================================
+Date:    2026-06-08 (cluster UTC 2026-06-09)
+Commits: 7f26f52 (exporter + ServiceMonitor), closeout commit (dashboard + docs)
+Method:  prometheuscommunity/ipmi-exporter v1.10.1 proxy-scraping both Supermicro
+         X9SCL/X9SCM BMCs over RMCP+/lanplus; config (incl. credentials) in the
+         ipmi-exporter-config Secret (out-of-band, NOT in git; leak scan clean).
+
+BMC INVENTORY AND HOST ATTRIBUTION
+----------------------------------
+  mbipmi01 = 172.18.1.11, MAC 00:25:90:7f:f0:19, MikroTik ether8  -> prox4
+  mbipmi02 = 172.18.1.21, MAC 00:25:90:ae:06:68, MikroTik ether11 -> prox1
+
+  ** The mapping is counterintuitive (.11 is NOT prox1) and was verified
+  definitively in-band: `ipmitool lan print 1` on prox1 returned
+  IP 172.18.1.21 / MAC 00:25:90:ae:06:68. prox4 = .11 by elimination
+  (only two BMCs exist; prox2/prox3 are Lenovo TS140, prox5 is an HP
+  MicroServer N54L — none has IPMI-over-LAN). **
+
+  Read-only identification attempts that failed (for the record):
+  - FRU board/product serials: blank on both BMCs
+  - BMC System GUID: Supermicro X9 embeds "1007SM"+BMC MAC, not the host UUID
+  - SEL boot-time correlation: both BMC clocks unsynced (dates 2001/2006/2020)
+  Operator authorized apt-get install ipmitool on prox1 for the in-band check.
+
+CREDENTIAL VERIFICATION (workstation, ipmitool lanplus)
+-------------------------------------------------------
+Both BMCs authenticate; sensors read OK:
+  .11: System Temp 28C, Peripheral 35C, FAN1/2 900, FAN3 1650, FAN A 975 RPM,
+       Vcore 1.05V, 3.3VCC 3.34V, 12V 12.24V, VDIMM 1.53V
+  .21: System Temp 29C, Peripheral 31C, FAN1 1275, FAN2 825, FAN3 1725,
+       FAN4 1650 RPM, Vcore 1.14V, 3.3VCC 3.34V, 12V 12.30V, VDIMM 1.54V
+Note: CPU Temp is a threshold-only sensor on X9 (state, no analog reading).
+
+LIVE IN-CLUSTER VALIDATION (after ArgoCD sync 7f26f52)
+------------------------------------------------------
+  ArgoCD synced; ipmi-exporter pod Running/ready
+  Both IPMI scrape targets UP after ~220s (lanplus scrapes are slow; 45s timeout)
+  ipmi_up: 8/8 series = 1 (collectors bmc/ipmi/chassis/sel x 2 hosts)
+  Metric names confirmed live (dashboard built against these):
+    ipmi_up, ipmi_temperature_celsius, ipmi_fan_speed_rpm, ipmi_voltage_volts,
+    ipmi_sensor_state, ipmi_sensor_value, ipmi_chassis_power_state,
+    ipmi_chassis_cooling_fault_state, ipmi_chassis_drive_fault_state,
+    ipmi_sel_logs_count, ipmi_sel_free_space_bytes, ipmi_bmc_info,
+    ipmi_scrape_duration_seconds
+  Samples: temps 28-35C, fans 825-1725 RPM, voltages nominal, both chassis ON.
+
+OPERATIONAL FINDING (surfaced by this monitoring)
+-------------------------------------------------
+prox1's BMC SEL is nearly full of CORRECTABLE ECC ERRORS on DIMM2B(CPU1)
+(hundreds of entries). Correctable = no data loss yet, but the DIMM should be
+reseated/replaced. prox1 runs kube1 (K8s control-plane node) — plan a
+maintenance window. The SEL Log Entries panel on the new dashboard makes this
+visible (red threshold >400 entries).
+
+COVERAGE CAVEAT
+---------------
+2 of 5 Proxmox nodes monitored (hardware reality: only the Supermicros have
+BMCs). prox2/prox3/prox5 would need per-host agents (node_exporter/smartctl);
+out of scope for Wave 6. Disk SMART is not exposed by these BMCs.
