@@ -7,10 +7,10 @@
 #   - PPL is NOT used.
 #
 # Post-Wave 5 Phase 4 enrichment fields used throughout:
-#   - src_display_name.keyword / dst_display_name.keyword  (friendly name + IP)
-#   - dst_app_label.keyword   (Kubernetes, Ceph-OSD, DNS, SSH, etc.)
-#   - dst_app_category.keyword (k8s, storage, network, infrastructure, web, etc.)
-#   - dst_app_source.keyword   (existing, registry, workload, unlabeled)
+#   - src_display_name / dst_display_name  (friendly name + IP)
+#   - dst_app_label   (Kubernetes, Ceph-OSD, DNS, SSH, etc.)
+#   - dst_app_category (k8s, storage, network, infrastructure, web, etc.)
+#   - dst_app_source   (existing, registry, workload, unlabeled)
 #   - Raw src_ip / dst_ip preserved in nested buckets for drill-down link correctness.
 #
 # Dashboards:
@@ -63,7 +63,7 @@ data:
                 {
                   "id": "3",
                   "type": "terms",
-                  "field": "src_display_name.keyword",
+                  "field": "src_display_name",
                   "settings": { "size": "20", "order": "desc", "orderBy": "1" }
                 },
                 {
@@ -92,7 +92,7 @@ data:
                 ]
               },
               {
-                "matcher": { "id": "byName", "options": "src_display_name.keyword" },
+                "matcher": { "id": "byName", "options": "src_display_name" },
                 "properties": [{ "id": "custom.width", "value": 220 }]
               },
               {
@@ -107,7 +107,7 @@ data:
           "transformations": [
             { "id": "organize", "options": {
               "renameByName": {
-                "src_display_name.keyword": "Source",
+                "src_display_name": "Source",
                 "src_ip": "Source IP",
                 "Sum": "Total Volume",
                 "Count": "Flow Count"
@@ -136,7 +136,7 @@ data:
                 {
                   "id": "3",
                   "type": "terms",
-                  "field": "dst_display_name.keyword",
+                  "field": "dst_display_name",
                   "settings": { "size": "20", "order": "desc", "orderBy": "1" }
                 },
                 {
@@ -165,7 +165,7 @@ data:
                 ]
               },
               {
-                "matcher": { "id": "byName", "options": "dst_display_name.keyword" },
+                "matcher": { "id": "byName", "options": "dst_display_name" },
                 "properties": [{ "id": "custom.width", "value": 220 }]
               },
               {
@@ -180,7 +180,7 @@ data:
           "transformations": [
             { "id": "organize", "options": {
               "renameByName": {
-                "dst_display_name.keyword": "Destination",
+                "dst_display_name": "Destination",
                 "dst_ip": "Destination IP",
                 "Sum": "Total Volume",
                 "Count": "Flow Count"
@@ -300,7 +300,7 @@ data:
                 {
                   "id": "3",
                   "type": "terms",
-                  "field": "dst_display_name.keyword",
+                  "field": "dst_display_name",
                   "settings": { "size": "30", "order": "desc", "orderBy": "1" }
                 },
                 {
@@ -329,7 +329,7 @@ data:
                 ]
               },
               {
-                "matcher": { "id": "byName", "options": "dst_display_name.keyword" },
+                "matcher": { "id": "byName", "options": "dst_display_name" },
                 "properties": [{ "id": "custom.width", "value": 220 }]
               },
               {
@@ -341,7 +341,7 @@ data:
           "transformations": [
             { "id": "organize", "options": {
               "renameByName": {
-                "dst_display_name.keyword": "Destination",
+                "dst_display_name": "Destination",
                 "dst_ip": "Destination IP",
                 "Sum": "Total Volume",
                 "Count": "Flow Count"
@@ -377,13 +377,13 @@ data:
                 {
                   "id": "4",
                   "type": "terms",
-                  "field": "dst_app_label.keyword",
+                  "field": "dst_app_label",
                   "settings": { "size": "1", "order": "desc", "orderBy": "1", "missing": "unlabeled" }
                 },
                 {
                   "id": "5",
                   "type": "terms",
-                  "field": "dst_app_source.keyword",
+                  "field": "dst_app_source",
                   "settings": { "size": "1", "order": "desc", "orderBy": "1", "missing": "unlabeled" }
                 }
               ]
@@ -410,11 +410,11 @@ data:
                 "properties": [{ "id": "custom.width", "value": 70 }]
               },
               {
-                "matcher": { "id": "byName", "options": "dst_app_label.keyword" },
+                "matcher": { "id": "byName", "options": "dst_app_label" },
                 "properties": [{ "id": "custom.width", "value": 140 }]
               },
               {
-                "matcher": { "id": "byName", "options": "dst_app_source.keyword" },
+                "matcher": { "id": "byName", "options": "dst_app_source" },
                 "properties": [{ "id": "custom.width", "value": 100 }]
               }
             ]
@@ -423,8 +423,8 @@ data:
             { "id": "organize", "options": {
               "renameByName": {
                 "dst_port": "Port",
-                "dst_app_label.keyword": "App Label",
-                "dst_app_source.keyword": "Source",
+                "dst_app_label": "App Label",
+                "dst_app_source": "Source",
                 "Sum": "Total Volume",
                 "Count": "Flow Count"
               },
@@ -463,19 +463,19 @@ data:
                 {
                   "id": "3",
                   "type": "terms",
-                  "field": "dst_app_label.keyword",
+                  "field": "dst_app_label",
                   "settings": { "size": "20", "order": "desc", "orderBy": "1" }
                 },
                 {
                   "id": "4",
                   "type": "terms",
-                  "field": "dst_app_category.keyword",
+                  "field": "dst_app_category",
                   "settings": { "size": "1", "order": "desc", "orderBy": "1", "missing": "unknown" }
                 },
                 {
                   "id": "5",
                   "type": "terms",
-                  "field": "dst_app_source.keyword",
+                  "field": "dst_app_source",
                   "settings": { "size": "1", "order": "desc", "orderBy": "1", "missing": "unlabeled" }
                 }
               ]
@@ -498,15 +498,15 @@ data:
                 ]
               },
               {
-                "matcher": { "id": "byName", "options": "dst_app_label.keyword" },
+                "matcher": { "id": "byName", "options": "dst_app_label" },
                 "properties": [{ "id": "custom.width", "value": 150 }]
               },
               {
-                "matcher": { "id": "byName", "options": "dst_app_category.keyword" },
+                "matcher": { "id": "byName", "options": "dst_app_category" },
                 "properties": [{ "id": "custom.width", "value": 110 }]
               },
               {
-                "matcher": { "id": "byName", "options": "dst_app_source.keyword" },
+                "matcher": { "id": "byName", "options": "dst_app_source" },
                 "properties": [{ "id": "custom.width", "value": 100 }]
               }
             ]
@@ -514,9 +514,9 @@ data:
           "transformations": [
             { "id": "organize", "options": {
               "renameByName": {
-                "dst_app_label.keyword": "App Label",
-                "dst_app_category.keyword": "Category",
-                "dst_app_source.keyword": "Enrich Source",
+                "dst_app_label": "App Label",
+                "dst_app_category": "Category",
+                "dst_app_source": "Enrich Source",
                 "Sum": "Total Volume",
                 "Count": "Flow Count"
               },
@@ -545,7 +545,7 @@ data:
                 {
                   "id": "3",
                   "type": "terms",
-                  "field": "src_display_name.keyword",
+                  "field": "src_display_name",
                   "settings": { "size": "20", "order": "desc", "orderBy": "1" }
                 },
                 {
@@ -574,7 +574,7 @@ data:
                 ]
               },
               {
-                "matcher": { "id": "byName", "options": "src_display_name.keyword" },
+                "matcher": { "id": "byName", "options": "src_display_name" },
                 "properties": [{ "id": "custom.width", "value": 220 }]
               },
               {
@@ -589,7 +589,7 @@ data:
           "transformations": [
             { "id": "organize", "options": {
               "renameByName": {
-                "src_display_name.keyword": "Source",
+                "src_display_name": "Source",
                 "src_ip": "Source IP",
                 "Sum": "Total Volume",
                 "Count": "Flow Count"
@@ -652,19 +652,19 @@ data:
                 {
                   "id": "5",
                   "type": "terms",
-                  "field": "dst_app_label.keyword",
+                  "field": "dst_app_label",
                   "settings": { "size": "1", "order": "desc", "orderBy": "1", "missing": "unlabeled" }
                 },
                 {
                   "id": "6",
                   "type": "terms",
-                  "field": "dst_app_category.keyword",
+                  "field": "dst_app_category",
                   "settings": { "size": "1", "order": "desc", "orderBy": "1", "missing": "unknown" }
                 },
                 {
                   "id": "7",
                   "type": "terms",
-                  "field": "dst_app_source.keyword",
+                  "field": "dst_app_source",
                   "settings": { "size": "1", "order": "desc", "orderBy": "1", "missing": "unlabeled" }
                 }
               ]
@@ -691,15 +691,15 @@ data:
                 "properties": [{ "id": "custom.width", "value": 80 }]
               },
               {
-                "matcher": { "id": "byName", "options": "dst_app_label.keyword" },
+                "matcher": { "id": "byName", "options": "dst_app_label" },
                 "properties": [{ "id": "custom.width", "value": 160 }]
               },
               {
-                "matcher": { "id": "byName", "options": "dst_app_category.keyword" },
+                "matcher": { "id": "byName", "options": "dst_app_category" },
                 "properties": [{ "id": "custom.width", "value": 120 }]
               },
               {
-                "matcher": { "id": "byName", "options": "dst_app_source.keyword" },
+                "matcher": { "id": "byName", "options": "dst_app_source" },
                 "properties": [{ "id": "custom.width", "value": 100 }]
               }
             ]
@@ -708,9 +708,9 @@ data:
             { "id": "organize", "options": {
               "renameByName": {
                 "dst_port": "Port",
-                "dst_app_label.keyword": "App Label",
-                "dst_app_category.keyword": "Category",
-                "dst_app_source.keyword": "Enrich Source",
+                "dst_app_label": "App Label",
+                "dst_app_category": "Category",
+                "dst_app_source": "Enrich Source",
                 "Sum": "Total Volume",
                 "Count": "Flow Count"
               },
@@ -739,7 +739,7 @@ data:
                 {
                   "id": "3",
                   "type": "terms",
-                  "field": "dst_app_label.keyword",
+                  "field": "dst_app_label",
                   "settings": { "size": "20", "order": "desc", "orderBy": "1" }
                 }
               ]
@@ -764,7 +764,7 @@ data:
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "dst_app_label.keyword": "App Label", "Sum": "Total Volume", "Count": "Flow Count" } } }
+            { "id": "organize", "options": { "renameByName": { "dst_app_label": "App Label", "Sum": "Total Volume", "Count": "Flow Count" } } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
@@ -788,7 +788,7 @@ data:
                 {
                   "id": "3",
                   "type": "terms",
-                  "field": "dst_app_category.keyword",
+                  "field": "dst_app_category",
                   "settings": { "size": "15", "order": "desc", "orderBy": "1" }
                 }
               ]
@@ -817,7 +817,7 @@ data:
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "dst_app_category.keyword": "Category", "Sum": "Total Volume", "Count": "Flow Count" } } }
+            { "id": "organize", "options": { "renameByName": { "dst_app_category": "Category", "Sum": "Total Volume", "Count": "Flow Count" } } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
@@ -890,7 +890,7 @@ data:
                 {
                   "id": "3",
                   "type": "terms",
-                  "field": "dst_app_source.keyword",
+                  "field": "dst_app_source",
                   "settings": { "size": "10", "order": "desc", "orderBy": "1" }
                 }
               ]
@@ -919,7 +919,7 @@ data:
             ]
           },
           "transformations": [
-            { "id": "organize", "options": { "renameByName": { "dst_app_source.keyword": "Enrich Source", "Sum": "Total Volume", "Count": "Flow Count" } } }
+            { "id": "organize", "options": { "renameByName": { "dst_app_source": "Enrich Source", "Sum": "Total Volume", "Count": "Flow Count" } } }
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },

@@ -745,13 +745,22 @@ data:
           }
         },
         {
-          "title": "Sensors Not Nominal (warning=1, critical=2)",
+          "title": "Sensor States (0=ok, 1=warning, 2=critical; N/A hidden)",
           "type": "table",
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
           "targets": [
-            { "expr": "(ipmi_sensor_state > 0) and (ipmi_sensor_state < 3)", "legendFormat": "{{host}} {{name}}", "format": "table", "instant": true }
-          ]
+            { "expr": "sort_desc(ipmi_sensor_state < 3)", "legendFormat": "{{host}} {{name}}", "format": "table", "instant": true }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "type": "value", "options": { "0": { "text": "OK", "color": "green" }, "1": { "text": "WARNING", "color": "yellow" }, "2": { "text": "CRITICAL", "color": "red" } } },
+                { "type": "special", "options": { "match": "null", "result": { "text": "-" } } }
+              ],
+              "custom": { "cellOptions": { "type": "color-background" } }
+            }
+          }
         },
         {
           "title": "Chassis Cooling / Drive Faults",

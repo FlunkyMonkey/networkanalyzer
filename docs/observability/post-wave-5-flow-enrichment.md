@@ -354,6 +354,16 @@ overrides use the `.keyword` form (e.g., `dst_app_label.keyword`) to match corre
 Numeric fields (`dst_port`, `src_ip`, `dst_ip`) and metric fields (`Sum`, `Count`) are
 unaffected.
 
+> **RESOLVED (2026-06-08):** this caveat had a planned expiry that was missed. Once
+> the last `text + .keyword` dynamically-mapped indices aged out of 14-day ISM
+> retention (~2026-05-18), all live indices carried the Phase 3a native `keyword`
+> mapping — where the `.keyword` subpath does not exist — and every panel
+> aggregating on `X.keyword` silently went **No Data** for ~3 weeks. A full
+> dashboard audit (replaying all panel queries through `/api/ds/query`) caught it;
+> all `.keyword` references in `grafana-flow-dashboards.yaml` (46) were flipped to
+> plain field paths. Lesson recorded: a dashboard data audit must follow any
+> retention-driven mapping transition.
+
 **Validated (2026-05-03):**
 
 - `kustomize build --enable-helm platform/overlays/lab` passes twice (deterministic)

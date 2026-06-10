@@ -58,7 +58,7 @@ data:
           "gridPos": { "h": 6, "w": 8, "x": 0, "y": 11 },
           "options": {
             "mode": "markdown",
-            "content": "### [Proxmox VMs](/d/infra-proxmox-net)\nPer-VM network bandwidth (receive/transmit) across all Proxmox nodes.\n\n9 VMs monitored via PVE exporter."
+            "content": "### [Proxmox VMs](/d/infra-proxmox-net)\nPer-VM network bandwidth plus switch-authoritative per-host totals.\n\n### [TrueNAS Storage](/d/infra-truenas)\nPool health, capacity, scrub, alerts, replication state.\n\n### [Server Hardware](/d/infra-server-hw)\nIPMI temps, fans, voltages, SEL counts (prox1, prox4)."
           }
         },
         {
@@ -67,7 +67,7 @@ data:
           "gridPos": { "h": 6, "w": 8, "x": 8, "y": 11 },
           "options": {
             "mode": "markdown",
-            "content": "### [Switch Interfaces](/d/infra-iface-util)\nMikroTik core switch — per-interface inbound/outbound bandwidth via SNMP.\n\n### [UniFi Wireless](/d/infra-unifi-clients)\nPer-client WiFi bandwidth, connected client count, and AP status."
+            "content": "### [Switch Interfaces](/d/infra-iface-util)\nMikroTik core switch — per-interface inbound/outbound bandwidth and utilization % via SNMP.\n\n### [UniFi Wireless](/d/infra-unifi-clients)\nPer-client WiFi bandwidth, connected client count, and AP status.\n\n### [Switch & AP Hardware](/d/infra-switch-hw)\nMikroTik temps/fans/PSU/PoE + UniFi device health."
           }
         },
         {
@@ -120,7 +120,7 @@ data:
           "gridPos": { "h": 8, "w": 24, "x": 0, "y": 17 },
           "options": {
             "mode": "markdown",
-            "content": "| Item | Status |\n|---|---|\n| Flow collection (NetFlow v9 → Vector → OpenSearch) | ✅ Running — ~4M flows/day |\n| K8s enrichment (pod/namespace/workload/node) | ✅ Refreshed every 30 min by k8s-ip-exporter — restarts flow-collector only when content changes; on-demand refresh available |\n| **GitOps flow enrichment** (app-port registry + hostname map) | ✅ Active — dst_app_label, dst_app_category, dst_display_name in all fresh flows; Ceph OSD ephemeral ports covered by workload-pattern |\n| Prometheus infra metrics (SNMP, PVE, UnPoller) | ✅ Connected |\n| **GeoIP / ASN enrichment** | ⏳ Not configured — requires MaxMind license key |\n| **Hubble / Cilium flow visibility** | ⏳ Deferred — CNI is Calico, not Cilium |\n| **Switch utilization % gauge** | ⚠️ Minor — ifSpeed=0 on some interfaces, fix pending |\n| **Legacy Prometheus datasource** | 🧹 Cleanup pending — duplicate `PBFA97CFB590B2093` to remove |\n| **High-volume unlabeled ports** | ⚠️ Residual — common infra ports now labeled via registry; ephemeral/unknown ports remain unlabeled (expected) |"
+            "content": "| Item | Status |\n|---|---|\n| Flow collection (NetFlow v9 → Vector → OpenSearch) | ✅ Running — ~4M flows/day |\n| K8s enrichment (pod/namespace/workload/node) | ✅ Refreshed every 30 min by k8s-ip-exporter — restarts flow-collector only when content changes; on-demand refresh available |\n| **GitOps flow enrichment** (app-port registry + hostname map) | ✅ Active — dst_app_label, dst_app_category, dst_display_name in all fresh flows; Ceph OSD ephemeral ports covered by workload-pattern |\n| Prometheus infra metrics (SNMP, PVE, UnPoller, IPMI, TrueNAS) | ✅ Connected — SNMP plane restored 2026-06-08 (Wave 6) |\n| **Switch utilization % gauge** | ✅ Fixed (Wave 6) — denominator now ifHighSpeed, 10G-safe |\n| **Hardware & storage telemetry** (Wave 6) | ✅ IPMI (prox1/prox4), TrueNAS (both hosts), MikroTik+UniFi hardware health |\n| **TrueNAS01→02 backup replication** | 🔴 FAILING — see [TrueNAS Storage](/d/infra-truenas); operator action needed |\n| **prox1 DIMM2B(CPU1) ECC errors** | ⚠️ SEL full of correctable ECC — DIMM reseat/replace pending; see [Server Hardware](/d/infra-server-hw) |\n| **GeoIP / ASN enrichment** | ⏳ Not configured — requires MaxMind license key |\n| **Hubble / Cilium flow visibility** | ⏳ Deferred — CNI is Calico, not Cilium |\n| **Legacy Prometheus datasource** | 🧹 Cleanup pending — duplicate `PBFA97CFB590B2093` to remove |\n| **High-volume unlabeled ports** | ⚠️ Residual — Corosync 5405 + mDNS 5353 identified, registry add pending; ephemeral ports unlabeled (expected) |"
           }
         }
       ],
