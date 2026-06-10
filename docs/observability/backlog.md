@@ -140,9 +140,14 @@ items delivered.**
   (deployed config had the placeholder community `SNMP_COMMUNITY` → walk timeout →
   no interface metrics at all). Community set to `public`; plane restored. See
   `docs/evidence/wave6/snmp-restore-and-hardware-20260608.txt`.
-- **Surfaced by TrueNAS monitoring:** the TrueNAS01→TrueNAS02 backup replication is
-  **failing** (state ERROR), and TrueNAS02 has 4 active CRITICAL alerts — both now
-  visible on the storage dashboard. Operator follow-up, not a platform defect.
+- **Surfaced by TrueNAS monitoring (RESOLVED 2026-06-10):** the TrueNAS01→TrueNAS02
+  backup replication had been failing since ~May 23 — an interrupted transfer left
+  `%recv` partial-receive state held busy by stale ZFS kernel state. Fixed via
+  TrueNAS02 reboot + `zfs receive -A`; 2.03 TiB catch-up verified complete
+  (target current through `auto-2026-06-10_04-00`). TrueNAS02's 4 CRITICAL alerts
+  are 1 pending unreadable sector on each RAIDZ2 member disk — scrub + disk
+  refresh tracked in the homelab docs; the alerts remain visible on the storage
+  dashboard until addressed.
 - **Surfaced by IPMI monitoring:** **prox1 has a history of correctable ECC errors
   on DIMM2B(CPU1)** — its BMC SEL is nearly full of them. Reseat/replace that DIMM
   (prox1 runs kube1, a control-plane node). Operator follow-up.
