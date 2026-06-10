@@ -1,0 +1,83 @@
+# IPMI exporter — polls the two Supermicro X9SCL/X9SCM BMCs (mbipmi01/mbipmi02)
+# over IPMI-over-LAN (RMCP+/lanplus) for hardware health: temperatures, fans,
+# voltages, sensor states, chassis power, and SEL event-log counts.
+#
+# Only 2 of 5 Proxmox nodes have a usable BMC — the Lenovo TS140s (prox2/prox3)
+# and HP MicroServer (prox5) have no IPMI-over-LAN. See backlog "Server Hardware
+# Monitoring" for coverage notes.
+#
+# The exporter config (including the BMC credentials) lives in the
+# ipmi-exporter-config Secret, created out-of-band — see
+# docs/observability/secrets-and-bootstrap.md. It is NOT in git.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ipmi-exporter
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: ipmi-exporter
+    app.kubernetes.io/component: infra-telemetry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ipmi-exporter
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ipmi-exporter
+        app.kubernetes.io/component: infra-telemetry
+    spec:
+      containers:
+        - name: ipmi-exporter
+          image: prometheuscommunity/ipmi-exporter:v1.10.1
+          args:
+            - "--config.file=/config/ipmi_remote.yml"
+          ports:
+            - name: metrics
+              containerPort: 9290
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: config
+          secret:
+            secretName: ipmi-exporter-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ipmi-exporter
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: ipmi-exporter
+    app.kubernetes.io/component: infra-telemetry
+spec:
+  selector:
+    app.kubernetes.io/name: ipmi-exporter
+  ports:
+    - name: metrics
+      port: 9290
+      targetPort: metrics
+      protocol: TCP

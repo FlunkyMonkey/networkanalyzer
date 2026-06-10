@@ -14,6 +14,7 @@ labels:
 resources:
   - unpoller-deployment.yaml
   - proxmox-exporter-deployment.yaml
+  - ipmi-exporter-deployment.yaml
   - truenas-exporter-configmap.yaml
   - truenas-exporter-deployment.yaml
   - servicemonitors.yaml
