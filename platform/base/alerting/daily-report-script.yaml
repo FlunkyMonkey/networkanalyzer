@@ -1,0 +1,202 @@
+# Daily status report script (Wave 8 heartbeat).
+#
+# Composes a morning status email from Prometheus, Alertmanager, and OpenSearch
+# and sends it via Gmail SMTP. Runs as a CronJob at 06:00 America/Los_Angeles
+# (see daily-report-cronjob.yaml). The report's *absence* is itself a signal:
+# it is the platform's dead-man's switch — if no morning email arrives, the
+# cluster, the report job, or the SMTP path is broken and needs eyes.
+#
+# Every section is independently fault-isolated: a failing query degrades to an
+# error line in the email rather than suppressing the whole report.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: daily-report-script
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: daily-status-report
+    app.kubernetes.io/component: alerting
+data:
+  daily_report.py: |
+    import json, os, smtplib, ssl, urllib.request, urllib.parse
+    from datetime import datetime, timedelta, timezone
+    from email.mime.text import MIMEText
+
+    PROM = os.environ.get("PROM_URL", "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:80")
+    AM = os.environ.get("ALERTMANAGER_URL", "http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093")
+    OS_URL = os.environ.get("OPENSEARCH_URL", "http://opensearch-cluster-master.network-observability.svc.cluster.local:9200")
+    GRAFANA = os.environ.get("GRAFANA_URL", "http://172.18.1.212")
+    MAIL_TO = os.environ.get("REPORT_TO", "mike@vgriz.com")
+    MAIL_FROM = os.environ.get("REPORT_FROM", "mike.beil1@gmail.com")
+    SMTP_PASS = os.environ.get("GMAIL_APP_PASSWORD", "")
+    DRY_RUN = os.environ.get("DRY_RUN", "") == "1"
+
+    try:
+        from zoneinfo import ZoneInfo
+        NOW = datetime.now(ZoneInfo("America/Los_Angeles"))
+    except Exception:
+        NOW = datetime.now(timezone(timedelta(hours=-7)))
+
+    def http_json(url, payload=None):
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode() if payload else None,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return json.load(r)
+
+    def promq(expr):
+        url = PROM + "/api/v1/query?" + urllib.parse.urlencode({"query": expr})
+        return http_json(url)["data"]["result"]
+
+    def gib(b):
+        return "%.2f TiB" % (b / 1024**4) if b >= 1024**4 else "%.1f GiB" % (b / 1024**3)
+
+    L = []  # report lines
+    problems = 0
+    criticals = 0
+
+    def section(title):
+        L.append("")
+        L.append(title)
+        L.append("-" * len(title))
+
+    def guarded(title, fn):
+        global problems
+        section(title)
+        try:
+            fn()
+        except Exception as e:
+            problems += 1
+            L.append("  !! section failed: %s" % str(e)[:120])
+
+    # --- Alerts ---
+    def alerts():
+        global problems, criticals
+        data = http_json(AM + "/api/v2/alerts?active=true")
+        plat, cluster = [], {}
+        for a in data:
+            lbl = a.get("labels", {})
+            name = lbl.get("alertname", "?")
+            if name == "Watchdog" or a.get("status", {}).get("state") != "active":
+                continue
+            if lbl.get("namespace") == "network-observability":
+                plat.append(a)
+            else:
+                cluster[name] = cluster.get(name, 0) + 1
+        if not plat:
+            L.append("  OK - no platform alerts firing")
+        for a in plat:
+            lbl = a.get("labels", {})
+            sev = lbl.get("severity", "?")
+            problems += 1
+            if sev == "critical":
+                criticals += 1
+            since = a.get("startsAt", "")[:16].replace("T", " ")
+            L.append("  [%s] %s (since %s UTC)" % (sev.upper(), lbl.get("alertname"), since))
+            summ = a.get("annotations", {}).get("summary", "")
+            if summ:
+                L.append("       %s" % summ[:110])
+        if cluster:
+            L.append("  cluster-level (non-platform): " + ", ".join(
+                "%s x%d" % (k, v) for k, v in sorted(cluster.items())))
+
+    # --- Collection planes ---
+    def planes():
+        global problems
+        res = promq('min by (job) (up{namespace="network-observability"})')
+        for r in sorted(res, key=lambda x: x["metric"].get("job", "")):
+            job = r["metric"].get("job", "?")
+            ok = r["value"][1] == "1"
+            if not ok:
+                problems += 1
+            L.append("  %s %s" % ("UP  " if ok else "DOWN", job))
+        cnt = http_json(OS_URL + "/flows-*/_count", {"query": {"range": {"@timestamp": {"gte": "now-24h"}}}})["count"]
+        L.append("  flow ingest 24h: {:,} docs {}".format(cnt, "(OK)" if cnt > 500000 else "(LOW - investigate)"))
+        if cnt <= 500000:
+            problems += 1
+
+    # --- Storage ---
+    def storage():
+        global problems
+        for r in sorted(promq("truenas_pool_healthy"), key=lambda x: x["metric"].get("host", "")):
+            m = r["metric"]
+            ok = r["value"][1] == "1"
+            if not ok:
+                problems += 1
+            cap = promq('truenas_pool_allocated_bytes{pool="%s"} / truenas_pool_size_bytes{pool="%s"}' % (m["pool"], m["pool"]))
+            pct = float(cap[0]["value"][1]) * 100 if cap else 0
+            free = promq('truenas_pool_free_bytes{pool="%s"}' % m["pool"])
+            fr = gib(float(free[0]["value"][1])) if free else "?"
+            L.append("  %s %s/%s — %.0f%% used, %s free" % (
+                "OK  " if ok else "BAD ", m.get("host"), m.get("pool"), pct, fr))
+        for r in promq("truenas_replication_error"):
+            bad = r["value"][1] == "1"
+            if bad:
+                problems += 1
+            L.append("  %s replication: %s" % ("FAIL" if bad else "OK  ", r["metric"].get("task", "?")[:70]))
+
+    # --- Hardware ---
+    def hardware():
+        global problems
+        for r in sorted(promq("max by (host) (ipmi_sensor_state < 3)"), key=lambda x: x["metric"].get("host", "")):
+            st = int(float(r["value"][1]))
+            word = {0: "OK  ", 1: "WARN", 2: "CRIT"}.get(st, "?")
+            if st > 0:
+                problems += 1
+            L.append("  %s IPMI sensors %s" % (word, r["metric"].get("host")))
+        t = promq('mikrotik_health_sensor{sensor="cpu-temperature"}')
+        if t:
+            v = float(t[0]["value"][1])
+            L.append("  %s switch CPU %.0f C" % ("OK  " if v < 65 else "WARN", v))
+        sel = {r["metric"].get("host"): r["value"][1] for r in promq("ipmi_sel_logs_count")}
+        if sel:
+            L.append("  SEL entries: " + ", ".join("%s=%s" % kv for kv in sorted(sel.items())))
+
+    # --- Network snapshot ---
+    def network():
+        wifi = promq("count(unpoller_client_receive_bytes_total)")
+        if wifi:
+            L.append("  WiFi clients connected: %s" % wifi[0]["value"][1])
+        agg = http_json(OS_URL + "/flows-*/_search?size=0", {
+            "query": {"range": {"@timestamp": {"gte": "now-24h"}}},
+            "aggs": {"talkers": {"terms": {"field": "src_display_name", "size": 3,
+                     "order": {"vol": "desc"}},
+                     "aggs": {"vol": {"sum": {"field": "bytes"}}}}}})
+        L.append("  top talkers 24h:")
+        for b in agg["aggregations"]["talkers"]["buckets"]:
+            L.append("    %-28s %s" % (b["key"], gib(b["vol"]["value"])))
+
+    guarded("ACTIVE ALERTS", alerts)
+    guarded("COLLECTION PLANES", planes)
+    guarded("STORAGE (TrueNAS)", storage)
+    guarded("HARDWARE (IPMI / switch)", hardware)
+    guarded("NETWORK SNAPSHOT", network)
+
+    L.append("")
+    L.append("Dashboards: %s  (Home -> all dashboards)" % GRAFANA)
+    L.append("This report is the platform heartbeat - if it stops arriving at")
+    L.append("06:00 Pacific, the cluster, report job, or SMTP path is down.")
+
+    verdict = "ALL HEALTHY" if problems == 0 else (
+        "%d CRITICAL / %d issue(s)" % (criticals, problems) if criticals else "%d issue(s)" % problems)
+    subject = "[homelab] Daily Status %s - %s" % (NOW.strftime("%Y-%m-%d"), verdict)
+    header = ["Homelab Network Observability - Daily Status",
+              NOW.strftime("Generated %Y-%m-%d %H:%M %Z"), ""]
+    body = "\n".join(header + L) + "\n"
+
+    if DRY_RUN:
+        print(subject)
+        print(body)
+    else:
+        msg = MIMEText(body)
+        msg["Subject"] = subject
+        msg["From"] = MAIL_FROM
+        msg["To"] = MAIL_TO
+        s = smtplib.SMTP("smtp.gmail.com", 587, timeout=30)
+        s.starttls(context=ssl.create_default_context())
+        s.login(MAIL_FROM, SMTP_PASS)
+        s.sendmail(MAIL_FROM, [MAIL_TO], msg.as_string())
+        s.quit()
+        print("report sent: %s" % subject)

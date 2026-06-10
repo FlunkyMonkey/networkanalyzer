@@ -437,9 +437,17 @@ Email channel live: `platform/base/alerting/` deploys an AlertmanagerConfig
 and a starter PrometheusRule pack (exporter-down, TrueNAS
 replication/critical-alerts/pool-health/capacity, IPMI sensor states, SEL
 growth, switch temperature — all expressions live-validated). App password in
-the `gmail-smtp-credentials` Secret (out-of-band). Remaining Wave 8 scope:
-flow-ingest stall detection, interface saturation, capacity forecasting rules,
-and alert-driven Home banners — items below.
+the `gmail-smtp-credentials` Secret (out-of-band).
+
+**Heartbeat report delivered (2026-06-10):** `daily-status-report` CronJob emails
+a full status report (active alerts, collection planes, storage, hardware,
+network snapshot, top talkers) every day at **06:00 America/Los_Angeles**
+(native CronJob `timeZone`, DST-correct). The report's *absence* is the
+dead-man's switch — if no morning email arrives, the cluster, the report job,
+or the SMTP path is down. A `DailyReportJobFailed` rule catches non-SMTP job
+failures. Remaining Wave 8 scope: flow-ingest stall detection, interface
+saturation, capacity forecasting rules, and alert-driven Home banners — items
+below.
 
 The platform now *shows* everything but *tells* nothing. Three real failures sat
 unnoticed until humans went looking: the MikroTik SNMP plane was silently down for

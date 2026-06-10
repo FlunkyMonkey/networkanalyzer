@@ -33,6 +33,18 @@ spec:
               in network-observability has been down for 10 minutes. The
               corresponding telemetry plane is dark — this is how the MikroTik
               SNMP outage went unnoticed before Wave 6.
+        - alert: DailyReportJobFailed
+          expr: kube_job_status_failed{namespace="network-observability", job_name=~"daily-status-report-.*"} > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Daily status report job failed"
+            description: >-
+              The 06:00 Pacific heartbeat report job {{ $labels.job_name }}
+              failed. Check its pod logs. Note: if SMTP itself is broken this
+              alert email will not arrive either — the morning report's absence
+              is the ultimate dead-man signal.
 
     - name: platform-storage
       rules:

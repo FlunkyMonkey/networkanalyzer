@@ -18,3 +18,5 @@ labels:
 resources:
   - alertmanager-config.yaml
   - platform-alerts.yaml
+  - daily-report-script.yaml
+  - daily-report-cronjob.yaml

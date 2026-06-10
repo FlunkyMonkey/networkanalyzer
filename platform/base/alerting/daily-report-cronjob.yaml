@@ -1,0 +1,60 @@
+# Daily status report CronJob (Wave 8 heartbeat).
+#
+# 06:00 America/Los_Angeles every day (native CronJob timeZone — DST-correct).
+# Runs the daily-report-script ConfigMap on the stock python image (same
+# scripted-component pattern as k8s-ip-exporter / truenas-exporter) and emails
+# the status report via Gmail SMTP. Send a test report on demand with:
+#
+#   kubectl -n network-observability create job --from=cronjob/daily-status-report \
+#     daily-status-report-manual-$(date +%s)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: daily-status-report
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: daily-status-report
+    app.kubernetes.io/component: alerting
+spec:
+  schedule: "0 6 * * *"
+  timeZone: America/Los_Angeles
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 300
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: daily-status-report
+            app.kubernetes.io/component: alerting
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: daily-report
+              image: python:3.12-slim
+              command: ["python3", "/app/daily_report.py"]
+              env:
+                - name: GMAIL_APP_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: gmail-smtp-credentials
+                      key: smtp-password
+              volumeMounts:
+                - name: script
+                  mountPath: /app
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 25m
+                  memory: 48Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
+          volumes:
+            - name: script
+              configMap:
+                name: daily-report-script
