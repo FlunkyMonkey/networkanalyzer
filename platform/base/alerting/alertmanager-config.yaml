@@ -1,0 +1,53 @@
+# Email notification channel for platform alerts.
+#
+# The Prometheus Operator merges this into the cluster Alertmanager
+# (kube-prometheus-stack) as a sub-route automatically scoped to alerts
+# carrying namespace="network-observability" (default OnNamespace matcher
+# strategy). All platform exporters live in this namespace, so their alerts
+# carry that label.
+#
+# Delivery: Gmail SMTP (smtp.gmail.com:587, STARTTLS). The app password comes
+# from the gmail-smtp-credentials Secret (out-of-band, NOT in git) — the
+# AlertmanagerConfig CRD requires the Secret to be in this same namespace.
+#
+# Routing: critical re-notifies every 4h, warning every 24h. sendResolved
+# emails when an alert clears.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: platform-email-alerts
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: platform-email-alerts
+spec:
+  route:
+    receiver: email-mike
+    groupBy: ["alertname"]
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 12h
+    routes:
+      - receiver: email-mike
+        matchers:
+          - name: severity
+            matchType: "="
+            value: critical
+        repeatInterval: 4h
+      - receiver: email-mike
+        matchers:
+          - name: severity
+            matchType: "="
+            value: warning
+        repeatInterval: 24h
+  receivers:
+    - name: email-mike
+      emailConfigs:
+        - to: mike@vgriz.com
+          from: mike.beil1@gmail.com
+          smarthost: smtp.gmail.com:587
+          authUsername: mike.beil1@gmail.com
+          authPassword:
+            name: gmail-smtp-credentials
+            key: smtp-password
+          requireTLS: true
+          sendResolved: true

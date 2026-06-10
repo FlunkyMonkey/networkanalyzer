@@ -25,6 +25,9 @@ resources:
   # Uncomment when Wave 1 is verified and Gate 1 passes.
   - ../../base/flow-analytics
 
+  # Wave 8 — Alerting & Notification (email via Gmail SMTP)
+  - ../../base/alerting
+
   # Wave 4 — K8s visibility (Hubble UI)
   # Uncomment when Cilium/Hubble are installed and Gate 3 passes.
   # Requires Cilium CNI migration in k8s-lab.git first.

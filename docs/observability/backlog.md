@@ -431,6 +431,16 @@ appear in documents indexed after enrichment is enabled.
 
 ## Wave 8 — Alerting & Notification (proposed, 2026-06-08)
 
+**Status update (2026-06-08): notification channel + starter pack DELIVERED.**
+Email channel live: `platform/base/alerting/` deploys an AlertmanagerConfig
+(Gmail SMTP → mike@vgriz.com, critical repeat 4h / warning 24h, send-resolved)
+and a starter PrometheusRule pack (exporter-down, TrueNAS
+replication/critical-alerts/pool-health/capacity, IPMI sensor states, SEL
+growth, switch temperature — all expressions live-validated). App password in
+the `gmail-smtp-credentials` Secret (out-of-band). Remaining Wave 8 scope:
+flow-ingest stall detection, interface saturation, capacity forecasting rules,
+and alert-driven Home banners — items below.
+
 The platform now *shows* everything but *tells* nothing. Three real failures sat
 unnoticed until humans went looking: the MikroTik SNMP plane was silently down for
 weeks (placeholder community), the TrueNAS01→02 backup replication has been failing

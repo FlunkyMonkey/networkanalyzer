@@ -188,6 +188,38 @@ rm /tmp/ipmi_remote.yml
 - Without this secret, the `ipmi-exporter` pod will not start (config volume
   mount fails). The Server Hardware dashboard then has no data.
 
+### 7. gmail-smtp-credentials
+
+**Used by:** the `platform-email-alerts` AlertmanagerConfig (Wave 8 email channel)
+
+**Namespace:** `network-observability` (AlertmanagerConfig can only reference
+Secrets in its own namespace)
+
+**Keys:**
+
+| Key | Description |
+|---|---|
+| `smtp-password` | Gmail app password (no spaces) for the sending account |
+
+**Create:**
+
+```bash
+kubectl create secret generic gmail-smtp-credentials \
+  --namespace network-observability \
+  --from-literal=smtp-password='<gmail-app-password-no-spaces>'
+```
+
+**Prerequisites:**
+
+- A Gmail app password (Google Account → Security → 2-Step Verification →
+  App passwords). Strip the display spaces.
+- The sending account and recipient are set in
+  `platform/base/alerting/alertmanager-config.yaml` (not secret — only the
+  password is).
+- Without this secret, Alertmanager's config reload rejects the
+  AlertmanagerConfig and email notifications silently do not fire — check
+  `alertmanager` pod logs in the `monitoring` namespace after changes.
+
 ## Bootstrap Order
 
 1. Create the `network-observability` namespace (ArgoCD will do this on first sync, or create it manually):

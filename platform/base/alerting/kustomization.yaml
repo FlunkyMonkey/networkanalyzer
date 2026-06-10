@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Wave 8 — Alerting & Notification
+# AlertmanagerConfig (email receiver via Gmail SMTP) + starter PrometheusRule
+# pack. Both CRs are picked up by the existing kube-prometheus-stack operator
+# in the monitoring namespace (its selectors match all namespaces; rules need
+# the release: kube-prometheus-stack label).
+#
+# The Gmail app password lives in the gmail-smtp-credentials Secret, created
+# out-of-band — see docs/observability/secrets-and-bootstrap.md.
+
+labels:
+  - pairs:
+      app.kubernetes.io/component: alerting
+    includeSelectors: false
+
+resources:
+  - alertmanager-config.yaml
+  - platform-alerts.yaml

@@ -1,0 +1,125 @@
+# Starter alert pack for the network observability platform (Wave 8).
+#
+# Loaded by the existing kube-prometheus-stack Prometheus (ruleSelector matches
+# release: kube-prometheus-stack across all namespaces). Every expression here
+# was validated against live data before shipping (2026-06-08); all alert
+# metrics carry namespace="network-observability" so the email sub-route
+# (alertmanager-config.yaml) matches them.
+#
+# Scope: collection health, storage, hardware. The fuller pack (flow-ingest
+# stall, interface saturation, capacity forecasting) is tracked in
+# docs/observability/backlog.md under Wave 8.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: network-observability-platform-alerts
+  namespace: network-observability
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/name: network-observability-platform-alerts
+spec:
+  groups:
+    - name: platform-collection
+      rules:
+        - alert: PlatformExporterDown
+          expr: up{namespace="network-observability"} == 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Platform exporter down: {{ $labels.job }}"
+            description: >-
+              Scrape target {{ $labels.job }} (instance {{ $labels.instance }})
+              in network-observability has been down for 10 minutes. The
+              corresponding telemetry plane is dark — this is how the MikroTik
+              SNMP outage went unnoticed before Wave 6.
+
+    - name: platform-storage
+      rules:
+        - alert: TrueNASReplicationFailing
+          expr: truenas_replication_error == 1
+          for: 30m
+          labels:
+            severity: critical
+          annotations:
+            summary: "TrueNAS replication failing on {{ $labels.host }}"
+            description: >-
+              Replication task "{{ $labels.task }}" on {{ $labels.host }} is in
+              ERROR state — the backup is not running. Check TrueNAS UI →
+              Data Protection → Replication.
+        - alert: TrueNASCriticalAlerts
+          expr: truenas_alerts{level="CRITICAL"} > 0
+          for: 30m
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ $value }} CRITICAL TrueNAS alert(s) on {{ $labels.host }}"
+            description: >-
+              The TrueNAS alert system on {{ $labels.host }} has active
+              CRITICAL alerts. Review them in the TrueNAS UI (bell icon).
+        - alert: TrueNASPoolUnhealthy
+          expr: truenas_pool_healthy == 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "TrueNAS pool {{ $labels.pool }} UNHEALTHY on {{ $labels.host }}"
+            description: >-
+              ZFS pool {{ $labels.pool }} on {{ $labels.host }} reports
+              unhealthy (DEGRADED/FAULTED). Check vdev and disk status
+              immediately.
+        - alert: TrueNASPoolCapacityHigh
+          expr: truenas_pool_allocated_bytes / truenas_pool_size_bytes > 0.85
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "TrueNAS pool {{ $labels.pool }} over 85% full"
+            description: >-
+              Pool {{ $labels.pool }} on {{ $labels.host }} is above 85%
+              capacity. ZFS performance degrades sharply when nearly full —
+              plan cleanup or expansion.
+
+    - name: platform-hardware
+      rules:
+        - alert: IPMISensorCritical
+          expr: ipmi_sensor_state == 2
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "IPMI CRITICAL sensor on {{ $labels.host }}: {{ $labels.name }}"
+            description: >-
+              Sensor {{ $labels.name }} on {{ $labels.host }} reports CRITICAL
+              state via IPMI. Check the Server Hardware dashboard.
+        - alert: IPMISensorWarning
+          expr: ipmi_sensor_state == 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "IPMI warning sensor on {{ $labels.host }}: {{ $labels.name }}"
+            description: >-
+              Sensor {{ $labels.name }} on {{ $labels.host }} reports WARNING
+              state via IPMI (fan/temp/voltage threshold).
+        - alert: IPMISELGrowing
+          expr: increase(ipmi_sel_logs_count[6h]) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: "BMC event log growing on {{ $labels.host }}"
+            description: >-
+              {{ $value }} new SEL entr(ies) on {{ $labels.host }} in 6h — new
+              hardware events (ECC, fan, power) are being logged. Inspect with
+              ipmitool sel elist. Note: prox1's SEL is full (512) and cannot
+              grow until cleared after the DIMM2B fix.
+        - alert: MikroTikSwitchHot
+          expr: mikrotik_health_sensor{sensor="cpu-temperature"} > 65
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "MikroTik CRS328 CPU temperature {{ $value }}°C"
+            description: >-
+              Core switch CPU temperature above 65°C for 15m (normal ~47°C).
+              Check fans on the Switch & AP Hardware dashboard.
