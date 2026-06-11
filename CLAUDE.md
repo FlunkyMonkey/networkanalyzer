@@ -59,6 +59,7 @@ Default investigation flow is locked:
 WAN -> work downward
 
 The platform must support:
+
 - fast loading
 - entity search
 - cross-plane drill-downs
@@ -71,6 +72,7 @@ The platform must support:
 Design and naming should align to these entities:
 
 ### Network Asset
+
 - wan
 - firewall
 - router
@@ -81,6 +83,7 @@ Design and naming should align to these entities:
 - ssid
 
 ### Client / Endpoint
+
 - ip
 - mac
 - hostname
@@ -91,11 +94,13 @@ Design and naming should align to these entities:
 - category
 
 ### Compute Asset
+
 - proxmox_host
 - vm
 - k8s_node
 
 ### Kubernetes Workload
+
 - cluster
 - namespace
 - workload
@@ -103,6 +108,7 @@ Design and naming should align to these entities:
 - service
 
 ### Flow
+
 - src
 - dst
 - protocol
@@ -115,6 +121,7 @@ Design and naming should align to these entities:
 - category
 
 ### Incident Context
+
 - alert
 - severity
 - preserved_window
@@ -155,6 +162,7 @@ Do not respond with vague statements like "done" without evidence.
 At minimum, validate relevant changes using the repo’s available tooling.
 
 Examples:
+
 - helm lint
 - helm template
 - kustomize build
@@ -164,6 +172,7 @@ Examples:
 - linting scripts
 
 If validation fails:
+
 - do not hide it
 - do not pretend the task is complete
 - explain the failure clearly
@@ -184,6 +193,7 @@ Unless the repo already defines a different convention:
 The observability platform must observe itself.
 
 Implement or plan for:
+
 - source freshness
 - ingest lag
 - dropped data indicators
@@ -195,9 +205,11 @@ Implement or plan for:
 ## Testing and Acceptance
 
 Initial promotion gate:
+
 - lint required
 
 Acceptance evidence should eventually cover:
+
 - interface utilization
 - WiFi client utilization
 - VM visibility
@@ -232,6 +244,7 @@ Do not do any of the following without explicit approval:
 ## Definition of Done
 
 A task is done when:
+
 - the requested scoped change is implemented
 - related validation has been run
 - results are reported clearly
