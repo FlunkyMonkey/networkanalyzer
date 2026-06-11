@@ -22,11 +22,12 @@ jobs:
             docs/**/*.md
             *.md
 
-      - name: Set up kustomize + helm
-        uses: alexellis/arkade-get@master
-        with:
-          kustomize: latest
-          helm: latest
+      - name: Set up kustomize (pinned; runner ships helm)
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" \
+            | sudo bash -s -- 5.8.1 /usr/local/bin >/dev/null
+          kustomize version
+          helm version --short
 
       - name: kustomize build (lab overlay)
         run: |
