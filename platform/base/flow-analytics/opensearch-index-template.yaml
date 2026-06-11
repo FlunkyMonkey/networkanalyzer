@@ -64,13 +64,7 @@ data:
             "dst_display_name":  { "type": "keyword" },
             "dst_app_label":     { "type": "keyword" },
             "dst_app_category":  { "type": "keyword" },
-            "dst_app_source":    { "type": "keyword" },
-            "src_country":       { "type": "keyword" },
-            "dst_country":       { "type": "keyword" },
-            "src_asn":           { "type": "long" },
-            "dst_asn":           { "type": "long" },
-            "src_as_org":        { "type": "keyword" },
-            "dst_as_org":        { "type": "keyword" }
+            "dst_app_source":    { "type": "keyword" }
           }
         }
       },
