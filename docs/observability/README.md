@@ -55,7 +55,8 @@ platform/
 │   ├── infra-telemetry/   # SNMP, syslog, device polling
 │   ├── flow-analytics/    # NetFlow/sFlow, enrichment, analytics
 │   ├── k8s-visibility/    # Hubble UI (standalone); Cilium managed in k8s-lab.git
-│   └── correlation-ux/    # Unified UI, entity correlation, search
+│   └── alerting/          # AlertmanagerConfig, alert rules, daily report
+│                          # (correlation-ux plane deleted 2026-06-10 — see backlog)
 └── overlays/              # Environment-specific patches
 ```
 

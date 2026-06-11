@@ -13,5 +13,4 @@ resources:
   - infra-telemetry
   - flow-analytics
   - k8s-visibility
-  - correlation-ux
   - alerting

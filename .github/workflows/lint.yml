@@ -1,0 +1,73 @@
+# Promotion gate: lint required (see CLAUDE.md / go-no-go-gates.md).
+# Enforces what was previously run only by hand: markdown lint, manifest
+# rendering, and dashboard JSON validity. A failure here would have caught
+# several past hotfixes pre-merge (invalid dashboard JSON, broken renders).
+name: lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: markdownlint
+        uses: DavidAnson/markdownlint-cli2-action@v17
+        with:
+          globs: |
+            docs/**/*.md
+            *.md
+
+      - name: Set up kustomize + helm
+        uses: alexellis/arkade-get@master
+        with:
+          kustomize: latest
+          helm: latest
+
+      - name: kustomize build (lab overlay)
+        run: |
+          kustomize build --enable-helm platform/overlays/lab > /tmp/render.yaml
+          echo "rendered $(grep -c '^kind:' /tmp/render.yaml) resources"
+
+      - name: Dashboard JSON validation
+        run: |
+          python3 - <<'PY'
+          import json, re, sys, glob
+          bad = 0
+          for path in glob.glob("platform/base/**/*.yaml", recursive=True):
+              src = open(path).read().splitlines()
+              blocks, cur, buf = {}, None, []
+              for line in src:
+                  m = re.match(r'^  ([\w.-]+\.json): \|\s*$', line)
+                  if m:
+                      if cur: blocks[cur] = "\n".join(buf)
+                      cur, buf = m.group(1), []
+                      continue
+                  if cur is not None:
+                      if line.strip() == "":
+                          buf.append(""); continue
+                      if re.match(r'^  \S', line) and not line.startswith('    '):
+                          blocks[cur] = "\n".join(buf); cur, buf = None, []
+                          continue
+                      buf.append(line[4:] if line.startswith('    ') else line)
+              if cur: blocks[cur] = "\n".join(buf)
+              for k, v in blocks.items():
+                  try:
+                      json.loads(v)
+                      print("OK  %s :: %s" % (path, k))
+                  except Exception as e:
+                      print("BAD %s :: %s -> %s" % (path, k, e)); bad += 1
+          sys.exit(1 if bad else 0)
+          PY
+
+      - name: Forbid .keyword regression in OpenSearch dashboards
+        run: |
+          if grep -rn '\.keyword' platform/; then
+            echo "::error::.keyword paths found — current indices use native keyword mapping (see post-wave-5-flow-enrichment.md)"
+            exit 1
+          fi
+          echo "no .keyword references"

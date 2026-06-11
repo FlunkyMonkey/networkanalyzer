@@ -17,7 +17,7 @@ platform/
 │   │   └── kustomization.yaml       # Flow Analytics plane
 │   ├── k8s-visibility/
 │   │   └── kustomization.yaml       # Kubernetes Network Visibility plane
-│   └── correlation-ux/
+│   └── alerting/
 │       └── kustomization.yaml       # Correlation / UX plane
 └── overlays/
     └── lab/
@@ -44,7 +44,7 @@ ArgoCD Application
         ├── ../../base/infra-telemetry           (Wave 1 — enabled)
         ├── ../../base/flow-analytics            (Wave 2 — uncomment to enable)
         ├── ../../base/k8s-visibility            (Wave 4 — uncomment to enable)
-        └── ../../base/correlation-ux            (Wave 5 — uncomment to enable)
+        └── ../../base/alerting                  (Wave 8 — enabled)
 ```
 
 ArgoCD runs `kustomize build` on the overlay path. The overlay selectively includes planes and can add patches, resource limits, or environment-specific configuration. `platform/base/kustomization.yaml` still composes all planes as a reusable building block for future environments.
@@ -101,7 +101,7 @@ Each plane adds its own component label:
 | Infrastructure / Telemetry | `infra-telemetry` |
 | Flow Analytics | `flow-analytics` |
 | Kubernetes Visibility | `k8s-visibility` |
-| Correlation / UX | `correlation-ux` |
+| Alerting / notification | `alerting` |
 
 ## Adding a New Environment Overlay
 

@@ -505,14 +505,14 @@ The audit script that caught it (replays every panel query via Grafana
 `dashboard_panels_nodata_total` for alerting. Directly implements "no silent
 stale-data states" for the dashboards themselves.
 
-### Enable / refresh the correlation-ux plane
+### Enable / refresh the correlation-ux plane — DECIDED: DELETED (2026-06-10)
 
-`platform/base/correlation-ux/` holds four dormant dashboards (homepage,
-investigation, health, playbooks) that predate the Wave 5 pivot and are **not
-deployed** (overlay excludes the plane). Decide: refresh their queries and enable
-the plane (the live platform-health dashboard would replace the static status
-table), or delete them as superseded by the Wave 5b home dashboard. Either way
-removes a confusing repo/deployment mismatch.
+The four dormant dashboards (homepage, investigation, health, playbooks)
+predated the Wave 5 pivot and never deployed. Owner approved deletion:
+superseded by the Wave 5b home dashboard + cross-links, with platform health
+now alert-driven (Wave 8). `platform/base/correlation-ux/` removed; the
+correlation/UX *concern* lives on in the home dashboard, Grafana navigation,
+and the alerting plane. Recoverable from git history if ever needed.
 
 ### CI lint gate (GitHub Actions)
 
