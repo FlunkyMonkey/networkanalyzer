@@ -20,3 +20,5 @@ resources:
   - platform-alerts.yaml
   - daily-report-script.yaml
   - daily-report-cronjob.yaml
+  - dashboard-audit-configmap.yaml
+  - dashboard-audit-deployment.yaml

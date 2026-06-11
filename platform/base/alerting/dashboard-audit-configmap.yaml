@@ -1,0 +1,151 @@
+# Dashboard data audit exporter ("the platform audits its own dashboards").
+#
+# Motivated by the 2026-06-08 .keyword incident: a retention-driven mapping
+# transition silently blanked 8 flow panels for ~3 weeks. This exporter replays
+# every panel query of every provisioned dashboard through Grafana's
+# /api/ds/query (covers Prometheus and OpenSearch datasources uniformly) every
+# AUDIT_INTERVAL seconds and exposes the results as Prometheus metrics:
+#
+#   dashboard_audit_panels_total                  queryable targets audited
+#   dashboard_audit_panels_ok                     targets returning data
+#   dashboard_audit_panels_nodata{dashboard}      No-Data targets per dashboard
+#   dashboard_audit_panels_error{dashboard}       errored targets per dashboard
+#   dashboard_audit_last_run_timestamp_seconds    freshness of the audit itself
+#   dashboard_audit_success                       1 if the audit loop completed
+#
+# Alerted on by DashboardPanelsNoData / DashboardAuditStale (platform-alerts).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-audit-script
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: dashboard-audit
+    app.kubernetes.io/component: alerting
+data:
+  dashboard_audit.py: |
+    import base64, json, os, threading, time, urllib.request
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    GRAFANA = os.environ.get("GRAFANA_URL", "http://grafana.network-observability.svc.cluster.local:80")
+    AUTH = "Basic " + base64.b64encode(
+        ("%s:%s" % (os.environ.get("GRAFANA_USER", "admin"),
+                    os.environ.get("GRAFANA_PASSWORD", ""))).encode()).decode()
+    INTERVAL = int(os.environ.get("AUDIT_INTERVAL", "21600"))  # 6h
+    PORT = int(os.environ.get("EXPORTER_PORT", "9899"))
+
+    STATE = {"ts": 0, "ok": 0, "total": 0, "success": 0, "nodata": {}, "error": {}}
+
+    def g(path, payload=None):
+        req = urllib.request.Request(
+            GRAFANA + path,
+            headers={"Authorization": AUTH, "Content-Type": "application/json"},
+            data=json.dumps(payload).encode() if payload else None)
+        return json.load(urllib.request.urlopen(req, timeout=60))
+
+    def audit():
+        ok, total, nodata, error = 0, 0, {}, {}
+        for db in g("/api/search?type=dash-db"):
+            title = db.get("title", db.get("uid"))
+            dash = g("/api/dashboards/uid/" + db["uid"])["dashboard"]
+            vmap = {}
+            for v in dash.get("templating", {}).get("list", []):
+                cur = (v.get("current") or {}).get("value", "")
+                if isinstance(cur, list):
+                    cur = cur[0] if cur else ""
+                if cur in ("$__all", "All", ""):
+                    cur = ".*"
+                vmap[v.get("name")] = str(cur)
+            panels = []
+            for p in dash.get("panels", []):
+                panels.append(p)
+                panels.extend(p.get("panels", []))
+            for p in panels:
+                if p.get("type") in ("text", "row", "dashlist"):
+                    continue
+                for t in p.get("targets", []) or []:
+                    if t.get("hide"):
+                        continue
+                    ds = t.get("datasource") or p.get("datasource") or {}
+                    if isinstance(ds, str):
+                        ds = {"uid": ds}
+                    q = dict(t)
+                    q["refId"] = t.get("refId", "A")
+                    q["datasource"] = ds
+                    for key in ("expr", "query"):
+                        if key in q and isinstance(q[key], str):
+                            for k, val in vmap.items():
+                                q[key] = q[key].replace("${%s}" % k, val).replace("$" + k, val)
+                    q.setdefault("intervalMs", 60000)
+                    q.setdefault("maxDataPoints", 300)
+                    total += 1
+                    try:
+                        r = g("/api/ds/query", {"queries": [q], "from": "now-6h", "to": "now"})
+                        res = r.get("results", {}).get(q["refId"], {})
+                        rows = 0
+                        for f in res.get("frames", []):
+                            vals = f.get("data", {}).get("values", [])
+                            rows += max((len(c) for c in vals), default=0)
+                        if res.get("error"):
+                            error[title] = error.get(title, 0) + 1
+                        elif rows == 0:
+                            nodata[title] = nodata.get(title, 0) + 1
+                        else:
+                            ok += 1
+                    except Exception:
+                        error[title] = error.get(title, 0) + 1
+        return ok, total, nodata, error
+
+    def loop():
+        while True:
+            try:
+                ok, total, nodata, error = audit()
+                STATE.update(ts=time.time(), ok=ok, total=total,
+                             nodata=nodata, error=error, success=1)
+                print("audit: %d/%d ok, nodata=%s error=%s" % (ok, total, nodata, error), flush=True)
+            except Exception as e:
+                STATE["success"] = 0
+                print("audit FAILED: %s" % e, flush=True)
+            time.sleep(INTERVAL)
+
+    def esc(v):
+        return str(v).replace("\\", "\\\\").replace('"', '\\"')
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path.startswith("/metrics"):
+                L = []
+                L.append("# TYPE dashboard_audit_panels_total gauge")
+                L.append("dashboard_audit_panels_total %d" % STATE["total"])
+                L.append("# TYPE dashboard_audit_panels_ok gauge")
+                L.append("dashboard_audit_panels_ok %d" % STATE["ok"])
+                L.append("# TYPE dashboard_audit_panels_nodata gauge")
+                for d, n in STATE["nodata"].items():
+                    L.append('dashboard_audit_panels_nodata{dashboard="%s"} %d' % (esc(d), n))
+                if not STATE["nodata"]:
+                    L.append('dashboard_audit_panels_nodata{dashboard="none"} 0')
+                L.append("# TYPE dashboard_audit_panels_error gauge")
+                for d, n in STATE["error"].items():
+                    L.append('dashboard_audit_panels_error{dashboard="%s"} %d' % (esc(d), n))
+                if not STATE["error"]:
+                    L.append('dashboard_audit_panels_error{dashboard="none"} 0')
+                L.append("# TYPE dashboard_audit_last_run_timestamp_seconds gauge")
+                L.append("dashboard_audit_last_run_timestamp_seconds %d" % STATE["ts"])
+                L.append("# TYPE dashboard_audit_success gauge")
+                L.append("dashboard_audit_success %d" % STATE["success"])
+                body = ("\n".join(L) + "\n").encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; version=0.0.4")
+                self.end_headers()
+                self.wfile.write(body)
+            elif self.path in ("/healthz", "/"):
+                self.send_response(200); self.end_headers(); self.wfile.write(b"ok\n")
+            else:
+                self.send_response(404); self.end_headers()
+        def log_message(self, *a):
+            pass
+
+    if __name__ == "__main__":
+        threading.Thread(target=loop, daemon=True).start()
+        print("dashboard-audit exporter on :%d (interval %ds)" % (PORT, INTERVAL), flush=True)
+        HTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
