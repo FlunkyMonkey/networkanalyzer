@@ -220,6 +220,36 @@ kubectl create secret generic gmail-smtp-credentials \
   AlertmanagerConfig and email notifications silently do not fire — check
   `alertmanager` pod logs in the `monitoring` namespace after changes.
 
+### 8. firewalla-ssh
+
+**Used by:** `firewalla-exporter` (SSH polling of the edge gateway)
+
+**Namespace:** `network-observability`
+
+**Keys:**
+
+| Key | Description |
+|---|---|
+| `id_ed25519` | Dedicated private key; its public half is in `pi@172.18.1.1:~/.ssh/authorized_keys` |
+
+**Create:**
+
+```bash
+ssh-keygen -t ed25519 -N '' -C 'firewalla-exporter@network-observability' -f /tmp/fw-key
+kubectl create secret generic firewalla-ssh \
+  --namespace network-observability --from-file=id_ed25519=/tmp/fw-key
+ssh pi@172.18.1.1 "echo '$(cat /tmp/fw-key.pub)' >> ~/.ssh/authorized_keys"
+rm /tmp/fw-key /tmp/fw-key.pub
+```
+
+**Prerequisites / notes:**
+
+- Dedicated keypair by design — revocable independently of workstation access
+  (delete its authorized_keys line to cut cluster access only).
+- **Firewalla firmware updates may reset authorized_keys** — if
+  `FirewallaCollectionFailing` fires after an update, re-add the public key
+  (recoverable via the app's SSH password: gear → Advanced → SSH Console).
+
 ## Bootstrap Order
 
 1. Create the `network-observability` namespace (ArgoCD will do this on first sync, or create it manually):

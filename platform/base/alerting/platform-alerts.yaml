@@ -180,6 +180,32 @@ spec:
               in over 8 hours. Panel rot would go undetected — check the
               dashboard-audit pod logs.
 
+    - name: platform-edge
+      rules:
+        - alert: FirewallaWANDown
+          expr: firewalla_wan_carrier == 0
+          for: 3m
+          labels:
+            severity: critical
+          annotations:
+            summary: "WAN link DOWN on the Firewalla"
+            description: >-
+              The Firewalla's WAN interface (eth0 to the Quantum Fiber modem)
+              has no carrier — the internet is down at the edge. Check the
+              modem and the fiber handoff.
+        - alert: FirewallaCollectionFailing
+          expr: firewalla_up == 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Firewalla exporter cannot reach the gateway over SSH"
+            description: >-
+              Edge telemetry is blind: the firewalla-exporter's SSH collection
+              has failed for 10m. If the gateway is actually up, check the
+              exporter pod logs and the authorized_keys on the Firewalla
+              (firmware updates have been known to reset it).
+
     - name: platform-hardware
       rules:
         - alert: IPMISensorCritical

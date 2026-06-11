@@ -17,6 +17,8 @@ resources:
   - ipmi-exporter-deployment.yaml
   - truenas-exporter-configmap.yaml
   - truenas-exporter-deployment.yaml
+  - firewalla-exporter-configmap.yaml
+  - firewalla-exporter-deployment.yaml
   - servicemonitors.yaml
   - grafana-dashboards-configmap.yaml
   - grafana-home-dashboard.yaml

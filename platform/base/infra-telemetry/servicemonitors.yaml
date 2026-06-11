@@ -136,3 +136,22 @@ spec:
       interval: 60s
       path: /metrics
       scrapeTimeout: 30s
+---
+# Firewalla edge exporter — WAN/alarm/host/policy state via SSH polling.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: firewalla-exporter
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: firewalla-exporter
+    app.kubernetes.io/component: infra-telemetry
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: firewalla-exporter
+  endpoints:
+    - port: metrics
+      interval: 60s
+      path: /metrics

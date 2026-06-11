@@ -364,13 +364,18 @@ REST API is known.
 **Dashboard goal:** "Is the fiber handoff healthy?" — optical levels, WAN link
 status, and recent errors visible without needing to log in to the modem UI.
 
-### Firewalla Dashboard — BLOCKED on access (2026-06-10)
+### Firewalla Dashboard — DONE (2026-06-10)
 
-Discovery attempted: `ssh pi@172.18.1.1` now returns Permission denied
-(publickey) — the workstation key is no longer authorized (the global access
-list was stale). Re-authorize SSH (Firewalla UI → enable SSH / add key) and the
-investigation can proceed: probe the local firerouter API ports, evaluate
-community exporters, then build the edge dashboard.
+Access restored (workstation key reinstalled via the app SSH password, owner-
+approved). Discovery: Gold SE, firerouter API and redis bind to localhost only
+→ SSH is the transport. Delivered: `firewalla-exporter` (python:3.12-slim +
+pinned paramiko, dedicated SSH key in the `firewalla-ssh` Secret) exposing WAN
+carrier/IP, active alarms, tracked hosts, policies, uptime, SoC temp, load;
+**Edge — Firewalla** dashboard (`infra-firewalla`); `FirewallaWANDown`
+(critical, 3m) and `FirewallaCollectionFailing` (warning, 10m) alerts. The
+platform can now email within minutes of the internet going down at the edge.
+Remaining Wave 7 edge item: Quantum Fiber modem optical telemetry (Web-UI
+scrape; unscheduled).
 
 The Firewalla Gold at `172.18.1.1` is the edge gateway. It has a documented local
 REST API and SSH access.
