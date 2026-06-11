@@ -58,17 +58,6 @@ data:
 
       # Post-Wave 5 enrichment tables (flow-enrichment-tables ConfigMap).
       # GitOps-owned / operator-curated. Pod restart required to reload.
-      # GeoIP databases downloaded by the geoip-init container (real .mmdb files
-      # only when the geoip-credentials Secret exists — see flow-collector
-      # Deployment). City uses the native geoip table type; ASN uses the
-      # generic mmdb type (raw record: autonomous_system_number/_organization).
-      geoip_city:
-        type: geoip
-        path: /geoip/GeoLite2-City.mmdb
-        locale: en
-      geoip_asn:
-        type: mmdb
-        path: /geoip/GeoLite2-ASN.mmdb
       app_ports:
         type: file
         file:
@@ -189,10 +178,12 @@ data:
           }
           .app = get(port_apps, [to_string(port)]) ?? null
 
-          # GeoIP enrichment is ENABLED (2026-06-10): the geoip_city / geoip_asn
-          # enrichment tables are defined above and the lookups run in
-          # enrich_flow for public src/dst IPs. The geoip-init init container
-          # downloads the databases using the geoip-credentials Secret.
+          # GeoIP enrichment is DISABLED (reverted 2026-06-11 after an incident):
+          # Vector geoip enrichment tables hard-fail to load when the .mmdb is
+          # missing, and the per-restart MaxMind re-download is rate-limited and
+          # unreliable, which crashlooped flow ingest. Re-enable only after the
+          # databases are cached on a PVC (download-once), not re-fetched per
+          # restart. See docs/observability/backlog.md.
 
       enrich_k8s:
         type: remap
@@ -332,13 +323,6 @@ data:
                 .src_display_name = "unknown-" + src_str
               } else {
                 .src_display_name = src_str
-                geo, gerr = get_enrichment_table_record("geoip_city", {"ip": src_str})
-                if gerr == null { .src_country = geo.country_code }
-                asn, aerr = get_enrichment_table_record("geoip_asn", {"ip": src_str})
-                if aerr == null {
-                  .src_asn    = asn.autonomous_system_number
-                  .src_as_org = asn.autonomous_system_organization
-                }
               }
             }
           }
@@ -360,13 +344,6 @@ data:
                 .dst_display_name = "unknown-" + dst_str
               } else {
                 .dst_display_name = dst_str
-                geo, gerr = get_enrichment_table_record("geoip_city", {"ip": dst_str})
-                if gerr == null { .dst_country = geo.country_code }
-                asn, aerr = get_enrichment_table_record("geoip_asn", {"ip": dst_str})
-                if aerr == null {
-                  .dst_asn    = asn.autonomous_system_number
-                  .dst_as_org = asn.autonomous_system_organization
-                }
               }
             }
           }
