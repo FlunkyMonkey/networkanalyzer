@@ -433,38 +433,7 @@ data:
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
-        {
-          "title": "Destination Countries",
-          "description": "GeoIP-enriched destination countries (public IPs only; enabled 2026-06-10). Internal/RFC1918 traffic carries no country.",
-          "type": "table",
-          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 15 },
-          "targets": [
-            {
-              "refId": "A",
-              "query": "",
-              "queryType": "lucene",
-              "timeField": "@timestamp",
-              "metrics": [
-                { "id": "1", "type": "sum", "field": "bytes" },
-                { "id": "2", "type": "count" }
-              ],
-              "bucketAggs": [
-                { "id": "3", "type": "terms", "field": "dst_country", "settings": { "size": "15", "order": "desc", "orderBy": "1" } }
-              ]
-            }
-          ],
-          "fieldConfig": {
-            "overrides": [
-              { "matcher": { "id": "byName", "options": "Sum" }, "properties": [ { "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 } ] },
-              { "matcher": { "id": "byName", "options": "Count" }, "properties": [ { "id": "unit", "value": "short" }, { "id": "custom.width", "value": 120 } ] }
-            ]
-          },
-          "transformations": [
-            { "id": "organize", "options": { "renameByName": { "dst_country": "Country", "Sum": "Total Volume", "Count": "Flow Count" } } }
-          ],
-          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
-        },
+        { "title": "Destination Countries", "description": "GeoIP enrichment temporarily disabled (2026-06-11 incident); re-enabled once the MaxMind DBs are cached on a PVC.", "type": "text", "gridPos": { "h": 10, "w": 12, "x": 12, "y": 15 }, "options": { "mode": "markdown", "content": "### Country Breakdown - temporarily disabled\n\nGeoIP enrichment was reverted 2026-06-11 after the per-restart MaxMind download crashlooped flow ingest. It returns once the databases are cached on a PVC (download-once). Country/ASN fields stop populating on new flows until then." } },
         {
           "title": "App Labels, Categories & Sources",
           "description": "Traffic breakdown by enriched app label. Source column shows enrichment origin: existing (original registry), registry (GitOps port map), workload (K8s workload-pattern), unlabeled (no match).",
@@ -945,70 +914,7 @@ data:
           ],
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
-        {
-          "title": "🌍 Top Destination Countries",
-          "description": "GeoIP-enriched (public IPs only; enabled 2026-06-10).",
-          "type": "table",
-          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 43 },
-          "targets": [
-            {
-              "refId": "A",
-              "query": "",
-              "queryType": "lucene",
-              "timeField": "@timestamp",
-              "metrics": [
-                { "id": "1", "type": "sum", "field": "bytes" },
-                { "id": "2", "type": "count" }
-              ],
-              "bucketAggs": [
-                { "id": "3", "type": "terms", "field": "dst_country", "settings": { "size": "15", "order": "desc", "orderBy": "1" } }
-              ]
-            }
-          ],
-          "fieldConfig": {
-            "overrides": [
-              { "matcher": { "id": "byName", "options": "Sum" }, "properties": [ { "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 } ] },
-              { "matcher": { "id": "byName", "options": "Count" }, "properties": [ { "id": "unit", "value": "short" }, { "id": "custom.width", "value": 120 } ] }
-            ]
-          },
-          "transformations": [
-            { "id": "organize", "options": { "renameByName": { "dst_country": "Country", "Sum": "Total Volume", "Count": "Flow Count" } } }
-          ],
-          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
-        },
-        {
-          "title": "🌐 Top AS Organizations",
-          "description": "GeoIP/ASN-enriched destination networks (public IPs only).",
-          "type": "table",
-          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
-          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 43 },
-          "targets": [
-            {
-              "refId": "A",
-              "query": "",
-              "queryType": "lucene",
-              "timeField": "@timestamp",
-              "metrics": [
-                { "id": "1", "type": "sum", "field": "bytes" },
-                { "id": "2", "type": "count" }
-              ],
-              "bucketAggs": [
-                { "id": "3", "type": "terms", "field": "dst_as_org", "settings": { "size": "15", "order": "desc", "orderBy": "1" } }
-              ]
-            }
-          ],
-          "fieldConfig": {
-            "overrides": [
-              { "matcher": { "id": "byName", "options": "Sum" }, "properties": [ { "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 } ] },
-              { "matcher": { "id": "byName", "options": "Count" }, "properties": [ { "id": "unit", "value": "short" }, { "id": "custom.width", "value": 120 } ] }
-            ]
-          },
-          "transformations": [
-            { "id": "organize", "options": { "renameByName": { "dst_as_org": "AS Organization", "Sum": "Total Volume", "Count": "Flow Count" } } }
-          ],
-          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
-        }
+        {"title": "GeoIP / ASN Enrichment - temporarily disabled", "type": "text", "gridPos": {"h": 4, "w": 24, "x": 0, "y": 43}, "options": {"mode": "markdown", "content": "Country and ASN panels are paused: GeoIP enrichment was reverted 2026-06-11 after the per-restart MaxMind download crashlooped flow ingest. Re-enabled once the databases are cached on a PVC (download-once). The license key and index mappings are already in place."}}
       ],
       "schemaVersion": 39,
       "tags": ["network", "flows", "traffic", "protocol", "flow-analytics"],

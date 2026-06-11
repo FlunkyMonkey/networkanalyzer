@@ -433,13 +433,31 @@ mentally map these to hosts, which is error-prone and slow.
 **Dashboard goal:** operators never need to look up `172.18.x.x` addresses
 manually; names appear in all table cells that currently show raw IPs.
 
-### MaxMind GeoIP / ASN Enrichment — DONE (2026-06-10)
+### MaxMind GeoIP / ASN Enrichment — REVERTED after incident; needs re-architecture (2026-06-11)
 
-License key provided; enrichment live. `src/dst_country`, `src/dst_asn`,
-`src/dst_as_org` populate on public IPs (validated: GitHub/NextDNS/Akamai ASNs
-in fresh flows). Country + AS-organization panels restored in Traffic Mix and
-Destination Analysis. Key in the `geoip-credentials` Secret (never in git).
-Original item below for reference.
+Enabled 2026-06-10 (fields validated live), then **reverted 2026-06-11** after a
+production incident: Vector's geoip/mmdb enrichment tables hard-fail to load when
+the `.mmdb` is missing, and `geoip-init` re-downloads from MaxMind on **every**
+flow-collector restart (the k8s-ip-exporter CronJob restarts it ~every 30m).
+MaxMind rate-limited the repeated downloads → `tar: invalid magic` → empty
+`/geoip` → Vector won't compile → CrashLoopBackOff → flow ingest stalled
+(buffered, no data loss). Hotfix `fe91173` reverted the Vector geoip refs.
+
+**Correct re-enable design (do this before turning it back on):**
+
+1. Make `geoip-data` a **PVC** (persist the databases across restarts) instead
+   of emptyDir.
+2. `geoip-init` should **download only if the cached `.mmdb` is missing or older
+   than N days** — never on every restart. On download failure, keep the cached
+   file. Fix the extraction too (`tar --wildcards`/`find`-copy; the `*/X.mmdb`
+   glob silently failed).
+3. Consider a separate weekly refresh CronJob rather than coupling the download
+   to pod startup, so a MaxMind outage can never crashloop flow ingest.
+4. Verify Vector 0.45's geoip table loads from the cached file, then restore the
+   src/dst GeoIP VRL + the country/ASN dashboard panels.
+
+The `geoip-credentials` Secret, `geoip-init` container, and index-template geo
+field mappings remain in place. Original item below for reference.
 
 *(Moved from Wave 5 Gate 5a — deferred until a license key is available)*
 
