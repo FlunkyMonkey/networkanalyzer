@@ -67,7 +67,8 @@ jobs:
 
       - name: Forbid .keyword regression in OpenSearch dashboards
         run: |
-          if grep -rn '\.keyword' platform/; then
+          # match only quoted field paths (e.g. "dst_app_label.keyword"), not prose
+          if grep -rn '\.keyword"' platform/; then
             echo "::error::.keyword paths found — current indices use native keyword mapping (see post-wave-5-flow-enrichment.md)"
             exit 1
           fi
