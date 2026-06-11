@@ -802,7 +802,9 @@ data:
 
   firewalla-edge.json: |
     {
-      "annotations": { "list": [] },
+      "annotations": {
+        "list": []
+      },
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 1,
@@ -812,79 +814,480 @@ data:
         {
           "title": "",
           "type": "text",
-          "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+          "gridPos": {
+            "h": 3,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
           "options": {
             "mode": "markdown",
-            "content": "Edge gateway health — **Firewalla Gold SE** at 172.18.1.1, polled over SSH (WAN carrier from sysfs, alarms/hosts/policies from the on-box redis). WAN = eth0 to the Quantum Fiber modem (192.168.0.1). The FirewallaWANDown alert emails within 3 minutes of carrier loss."
+            "content": "Edge gateway health \u2014 **Firewalla Gold SE** at 172.18.1.1, polled over SSH (WAN carrier from sysfs, alarms/hosts/policies from the on-box redis). WAN = eth0 to the Quantum Fiber modem (192.168.0.1). The FirewallaWANDown alert emails within 3 minutes of carrier loss."
           }
         },
         {
           "title": "WAN Link",
           "type": "stat",
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "gridPos": { "h": 5, "w": 6, "x": 0, "y": 3 },
-          "targets": [ { "expr": "firewalla_wan_carrier", "instant": true } ],
-          "fieldConfig": { "defaults": { "mappings": [ { "type": "value", "options": { "1": { "text": "UP", "color": "green" }, "0": { "text": "DOWN", "color": "red" } } } ], "thresholds": { "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] } } },
-          "options": { "colorMode": "background", "graphMode": "none" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 0,
+            "y": 3
+          },
+          "targets": [
+            {
+              "expr": "firewalla_wan_carrier",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "1": {
+                      "text": "UP",
+                      "color": "green"
+                    },
+                    "0": {
+                      "text": "DOWN",
+                      "color": "red"
+                    }
+                  }
+                }
+              ],
+              "thresholds": {
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "green",
+                    "value": 1
+                  }
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none"
+          }
         },
         {
           "title": "Collection",
           "type": "stat",
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "gridPos": { "h": 5, "w": 6, "x": 6, "y": 3 },
-          "targets": [ { "expr": "firewalla_up", "instant": true } ],
-          "fieldConfig": { "defaults": { "mappings": [ { "type": "value", "options": { "1": { "text": "OK", "color": "green" }, "0": { "text": "SSH FAIL", "color": "red" } } } ], "thresholds": { "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] } } },
-          "options": { "colorMode": "background", "graphMode": "none" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 6,
+            "y": 3
+          },
+          "targets": [
+            {
+              "expr": "firewalla_up",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "1": {
+                      "text": "OK",
+                      "color": "green"
+                    },
+                    "0": {
+                      "text": "SSH FAIL",
+                      "color": "red"
+                    }
+                  }
+                }
+              ],
+              "thresholds": {
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "green",
+                    "value": 1
+                  }
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none"
+          }
         },
         {
           "title": "Active Alarms",
           "type": "stat",
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "gridPos": { "h": 5, "w": 6, "x": 12, "y": 3 },
-          "targets": [ { "expr": "firewalla_alarms_active", "instant": true } ],
-          "fieldConfig": { "defaults": { "thresholds": { "steps": [ { "color": "green", "value": null } ] } } },
-          "options": { "graphMode": "area" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 12,
+            "y": 3
+          },
+          "targets": [
+            {
+              "expr": "firewalla_alarms_active",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            }
+          },
+          "options": {
+            "graphMode": "area"
+          }
         },
         {
           "title": "Tracked Devices",
           "type": "stat",
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "gridPos": { "h": 5, "w": 6, "x": 18, "y": 3 },
-          "targets": [ { "expr": "firewalla_hosts_tracked", "instant": true } ],
-          "options": { "graphMode": "area" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 18,
+            "y": 3
+          },
+          "targets": [
+            {
+              "expr": "firewalla_hosts_tracked",
+              "instant": true
+            }
+          ],
+          "options": {
+            "graphMode": "area"
+          }
         },
         {
-          "title": "Gateway CPU Temperature (°C)",
+          "title": "Gateway CPU Temperature (\u00b0C)",
           "type": "timeseries",
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-          "targets": [ { "expr": "firewalla_cpu_temp_celsius", "legendFormat": "SoC temp" } ],
-          "fieldConfig": { "defaults": { "unit": "celsius", "custom": { "fillOpacity": 10 }, "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 85 } ] } } }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 8
+          },
+          "targets": [
+            {
+              "expr": "firewalla_cpu_temp_celsius",
+              "legendFormat": "SoC temp"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "celsius",
+              "custom": {
+                "fillOpacity": 10
+              },
+              "thresholds": {
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 70
+                  },
+                  {
+                    "color": "red",
+                    "value": 85
+                  }
+                ]
+              }
+            }
+          }
         },
         {
           "title": "Gateway Load (1m)",
           "type": "timeseries",
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-          "targets": [ { "expr": "firewalla_load1", "legendFormat": "load1" } ],
-          "fieldConfig": { "defaults": { "custom": { "fillOpacity": 10 } } }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 8
+          },
+          "targets": [
+            {
+              "expr": "firewalla_load1",
+              "legendFormat": "load1"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "fillOpacity": 10
+              }
+            }
+          }
         },
         {
           "title": "Blocking Policies / Uptime / WAN IP",
           "type": "table",
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "gridPos": { "h": 5, "w": 24, "x": 0, "y": 16 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 24,
+            "x": 0,
+            "y": 16
+          },
           "targets": [
-            { "expr": "firewalla_policies_active", "legendFormat": "policies", "format": "table", "instant": true, "refId": "A" },
-            { "expr": "firewalla_uptime_seconds / 86400", "legendFormat": "uptime days", "format": "table", "instant": true, "refId": "B" },
-            { "expr": "firewalla_wan_info", "legendFormat": "wan", "format": "table", "instant": true, "refId": "C" }
+            {
+              "expr": "firewalla_policies_active",
+              "legendFormat": "policies",
+              "format": "table",
+              "instant": true,
+              "refId": "A"
+            },
+            {
+              "expr": "firewalla_uptime_seconds / 86400",
+              "legendFormat": "uptime days",
+              "format": "table",
+              "instant": true,
+              "refId": "B"
+            },
+            {
+              "expr": "firewalla_wan_info",
+              "legendFormat": "wan",
+              "format": "table",
+              "instant": true,
+              "refId": "C"
+            }
+          ]
+        },
+        {
+          "title": "Fiber (PON) Link \u2014 ONT",
+          "type": "stat",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 0,
+            "y": 21
+          },
+          "description": "Calix C6500XK PON link_state \u2014 the ISP/fiber-side view, distinct from the Firewalla LAN-side carrier. Optical RX/TX power is not exposed by the QF admin interface (support-console only).",
+          "targets": [
+            {
+              "expr": "quantum_modem_wan_link_up",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "1": {
+                      "text": "CONNECTED",
+                      "color": "green"
+                    },
+                    "0": {
+                      "text": "DOWN",
+                      "color": "red"
+                    }
+                  }
+                }
+              ],
+              "thresholds": {
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "green",
+                    "value": 1
+                  }
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none"
+          }
+        },
+        {
+          "title": "Modem Reachable",
+          "type": "stat",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 6,
+            "y": 21
+          },
+          "targets": [
+            {
+              "expr": "quantum_modem_up",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "1": {
+                      "text": "OK",
+                      "color": "green"
+                    },
+                    "0": {
+                      "text": "UNREACHABLE",
+                      "color": "red"
+                    }
+                  }
+                }
+              ],
+              "thresholds": {
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "green",
+                    "value": 1
+                  }
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "background",
+            "graphMode": "none"
+          }
+        },
+        {
+          "title": "Fiber Sync Rate (Down / Up)",
+          "type": "stat",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 12,
+            "x": 12,
+            "y": 21
+          },
+          "targets": [
+            {
+              "expr": "quantum_modem_downlink_rate_kbps * 1000",
+              "legendFormat": "down",
+              "instant": true
+            },
+            {
+              "expr": "quantum_modem_uplink_rate_kbps * 1000",
+              "legendFormat": "up",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bps"
+            }
+          }
+        },
+        {
+          "title": "Modem Info",
+          "type": "table",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 24,
+            "x": 0,
+            "y": 26
+          },
+          "description": "Model / software / WAN IP / PON device. Optical levels (RX/TX power) are NOT available \u2014 Quantum Fiber exposes them only via the ISP support console.",
+          "targets": [
+            {
+              "expr": "quantum_modem_info",
+              "format": "table",
+              "instant": true,
+              "refId": "A"
+            },
+            {
+              "expr": "quantum_modem_uptime_seconds / 86400",
+              "format": "table",
+              "instant": true,
+              "refId": "B",
+              "legendFormat": "uptime days"
+            }
           ]
         }
       ],
       "schemaVersion": 39,
-      "tags": ["network", "edge", "firewalla", "infra-telemetry"],
-      "templating": { "list": [] },
-      "time": { "from": "now-6h", "to": "now" },
-      "title": "Edge — Firewalla",
+      "tags": [
+        "network",
+        "edge",
+        "firewalla",
+        "infra-telemetry"
+      ],
+      "templating": {
+        "list": []
+      },
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "title": "Edge \u2014 Firewalla",
       "uid": "infra-firewalla"
     }

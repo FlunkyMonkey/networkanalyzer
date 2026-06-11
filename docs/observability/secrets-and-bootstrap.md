@@ -250,6 +250,33 @@ rm /tmp/fw-key /tmp/fw-key.pub
   `FirewallaCollectionFailing` fires after an update, re-add the public key
   (recoverable via the app's SSH password: gear → Advanced → SSH Console).
 
+### 9. quantum-modem-credentials
+
+**Used by:** `quantum-modem-exporter` (Calix C6500XK admin API)
+
+**Namespace:** `network-observability`
+
+**Keys:**
+
+| Key | Description |
+|---|---|
+| `password` | Quantum Fiber modem admin password (user is `admin`, fixed in the Deployment env) |
+
+**Create:**
+
+```bash
+kubectl create secret generic quantum-modem-credentials \
+  --namespace network-observability --from-literal=password='<modem-admin-password>'
+```
+
+**Prerequisites / notes:**
+
+- Login is a plaintext form POST to `/cgi/cgi_action`; no nonce/crypto on this
+  firmware (CKT002-02.04.56.00). Self-signed TLS, accepted by the exporter.
+- **Optical RX/TX power is not available** via the admin interface (support
+  console only) — the exporter ships PON link/net state, sync rate, and
+  model/uptime. See the script ConfigMap header.
+
 ## Bootstrap Order
 
 1. Create the `network-observability` namespace (ArgoCD will do this on first sync, or create it manually):

@@ -67,7 +67,7 @@ data:
           "gridPos": { "h": 6, "w": 8, "x": 8, "y": 11 },
           "options": {
             "mode": "markdown",
-            "content": "### [Switch Interfaces](/d/infra-iface-util)\nMikroTik core switch — per-interface inbound/outbound bandwidth and utilization % via SNMP.\n\n### [UniFi Wireless](/d/infra-unifi-clients)\nPer-client WiFi bandwidth, connected client count, and AP status.\n\n### [Switch & AP Hardware](/d/infra-switch-hw)\nMikroTik temps/fans/PSU/PoE + UniFi device health.\n\n### [Edge — Firewalla](/d/infra-firewalla)\nWAN link, gateway health, alarms, tracked devices."
+            "content": "### [Switch Interfaces](/d/infra-iface-util)\nMikroTik core switch — per-interface inbound/outbound bandwidth and utilization % via SNMP.\n\n### [UniFi Wireless](/d/infra-unifi-clients)\nPer-client WiFi bandwidth, connected client count, and AP status.\n\n### [Switch & AP Hardware](/d/infra-switch-hw)\nMikroTik temps/fans/PSU/PoE + UniFi device health.\n\n### [Edge — Firewalla + Fiber](/d/infra-firewalla)\nWAN carrier, gateway health, alarms, devices, and Quantum Fiber ONT link/sync rate."
           }
         },
         {

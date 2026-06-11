@@ -1,0 +1,129 @@
+# Quantum Fiber modem exporter (Calix C6500XK at 192.168.0.1).
+#
+# Discovery (2026-06-11): the modem's admin web UI is a Calix/Axon React app
+# whose only auth is a plaintext form POST to /cgi/cgi_action
+# (username=admin&password=...), returning a Session-Id cookie; data comes from
+# GET /cgi/cgi_get?Object=<obj>. No browser/crypto needed → stdlib exporter.
+#
+# IMPORTANT: optical RX/TX power is NOT exposed by the admin interface. Every
+# optical/PON object path returns "Requested Object is Invalid"; the dashboard
+# itself never reads one. Optical levels live behind the ISP "support console"
+# (supportconsole_login.html), which needs Quantum Fiber credentials we don't
+# have. What IS available and exported: PON link/net state, up/down sync rate,
+# WAN IP, model, software, uptime. The PON link_state is the ONT's fiber-side
+# view — complementary to the Firewalla's eth0 carrier (LAN side).
+#
+# Metrics:
+#   quantum_modem_up                     1 if login + query succeeded
+#   quantum_modem_wan_link_up            1 if PON link_state == connected
+#   quantum_modem_wan_net_up             1 if net_state == connected
+#   quantum_modem_uplink_rate_kbps
+#   quantum_modem_downlink_rate_kbps
+#   quantum_modem_uptime_seconds
+#   quantum_modem_info{model,software,wan_ip,device}   1
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: quantum-modem-exporter-script
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: quantum-modem-exporter
+    app.kubernetes.io/component: infra-telemetry
+data:
+  quantum_modem_exporter.py: |
+    import json, os, ssl, threading, time, urllib.parse, urllib.request
+    import http.cookiejar
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    HOST = os.environ.get("MODEM_HOST", "192.168.0.1")
+    USER = os.environ.get("MODEM_USER", "admin")
+    PASS = os.environ.get("MODEM_PASSWORD", "")
+    INTERVAL = int(os.environ.get("POLL_INTERVAL", "60"))
+    PORT = int(os.environ.get("EXPORTER_PORT", "9891"))
+    CTX = ssl._create_unverified_context()
+    BASE = "https://%s" % HOST
+
+    STATE = {"up": 0}
+
+    def session():
+        jar = http.cookiejar.CookieJar()
+        opener = urllib.request.build_opener(
+            urllib.request.HTTPSHandler(context=CTX),
+            urllib.request.HTTPCookieProcessor(jar))
+        body = urllib.parse.urlencode({"username": USER, "password": PASS}).encode()
+        opener.open(urllib.request.Request(BASE + "/cgi/cgi_action", data=body), timeout=15).read()
+        return opener
+
+    def cgi_get(opener, obj):
+        url = BASE + "/cgi/cgi_get?Object=" + urllib.parse.quote(obj, safe="=&.")
+        return json.loads(opener.open(url, timeout=15).read().decode())
+
+    def params(doc):
+        out = {}
+        for o in doc.get("Objects", []):
+            for p in o.get("Param", []):
+                out[p.get("ParamName")] = p.get("ParamValue")
+        return out
+
+    def collect():
+        op = session()
+        wan = cgi_get(op, "GetConnectionStatus").get("wan_status", {})
+        info = params(cgi_get(op, "Device.DeviceInfo&ModelName=&SoftwareVersion=&UpTime="))
+        return {
+            "link": 1 if wan.get("link_state") == "connected" else 0,
+            "net": 1 if wan.get("net_state") == "connected" else 0,
+            "up_rate": wan.get("uplink_rate"),
+            "down_rate": wan.get("downlink_rate"),
+            "ip": (wan.get("ipaddr") or "").split("/")[0],
+            "device": wan.get("device", ""),
+            "model": info.get("ModelName", ""),
+            "software": info.get("SoftwareVersion", ""),
+            "uptime": info.get("UpTime"),
+        }
+
+    def loop():
+        while True:
+            try:
+                STATE.update(collect()); STATE["up"] = 1
+            except Exception as e:
+                STATE["up"] = 0
+                print("collect failed: %s" % e, flush=True)
+            time.sleep(INTERVAL)
+
+    def num(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    class H(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path.startswith("/metrics"):
+                L = ["quantum_modem_up %d" % STATE.get("up", 0)]
+                if STATE.get("up"):
+                    L.append("quantum_modem_wan_link_up %d" % STATE.get("link", 0))
+                    L.append("quantum_modem_wan_net_up %d" % STATE.get("net", 0))
+                    for metric, key in [("quantum_modem_uplink_rate_kbps", "up_rate"),
+                                        ("quantum_modem_downlink_rate_kbps", "down_rate"),
+                                        ("quantum_modem_uptime_seconds", "uptime")]:
+                        v = num(STATE.get(key))
+                        if v is not None:
+                            L.append("%s %g" % (metric, v))
+                    L.append('quantum_modem_info{model="%s",software="%s",wan_ip="%s",device="%s"} 1'
+                             % (STATE.get("model", ""), STATE.get("software", ""),
+                                STATE.get("ip", ""), STATE.get("device", "")))
+                body = ("\n".join(L) + "\n").encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; version=0.0.4")
+                self.end_headers(); self.wfile.write(body)
+            elif self.path in ("/healthz", "/"):
+                self.send_response(200); self.end_headers(); self.wfile.write(b"ok\n")
+            else:
+                self.send_response(404); self.end_headers()
+        def log_message(self, *a):
+            pass
+
+    if __name__ == "__main__":
+        threading.Thread(target=loop, daemon=True).start()
+        print("quantum-modem-exporter on :%d (poll %ds, host %s)" % (PORT, INTERVAL, HOST), flush=True)
+        HTTPServer(("0.0.0.0", PORT), H).serve_forever()

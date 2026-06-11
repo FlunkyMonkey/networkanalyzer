@@ -19,6 +19,8 @@ resources:
   - truenas-exporter-deployment.yaml
   - firewalla-exporter-configmap.yaml
   - firewalla-exporter-deployment.yaml
+  - quantum-modem-exporter-configmap.yaml
+  - quantum-modem-exporter-deployment.yaml
   - servicemonitors.yaml
   - grafana-dashboards-configmap.yaml
   - grafana-home-dashboard.yaml

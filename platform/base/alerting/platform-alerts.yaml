@@ -206,6 +206,32 @@ spec:
               exporter pod logs and the authorized_keys on the Firewalla
               (firmware updates have been known to reset it).
 
+    - name: platform-wan
+      rules:
+        - alert: QuantumFiberLinkDown
+          expr: quantum_modem_wan_link_up == 0
+          for: 3m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Quantum Fiber PON link DOWN at the ONT"
+            description: >-
+              The Calix C6500XK reports its fiber (PON) link as down — this is an
+              ISP/fiber-side outage, distinct from the Firewalla's LAN-side WAN
+              carrier. If FirewallaWANDown is also firing, the whole path is out;
+              if only this fires, the problem is upstream of the modem.
+        - alert: QuantumModemCollectionFailing
+          expr: quantum_modem_up == 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Quantum modem exporter cannot reach the modem"
+            description: >-
+              The quantum-modem-exporter has failed to log in / query the modem
+              at 192.168.0.1 for 15m. Edge fiber telemetry is blind. Check the
+              pod logs and whether the modem admin password changed.
+
     - name: platform-hardware
       rules:
         - alert: IPMISensorCritical
