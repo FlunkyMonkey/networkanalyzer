@@ -364,7 +364,13 @@ REST API is known.
 **Dashboard goal:** "Is the fiber handoff healthy?" — optical levels, WAN link
 status, and recent errors visible without needing to log in to the modem UI.
 
-### Firewalla Dashboard
+### Firewalla Dashboard — BLOCKED on access (2026-06-10)
+
+Discovery attempted: `ssh pi@172.18.1.1` now returns Permission denied
+(publickey) — the workstation key is no longer authorized (the global access
+list was stale). Re-authorize SSH (Firewalla UI → enable SSH / add key) and the
+investigation can proceed: probe the local firerouter API ports, evaluate
+community exporters, then build the edge dashboard.
 
 The Firewalla Gold at `172.18.1.1` is the edge gateway. It has a documented local
 REST API and SSH access.
@@ -411,7 +417,13 @@ mentally map these to hosts, which is error-prone and slow.
 **Dashboard goal:** operators never need to look up `172.18.x.x` addresses
 manually; names appear in all table cells that currently show raw IPs.
 
-### MaxMind GeoIP / ASN Enrichment
+### MaxMind GeoIP / ASN Enrichment — DONE (2026-06-10)
+
+License key provided; enrichment live. `src/dst_country`, `src/dst_asn`,
+`src/dst_as_org` populate on public IPs (validated: GitHub/NextDNS/Akamai ASNs
+in fresh flows). Country + AS-organization panels restored in Traffic Mix and
+Destination Analysis. Key in the `geoip-credentials` Secret (never in git).
+Original item below for reference.
 
 *(Moved from Wave 5 Gate 5a — deferred until a license key is available)*
 
@@ -541,12 +553,14 @@ syslog at it (syslog-ng/promtail receiver), add a Logs panel to the flow
 investigation path. Gives the "what happened at the time of that flow spike"
 pivot the platform currently lacks.
 
-### UniFi DPI dashboards
+### UniFi DPI dashboards — INVESTIGATED: INFEASIBLE on current hardware (2026-06-10)
 
-UnPoller already collects DPI (`UP_UNIFI_DEFAULT_SAVE_DPI=true`) — per-client
-application/category breakdowns are sitting in Prometheus unused. A WiFi-client
-app-mix dashboard would extend Traffic Mix to the wireless edge with zero new
-collection.
+UnPoller polls DPI (`UP_UNIFI_DEFAULT_SAVE_DPI=true`) but the controller returns
+**zero client DPI records** (`DPI Site/Client: 1/0`): UniFi per-client DPI
+requires a UniFi gateway (USG/UDM) in the traffic path, and this network's
+gateway is the Firewalla. APs + switch alone cannot produce DPI. No dashboard
+possible; the flow-analytics plane already provides app/category analysis.
+Revisit only if a UniFi gateway is ever introduced.
 
 ### WAN quality / synthetic probes (feeds Wave 7)
 
@@ -560,12 +574,12 @@ collection.
 `predict_linear` days-to-full stat panels for TrueNAS pools and the OpenSearch
 PVC; TrueNAS01_SSD fragmentation trending (64% and rising is already notable).
 
-### Long-term retention (Phase 9 groundwork)
+### Long-term retention (Phase 9 groundwork) — METRICS DONE (2026-06-10)
 
-Prometheus retention is 7d against a 30d requirement. Options: bump retention on
-the existing instance, Thanos sidecar + object storage (Ceph RGW exists), or
-OpenSearch daily rollup indices for flows. Needs a sizing/architecture decision —
-flagged, not started.
+Prometheus retention bumped 7d→30d in k8s-lab.git (commit c691bf5) with the
+PVC expanded 10Gi→40Gi (online rook-ceph expansion; sizing: 6.6 GiB TSDB at
+7d → ~28 GiB at 30d; Ceph lands ~39% used). Remaining Phase 9 scope: OpenSearch
+flow rollups beyond 14d — unscheduled.
 
 ### BMC hygiene
 
