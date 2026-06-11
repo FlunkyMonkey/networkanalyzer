@@ -92,6 +92,66 @@ spec:
               capacity. ZFS performance degrades sharply when nearly full —
               plan cleanup or expansion.
 
+    - name: platform-flow
+      rules:
+        - alert: FlowIngestStalled
+          expr: sum(rate(vector_component_sent_events_total{component_id="opensearch"}[10m])) < 1
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Flow ingest stalled — Vector is not shipping events to OpenSearch"
+            description: >-
+              The Vector → OpenSearch sink has sent fewer than 1 event/s for
+              15 minutes (normal is tens/s). Check the flow-collector pod
+              (goflow2 + vector containers) and OpenSearch health. Flow
+              dashboards are going stale right now.
+
+    - name: platform-network
+      rules:
+        - alert: InterfaceSaturatedIn
+          expr: (rate(ifHCInOctets{ifDescr!~"lo|bridge.*"}[10m]) * 8) / (ifHighSpeed{ifDescr!~"lo|bridge.*"} * 1e6 > 0) > 0.85
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Switch port {{ $labels.ifDescr }} inbound >85% for 15m"
+            description: >-
+              {{ $labels.ifDescr }} ({{ $labels.ifAlias }}) sustained above 85%
+              of link speed inbound. Check the Switch Interface Utilization
+              dashboard and Top Talkers for the cause.
+        - alert: InterfaceSaturatedOut
+          expr: (rate(ifHCOutOctets{ifDescr!~"lo|bridge.*"}[10m]) * 8) / (ifHighSpeed{ifDescr!~"lo|bridge.*"} * 1e6 > 0) > 0.85
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Switch port {{ $labels.ifDescr }} outbound >85% for 15m"
+            description: >-
+              {{ $labels.ifDescr }} ({{ $labels.ifAlias }}) sustained above 85%
+              of link speed outbound. Check the Switch Interface Utilization
+              dashboard and Top Talkers for the cause.
+
+    - name: platform-capacity
+      rules:
+        - alert: PoolFillsWithin30Days
+          # The >70% current-usage guard suppresses burst-slope false positives
+          # (e.g. the 2 TiB replication catch-up made predict_linear extrapolate
+          # wildly on a 20%-full pool).
+          expr: >-
+            (predict_linear(truenas_pool_allocated_bytes[7d], 30*86400) > truenas_pool_size_bytes)
+            and (truenas_pool_allocated_bytes / truenas_pool_size_bytes > 0.7)
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pool {{ $labels.pool }} on track to fill within 30 days"
+            description: >-
+              Linear forecast on the last 7 days of growth says
+              {{ $labels.pool }} ({{ $labels.host }}) exceeds capacity within
+              30 days, and it is already above 70% used. Plan cleanup or
+              expansion now.
+
     - name: platform-hardware
       rules:
         - alert: IPMISensorCritical

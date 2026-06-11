@@ -435,13 +435,35 @@ data:
         },
         {
           "title": "Destination Countries",
-          "description": "Requires GeoIP enrichment. Empty until a MaxMind key is configured in Vector.",
-          "type": "text",
+          "description": "GeoIP-enriched destination countries (public IPs only; enabled 2026-06-10). Internal/RFC1918 traffic carries no country.",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
           "gridPos": { "h": 10, "w": 12, "x": 12, "y": 15 },
-          "options": {
-            "mode": "markdown",
-            "content": "### 🌍 Country Breakdown — Not Configured\n\nThis panel requires **MaxMind GeoIP enrichment** which is not currently enabled.\n\nTo enable country-level destination analysis:\n1. Obtain a MaxMind license key\n2. Add GeoIP lookup to Vector config\n3. The `dst_country` field will populate automatically\n\nThis is **expected behavior**, not a data error."
-          }
+          "targets": [
+            {
+              "refId": "A",
+              "query": "",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
+              ],
+              "bucketAggs": [
+                { "id": "3", "type": "terms", "field": "dst_country", "settings": { "size": "15", "order": "desc", "orderBy": "1" } }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              { "matcher": { "id": "byName", "options": "Sum" }, "properties": [ { "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 } ] },
+              { "matcher": { "id": "byName", "options": "Count" }, "properties": [ { "id": "unit", "value": "short" }, { "id": "custom.width", "value": 120 } ] }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "dst_country": "Country", "Sum": "Total Volume", "Count": "Flow Count" } } }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
         {
           "title": "App Labels, Categories & Sources",
@@ -924,13 +946,68 @@ data:
           "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         },
         {
-          "title": "🌍 GeoIP / ASN Enrichment — Not Configured",
-          "type": "text",
-          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 43 },
-          "options": {
-            "mode": "markdown",
-            "content": "**Country and ASN panels are not shown** because MaxMind GeoIP enrichment is not configured. To enable:\n1. Obtain a MaxMind license key\n2. Add GeoIP lookup to the Vector pipeline\n3. Fields `dst_country` and `dst_as_org` will populate in new flow documents\n\nOnce enabled, country and ASN tables will appear here automatically. This is **expected**, not a data error."
-          }
+          "title": "🌍 Top Destination Countries",
+          "description": "GeoIP-enriched (public IPs only; enabled 2026-06-10).",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 43 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
+              ],
+              "bucketAggs": [
+                { "id": "3", "type": "terms", "field": "dst_country", "settings": { "size": "15", "order": "desc", "orderBy": "1" } }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              { "matcher": { "id": "byName", "options": "Sum" }, "properties": [ { "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 } ] },
+              { "matcher": { "id": "byName", "options": "Count" }, "properties": [ { "id": "unit", "value": "short" }, { "id": "custom.width", "value": 120 } ] }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "dst_country": "Country", "Sum": "Total Volume", "Count": "Flow Count" } } }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
+        },
+        {
+          "title": "🌐 Top AS Organizations",
+          "description": "GeoIP/ASN-enriched destination networks (public IPs only).",
+          "type": "table",
+          "datasource": { "type": "grafana-opensearch-datasource", "uid": "opensearch-flows" },
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 43 },
+          "targets": [
+            {
+              "refId": "A",
+              "query": "",
+              "queryType": "lucene",
+              "timeField": "@timestamp",
+              "metrics": [
+                { "id": "1", "type": "sum", "field": "bytes" },
+                { "id": "2", "type": "count" }
+              ],
+              "bucketAggs": [
+                { "id": "3", "type": "terms", "field": "dst_as_org", "settings": { "size": "15", "order": "desc", "orderBy": "1" } }
+              ]
+            }
+          ],
+          "fieldConfig": {
+            "overrides": [
+              { "matcher": { "id": "byName", "options": "Sum" }, "properties": [ { "id": "unit", "value": "decbytes" }, { "id": "custom.width", "value": 140 } ] },
+              { "matcher": { "id": "byName", "options": "Count" }, "properties": [ { "id": "unit", "value": "short" }, { "id": "custom.width", "value": 120 } ] }
+            ]
+          },
+          "transformations": [
+            { "id": "organize", "options": { "renameByName": { "dst_as_org": "AS Organization", "Sum": "Total Volume", "Count": "Flow Count" } } }
+          ],
+          "options": { "sortBy": [{ "displayName": "Total Volume", "desc": true }] }
         }
       ],
       "schemaVersion": 39,

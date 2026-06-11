@@ -115,12 +115,44 @@ data:
           }
         },
         {
-          "title": "⚙️ Platform Status & Known Limitations",
+          "title": "Platform Alerts Firing",
+          "description": "Live count of firing platform alerts (network-observability namespace). Replaces the old hand-maintained status table, which kept going stale.",
+          "type": "stat",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 7, "w": 6, "x": 0, "y": 17 },
+          "targets": [
+            { "expr": "count(ALERTS{alertstate=\"firing\", namespace=\"network-observability\"}) OR on() vector(0)", "legendFormat": "firing", "instant": true }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "type": "value", "options": { "0": { "text": "ALL HEALTHY", "color": "green" } } }
+              ],
+              "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 2 } ] }
+            }
+          },
+          "options": { "colorMode": "background", "graphMode": "none" }
+        },
+        {
+          "title": "Active Platform Alerts",
+          "description": "Alert-driven (Wave 8). Severity and pending/firing state per alert; details and history in Alertmanager.",
+          "type": "table",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "gridPos": { "h": 7, "w": 18, "x": 6, "y": 17 },
+          "targets": [
+            { "expr": "max by (alertname, severity, alertstate, host, pool, job) (ALERTS{namespace=\"network-observability\"})", "format": "table", "instant": true }
+          ],
+          "transformations": [
+            { "id": "organize", "options": { "excludeByName": { "Time": true, "Value": true } } }
+          ]
+        },
+        {
+          "title": "📋 Platform Notes (non-alert facts)",
           "type": "text",
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 17 },
+          "gridPos": { "h": 5, "w": 24, "x": 0, "y": 24 },
           "options": {
             "mode": "markdown",
-            "content": "| Item | Status |\n|---|---|\n| Flow collection (NetFlow v9 → Vector → OpenSearch) | ✅ Running — ~4M flows/day |\n| K8s enrichment (pod/namespace/workload/node) | ✅ Refreshed every 30 min by k8s-ip-exporter — restarts flow-collector only when content changes; on-demand refresh available |\n| **GitOps flow enrichment** (app-port registry + hostname map) | ✅ Active — dst_app_label, dst_app_category, dst_display_name in all fresh flows; Ceph OSD ephemeral ports covered by workload-pattern |\n| Prometheus infra metrics (SNMP, PVE, UnPoller, IPMI, TrueNAS) | ✅ Connected — SNMP plane restored 2026-06-08 (Wave 6) |\n| **Switch utilization % gauge** | ✅ Fixed (Wave 6) — denominator now ifHighSpeed, 10G-safe |\n| **Hardware & storage telemetry** (Wave 6) | ✅ IPMI (prox1/prox4), TrueNAS (both hosts), MikroTik+UniFi hardware health |\n| **TrueNAS01→02 backup replication** | ✅ Restored 2026-06-10 — stuck ZFS receive state cleared (TrueNAS02 reboot); 2.03 TiB catch-up complete, current through auto-2026-06-10_04-00 |\n| **prox1 DIMM2B(CPU1) ECC errors** | ⚠️ SEL full of correctable ECC — DIMM reseat/replace pending; see [Server Hardware](/d/infra-server-hw) |\n| **GeoIP / ASN enrichment** | ⏳ Not configured — requires MaxMind license key |\n| **Hubble / Cilium flow visibility** | ⏳ Deferred — CNI is Calico, not Cilium |\n| **Legacy Prometheus datasource** | 🧹 Cleanup pending — duplicate `PBFA97CFB590B2093` to remove |\n| **High-volume unlabeled ports** | ⚠️ Residual — Corosync 5405 + mDNS 5353 identified, registry add pending; ephemeral ports unlabeled (expected) |"
+            "content": "| Item | Status |\n|---|---|\n| **GeoIP / ASN enrichment** | ✅ Enabled 2026-06-10 — `dst_country`/`dst_asn`/`dst_as_org` on public IPs; country & ASN panels live in [Traffic Mix](/d/flow-traffic-mix) and [Destination Analysis](/d/flow-destinations) |\n| **Hubble / Cilium flow visibility** | ⏳ Deferred — requires Calico→Cilium CNI migration window (Wave 4) |\n| **Legacy Prometheus datasource** | 🧹 Cleanup pending — duplicate `PBFA97CFB590B2093` to remove manually in Grafana UI |\n| **prox1 DIMM2B(CPU1)** | ⚠️ Correctable-ECC history — DIMM reseat/replace pending; tracked in homelab docs |"
           }
         }
       ],
