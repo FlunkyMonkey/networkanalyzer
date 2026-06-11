@@ -123,6 +123,9 @@ spec:
             - name: vector-api
               containerPort: 8686
               protocol: TCP
+            - name: vector-metrics
+              containerPort: 9598
+              protocol: TCP
           resources:
             requests:
               cpu: 100m
@@ -180,3 +183,27 @@ spec:
       port: 8686
       targetPort: vector-api
       protocol: TCP
+    - name: vector-metrics
+      port: 9598
+      targetPort: vector-metrics
+      protocol: TCP
+---
+# Scraped by the existing cluster Prometheus — Vector internal metrics
+# (ingest pipeline observability; Wave 8 flow-stall alerting).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: flow-collector
+  namespace: network-observability
+  labels:
+    app.kubernetes.io/name: flow-collector
+    app.kubernetes.io/component: flow-analytics
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: flow-collector
+  endpoints:
+    - port: vector-metrics
+      interval: 60s
+      path: /metrics

@@ -36,6 +36,8 @@ data:
     2049,UDP,NFS,storage,dst,,NFS data plane (UDP)
     3000,TCP,Grafana,monitoring,dst,,Grafana dashboard
     3306,TCP,MySQL,database,dst,,MySQL
+    5353,UDP,mDNS,network,dst,internal,Multicast DNS service discovery
+    5405,UDP,Corosync,infrastructure,dst,internal,Proxmox cluster heartbeat (corosync/knet)
     5432,TCP,Postgres,database,dst,,PostgreSQL
     6379,TCP,Redis,database,dst,,Redis
     6443,TCP,Kubernetes,k8s,dst,,Kubernetes API server
