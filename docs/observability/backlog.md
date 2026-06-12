@@ -631,57 +631,28 @@ required). One stat panel on the Proxmox dashboard; cheap insurance for a
 
 ---
 
-## Wave 4 — Deferred: Kubernetes Network Visibility (Cilium + Hubble)
+## Wave 4 — Kubernetes Network Visibility (Cilium + Hubble) — DECLINED (2026-06-11)
 
-Wave 4 is deferred to backlog. The full planning document is at
-[wave-4-plan.md](wave-4-plan.md). Wave 5 (Unified UX) is the active wave and
-does not require Cilium.
+**Decision: not pursuing.** Owner-approved removal after weighing cost vs. value.
 
-**Why deferred:** Wave 4 requires a Calico → Cilium (or Flannel → Cilium) CNI
-migration managed in `k8s-lab.git`. This migration involves a planned cluster-wide
-network outage window (~10–30 minutes) and has not been scheduled. The current CNI
-in the cluster has not been confirmed. Until the migration is executed and Hubble
-Relay is running in `kube-system`, none of the Wave 4 manifests in this repo can
-function.
+Cilium/Hubble's unique value is intra-cluster east-west + L7 visibility
+(pod-to-pod traffic that never crosses a physical NIC, plus HTTP/DNS/service-map
+detail). The flow-analytics plane + Wave 3b K8s enrichment already cover the
+platform's actual requirements (top talkers, destinations, app/category/country/
+port pivots, per-VM/interface bandwidth, K8s workload labels on every NIC-crossing
+flow). The remaining gap (same-node pod-to-pod + L7) does not justify a disruptive
+Calico → Cilium CNI migration (~10–30 min cluster-wide network outage) and the
+permanent operational complexity of running Cilium.
 
-**How to unblock:** Complete Phase 1 (discovery) and Phase 2 (migration) from
-wave-4-plan.md. Once `kubectl -n kube-system get deploy hubble-relay` shows 1/1
-Ready and cross-namespace Relay connectivity is confirmed, Wave 4 Phase 3 can begin.
+Removed with this decision: the dormant `platform/base/k8s-visibility/` Hubble UI
+plane (never deployed) and the Cilium-specific docs (`wave-4-plan.md`,
+`cni-migration-and-rollout.md`, `k8s-visibility-plane.md`). All recoverable from
+git history if reconsidered.
 
-### Phase 1 Preflight Work (preserve before migration)
-
-These tasks must be completed as part of Wave 4 Phase 1 (discovery) before any
-migration work begins in `k8s-lab.git`. They are listed here so they are not
-forgotten during the deferral period.
-
-- **Confirm current CNI:** `kubectl get ds -n kube-system` — identify Flannel,
-  Calico, or other. The cni-migration-and-rollout.md runbook assumes Calico; adapt
-  if the CNI is Flannel.
-- **Confirm CIDR continuity:** Pod CIDR must remain `10.244.0.0/16` and service
-  CIDR must remain `10.96.0.0/12` after migration — these are hardcoded in the
-  Wave 3b VRL. If Cilium would change them, update VRL first.
-- **NetworkPolicy audit:** `kubectl get networkpolicies --all-namespaces` and
-  `kubectl get globalnetworkpolicies 2>/dev/null` — any Calico-specific policies
-  must be migrated or removed before CNI removal.
-- **hostNetwork pod inventory:** Count and document pods with `hostNetwork: true`
-  as a baseline for post-migration comparison.
-- **Agree maintenance window:** The migration requires ~10–30 minutes of cluster
-  network disruption. GoFlow2 buffers flows; no data is lost but an ingest gap
-  will appear in OpenSearch.
-- **Wave 3b baseline snapshot:** Record a pre-migration baseline of CronJob success
-  count and enriched document count to verify Wave 3b is unaffected post-migration.
-
-### Hubble UI Integration (after Wave 4 is complete)
-
-Once Wave 4 is complete, these Wave 5 UX items activate automatically or require
-minor additions:
-
-- Entity Investigation dashboard Hubble link activates (the link is present but
-  points to a port-forward address that only works when Hubble UI is deployed)
-- Grafana Hubble metrics dashboard (drop rate, flow count by namespace, DNS latency)
-- Platform Health dashboard Hubble Relay target added
-
----
+**If east-west/L7 visibility is ever wanted** without the CNI migration, the
+lighter, lower-risk paths are **Microsoft Retina** (eBPF observability that runs
+alongside the existing Calico CNI) or **Cilium in CNI-chaining mode** — neither
+requires replacing the CNI. Track as a fresh item then, not as Wave 4.
 
 ## Wave 3b Hardening Items
 

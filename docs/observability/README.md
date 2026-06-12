@@ -15,8 +15,6 @@ This directory contains design documentation for the GitOps-managed network obse
 | [secrets-and-bootstrap.md](secrets-and-bootstrap.md) | Required secrets, bootstrap steps, and network prerequisites |
 | [flow-analytics-plane.md](flow-analytics-plane.md) | Flow analytics components, enrichment, and investigation capabilities |
 | [flow-ingest-and-cutover.md](flow-ingest-and-cutover.md) | Softflowd cutover steps and OpenSearch bootstrap procedures |
-| [k8s-visibility-plane.md](k8s-visibility-plane.md) | Kubernetes visibility architecture, ownership boundary, and capabilities |
-| [cni-migration-and-rollout.md](cni-migration-and-rollout.md) | Calico → Cilium migration runbook (prerequisite, managed in k8s-lab.git) |
 | [unified-ux-and-correlation.md](unified-ux-and-correlation.md) | Unified UX approach, dashboard organization, cross-plane data access |
 | [navigation-model.md](navigation-model.md) | Navigation structure, drill-down paths, link implementation |
 | [investigation-playbooks.md](investigation-playbooks.md) | Guided investigation workflows for common network scenarios |
@@ -33,7 +31,6 @@ This directory contains design documentation for the GitOps-managed network obse
 | [wave-2-closeout.md](wave-2-closeout.md) | Wave 2 formal closeout: acceptance state, residual conditions, sign-off |
 | [wave-3-plan.md](wave-3-plan.md) | Wave 3 plan: Kubernetes flow correlation, enrichment strategy, phased implementation |
 | [wave-3b-closeout.md](wave-3b-closeout.md) | Wave 3b formal closeout: K8s IP correlation accepted, hotfixes, caveats, runbook |
-| [wave-4-plan.md](wave-4-plan.md) | Wave 4 plan: Cilium/Hubble K8s visibility — **DEFERRED** (blocked on CNI migration, no scheduled window) |
 | [wave-5-plan.md](wave-5-plan.md) | Wave 5 plan: Unified operator UX — **COMPLETE** (2026-05-02; 4-day owner-approved soak) |
 | [backlog.md](backlog.md) | Hardening items and future-wave work not blocking active rollout (includes deferred Wave 4) |
 | [post-wave-5-flow-enrichment.md](post-wave-5-flow-enrichment.md) | Post-Wave 5 flow enrichment design: app-port registry, hostname map, workload-pattern VRL, Phase 2–5 plan |
@@ -54,7 +51,6 @@ platform/
 ├── base/                  # Base manifests per telemetry plane
 │   ├── infra-telemetry/   # SNMP, syslog, device polling
 │   ├── flow-analytics/    # NetFlow/sFlow, enrichment, analytics
-│   ├── k8s-visibility/    # Hubble UI (standalone); Cilium managed in k8s-lab.git
 │   └── alerting/          # AlertmanagerConfig, alert rules, daily report
 │                          # (correlation-ux plane deleted 2026-06-10 — see backlog)
 └── overlays/              # Environment-specific patches

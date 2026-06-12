@@ -12,5 +12,4 @@ resources:
   - common
   - infra-telemetry
   - flow-analytics
-  - k8s-visibility
   - alerting

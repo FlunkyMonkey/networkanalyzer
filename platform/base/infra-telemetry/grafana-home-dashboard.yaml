@@ -152,7 +152,7 @@ data:
           "gridPos": { "h": 5, "w": 24, "x": 0, "y": 24 },
           "options": {
             "mode": "markdown",
-            "content": "| Item | Status |\n|---|---|\n| **GeoIP / ASN enrichment** | ✅ Enabled 2026-06-10 — `dst_country`/`dst_asn`/`dst_as_org` on public IPs; country & ASN panels live in [Traffic Mix](/d/flow-traffic-mix) and [Destination Analysis](/d/flow-destinations) |\n| **Hubble / Cilium flow visibility** | ⏳ Deferred — requires Calico→Cilium CNI migration window (Wave 4) |\n| **Legacy Prometheus datasource** | 🧹 Cleanup pending — duplicate `PBFA97CFB590B2093` to remove manually in Grafana UI |\n| **prox1 DIMM2B(CPU1)** | ⚠️ Correctable-ECC history — DIMM reseat/replace pending; tracked in homelab docs |"
+            "content": "| Item | Status |\n|---|---|\n| **GeoIP / ASN enrichment** | ✅ Enabled 2026-06-10 — `dst_country`/`dst_asn`/`dst_as_org` on public IPs; country & ASN panels live in [Traffic Mix](/d/flow-traffic-mix) and [Destination Analysis](/d/flow-destinations) |\n| **Legacy Prometheus datasource** | 🧹 Cleanup pending — duplicate `PBFA97CFB590B2093` to remove manually in Grafana UI |\n| **prox1 DIMM2B(CPU1)** | ⚠️ Correctable-ECC history — DIMM reseat/replace pending; tracked in homelab docs |"
           }
         }
       ],

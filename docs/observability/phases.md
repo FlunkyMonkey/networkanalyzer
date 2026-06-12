@@ -75,7 +75,11 @@
 
 ---
 
-## Phase 5 — Kubernetes Network Visibility Plane
+## Phase 5 — Kubernetes Network Visibility Plane — DESCOPED (2026-06-11)
+
+> Cilium/Hubble L7 K8s visibility was declined; see backlog.md. The flow plane
+> together with Wave 3b K8s enrichment covers the platform's K8s-context
+> requirements (workload/namespace/pod labels on every NIC-crossing flow).
 
 **Purpose:** Deploy L7-aware Kubernetes network visibility.
 
