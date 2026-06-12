@@ -341,18 +341,20 @@ Telemetry for the network edge, WAN handoff, and DNS enrichment. These items
 involve external integrations, credentials management, or flow-layer enrichment
 that extends beyond the current homelab Kubernetes boundary.
 
-### Quantum Fiber Modem Telemetry — PARTIAL (2026-06-11); optical NOT available
+### Quantum Fiber Modem Telemetry — DONE incl. optical (2026-06-11)
 
 Investigated via browser-capture (Playwright, owner-approved). The modem is a
-**Calix C6500XK** (QF 10G). Findings: the admin web UI auth is a plaintext form
-POST to `/cgi/cgi_action` (no crypto on fw CKT002-02.04.56.00) → Session-Id
-cookie → `cgi_get?Object=` JSON. Delivered `quantum-modem-exporter` (stdlib
-Python, no browser) + edge-dashboard panels + alerts (QuantumFiberLinkDown,
-QuantumModemCollectionFailing): PON link/net state, up/down sync rate, WAN IP,
-model, uptime. **Optical RX/TX power is NOT exposed** by the admin interface —
-every optical/PON object path returns "Invalid" and the UI never reads one;
-optical levels live behind the ISP support console (needs Quantum Fiber creds).
-That part remains genuinely blocked. Original notes below.
+**Calix C6500XK** (QF 10G, fw CKT002-02.04.56.00). Admin auth is a plaintext
+form POST to `/cgi/cgi_action` → Session-Id cookie → `cgi_get?Object=` JSON.
+Delivered `quantum-modem-exporter` (stdlib Python, no browser) + edge-dashboard
+panels + alerts: PON link/net state, sync rate, WAN IP, model, uptime, and
+**optical RX/TX power**. Correction (an earlier note here said optical was
+unavailable — it was a wrong query form): optical IS exposed via
+`Device.Optical.Interface.1` queried WITH an explicit param list and NO trailing
+dot — `OpticalSignalLevel` (RX) and `TransmitOpticalLevel` (TX), TR-181 units of
+0.001 dBm. Live: RX -25.2 dBm, TX +6.1 dBm, line GOOD. Alert QuantumFiberOpticalRxLow
+fires below -27 dBm (GPON sensitivity ~-28). The trailing-dot/no-params form
+returns "Invalid", which is what misled the first pass.
 
 The Quantum Fiber ONT/modem exposes status only via a local Web UI; no documented
 REST API is known.

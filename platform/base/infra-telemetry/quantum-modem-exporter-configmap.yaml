@@ -5,13 +5,12 @@
 # (username=admin&password=...), returning a Session-Id cookie; data comes from
 # GET /cgi/cgi_get?Object=<obj>. No browser/crypto needed → stdlib exporter.
 #
-# IMPORTANT: optical RX/TX power is NOT exposed by the admin interface. Every
-# optical/PON object path returns "Requested Object is Invalid"; the dashboard
-# itself never reads one. Optical levels live behind the ISP "support console"
-# (supportconsole_login.html), which needs Quantum Fiber credentials we don't
-# have. What IS available and exported: PON link/net state, up/down sync rate,
-# WAN IP, model, software, uptime. The PON link_state is the ONT's fiber-side
-# view — complementary to the Firewalla's eth0 carrier (LAN side).
+# Optical RX/TX power IS available (Modem Status -> WAN Status reads it): the
+# object is `Device.Optical.Interface.1` queried WITH an explicit param list and
+# NO trailing dot (the bare `Device.Optical.Interface.1.` form returns Invalid).
+# OpticalSignalLevel (RX) and TransmitOpticalLevel (TX) are TR-181 units of
+# 0.001 dBm (x0.001 -> dBm). The PON link_state is the ONT's fiber-side view,
+# complementary to the Firewalla's eth0 carrier (LAN side).
 #
 # Metrics:
 #   quantum_modem_up                     1 if login + query succeeded
@@ -20,6 +19,11 @@
 #   quantum_modem_uplink_rate_kbps
 #   quantum_modem_downlink_rate_kbps
 #   quantum_modem_uptime_seconds
+#   quantum_modem_optical_rx_dbm         received optical signal level (dBm)
+#   quantum_modem_optical_tx_dbm         transmit optical level (dBm)
+#   quantum_modem_optical_line_good      1 if X_AXON_LineStatus == GOOD
+#   quantum_modem_optical_link_uptime_seconds
+#   quantum_modem_optical_connection_failures
 #   quantum_modem_info{model,software,wan_ip,device}   1
 apiVersion: v1
 kind: ConfigMap
@@ -69,6 +73,9 @@ data:
         op = session()
         wan = cgi_get(op, "GetConnectionStatus").get("wan_status", {})
         info = params(cgi_get(op, "Device.DeviceInfo&ModelName=&SoftwareVersion=&UpTime="))
+        opt = params(cgi_get(op, "Device.Optical.Interface.1&OpticalSignalLevel=&"
+                             "TransmitOpticalLevel=&X_AXON_LineStatus=&X_AXON_LinkUpTime=&"
+                             "X_AXON_ConnectionFailures="))
         return {
             "link": 1 if wan.get("link_state") == "connected" else 0,
             "net": 1 if wan.get("net_state") == "connected" else 0,
@@ -79,6 +86,12 @@ data:
             "model": info.get("ModelName", ""),
             "software": info.get("SoftwareVersion", ""),
             "uptime": info.get("UpTime"),
+            # Optical: TR-181 OpticalSignalLevel / TransmitOpticalLevel are 0.001 dBm.
+            "rx": opt.get("OpticalSignalLevel"),
+            "tx": opt.get("TransmitOpticalLevel"),
+            "line_good": 1 if opt.get("X_AXON_LineStatus") == "GOOD" else 0,
+            "link_uptime": opt.get("X_AXON_LinkUpTime"),
+            "conn_failures": opt.get("X_AXON_ConnectionFailures"),
         }
 
     def loop():
@@ -105,10 +118,19 @@ data:
                     L.append("quantum_modem_wan_net_up %d" % STATE.get("net", 0))
                     for metric, key in [("quantum_modem_uplink_rate_kbps", "up_rate"),
                                         ("quantum_modem_downlink_rate_kbps", "down_rate"),
-                                        ("quantum_modem_uptime_seconds", "uptime")]:
+                                        ("quantum_modem_uptime_seconds", "uptime"),
+                                        ("quantum_modem_optical_line_good", "line_good"),
+                                        ("quantum_modem_optical_link_uptime_seconds", "link_uptime"),
+                                        ("quantum_modem_optical_connection_failures", "conn_failures")]:
                         v = num(STATE.get(key))
                         if v is not None:
                             L.append("%s %g" % (metric, v))
+                    # optical power: scale 0.001 dBm -> dBm
+                    for metric, key in [("quantum_modem_optical_rx_dbm", "rx"),
+                                        ("quantum_modem_optical_tx_dbm", "tx")]:
+                        v = num(STATE.get(key))
+                        if v is not None:
+                            L.append("%s %g" % (metric, v * 0.001))
                     L.append('quantum_modem_info{model="%s",software="%s",wan_ip="%s",device="%s"} 1'
                              % (STATE.get("model", ""), STATE.get("software", ""),
                                 STATE.get("ip", ""), STATE.get("device", "")))

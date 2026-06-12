@@ -1256,7 +1256,7 @@ data:
             "x": 0,
             "y": 26
           },
-          "description": "Model / software / WAN IP / PON device. Optical levels (RX/TX power) are NOT available \u2014 Quantum Fiber exposes them only via the ISP support console.",
+          "description": "Model / software / WAN IP / PON device, plus uptime. Optical RX/TX power is shown above.",
           "targets": [
             {
               "expr": "quantum_modem_info",
@@ -1272,6 +1272,175 @@ data:
               "legendFormat": "uptime days"
             }
           ]
+        },
+        {
+          "title": "Fiber Optical Power (dBm)",
+          "type": "timeseries",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 31
+          },
+          "description": "ONT optical levels from Device.Optical.Interface.1 (TR-181, 0.001 dBm). RX = received signal (OpticalSignalLevel); TX = transmit (TransmitOpticalLevel). GPON RX sensitivity limit is ~-28 dBm; warning band starts near -27.",
+          "targets": [
+            {
+              "expr": "quantum_modem_optical_rx_dbm",
+              "legendFormat": "RX (received)"
+            },
+            {
+              "expr": "quantum_modem_optical_tx_dbm",
+              "legendFormat": "TX (transmit)"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "dBm",
+              "custom": {
+                "fillOpacity": 8
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "RX (received)"
+                },
+                "properties": [
+                  {
+                    "id": "thresholds",
+                    "value": {
+                      "mode": "absolute",
+                      "steps": [
+                        {
+                          "color": "red",
+                          "value": null
+                        },
+                        {
+                          "color": "yellow",
+                          "value": -27
+                        },
+                        {
+                          "color": "green",
+                          "value": -25
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "id": "custom.thresholdsStyle",
+                    "value": {
+                      "mode": "dashed"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "title": "Fiber Line / Failures",
+          "type": "stat",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 31
+          },
+          "targets": [
+            {
+              "expr": "quantum_modem_optical_line_good",
+              "legendFormat": "Line status",
+              "instant": true,
+              "refId": "A"
+            },
+            {
+              "expr": "quantum_modem_optical_connection_failures",
+              "legendFormat": "Conn failures",
+              "instant": true,
+              "refId": "B"
+            },
+            {
+              "expr": "quantum_modem_optical_rx_dbm",
+              "legendFormat": "RX dBm",
+              "instant": true,
+              "refId": "C"
+            },
+            {
+              "expr": "quantum_modem_optical_tx_dbm",
+              "legendFormat": "TX dBm",
+              "instant": true,
+              "refId": "D"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "A"
+                },
+                "properties": [
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "value",
+                        "options": {
+                          "1": {
+                            "text": "GOOD",
+                            "color": "green"
+                          },
+                          "0": {
+                            "text": "BAD",
+                            "color": "red"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "C"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "dBm"
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "D"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "dBm"
+                  }
+                ]
+              }
+            ]
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "textMode": "value_and_name"
+          }
         }
       ],
       "schemaVersion": 39,

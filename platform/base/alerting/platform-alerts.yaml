@@ -232,6 +232,21 @@ spec:
               at 192.168.0.1 for 15m. Edge fiber telemetry is blind. Check the
               pod logs and whether the modem admin password changed.
 
+    - name: platform-wan-optical
+      rules:
+        - alert: QuantumFiberOpticalRxLow
+          expr: quantum_modem_optical_rx_dbm < -27
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Quantum Fiber RX optical power low ({{ $value | printf \"%.1f\" }} dBm)"
+            description: >-
+              ONT received optical signal level is below -27 dBm, approaching the
+              GPON receiver sensitivity limit (~-28 dBm). Indicates a degrading
+              fiber path (dirty/bent connector, splitter loss, upstream issue).
+              Normal here is around -25 dBm. Check the Edge dashboard trend.
+
     - name: platform-hardware
       rules:
         - alert: IPMISensorCritical

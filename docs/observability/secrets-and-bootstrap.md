@@ -273,9 +273,9 @@ kubectl create secret generic quantum-modem-credentials \
 
 - Login is a plaintext form POST to `/cgi/cgi_action`; no nonce/crypto on this
   firmware (CKT002-02.04.56.00). Self-signed TLS, accepted by the exporter.
-- **Optical RX/TX power is not available** via the admin interface (support
-  console only) — the exporter ships PON link/net state, sync rate, and
-  model/uptime. See the script ConfigMap header.
+- The exporter ships PON link/net state, sync rate, model/uptime, and **optical
+  RX/TX power** (`Device.Optical.Interface.1`, TR-181 0.001 dBm). The optical
+  object must be queried with an explicit param list and no trailing dot.
 
 ## Bootstrap Order
 
