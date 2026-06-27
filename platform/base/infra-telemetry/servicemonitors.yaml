@@ -97,10 +97,13 @@ spec:
       relabelings:
         - sourceLabels: [__param_target]
           targetLabel: bmc
+          action: replace
         - targetLabel: bmc_name
           replacement: mbipmi01
+          action: replace
         - targetLabel: host
           replacement: prox4
+          action: replace
     - port: metrics
       interval: 60s
       scrapeTimeout: 45s
@@ -111,10 +114,13 @@ spec:
       relabelings:
         - sourceLabels: [__param_target]
           targetLabel: bmc
+          action: replace
         - targetLabel: bmc_name
           replacement: mbipmi02
+          action: replace
         - targetLabel: host
           replacement: prox1
+          action: replace
 ---
 # TrueNAS exporter — scrapes the stdlib Python exporter that queries the
 # TrueNAS REST API v2.0 for both storage hosts (truenas01, truenas02).
